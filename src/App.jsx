@@ -65,12 +65,12 @@ import {
 
 // --- FIREBASE CONFIGURATION (SUBSTITUA PELO SEU NOVO PROJETO) ---
 const firebaseConfig = {
-  apiKey: "SUA_NOVA_API_KEY",
-  authDomain: "seu-novo-projeto.firebaseapp.com",
-  projectId: "seu-novo-projeto",
-  storageBucket: "seu-novo-projeto.appspot.com",
-  messagingSenderId: "SEU_SENDER_ID",
-  appId: "SEU_APP_ID"
+  apiKey: "AIzaSyD54i_1mQdEbS3ePMxhCkN2bhezjcq7xEg",
+  authDomain: "young-talents-ats.firebaseapp.com",
+  projectId: "young-talents-ats",
+  storageBucket: "young-talents-ats.firebasestorage.app",
+  messagingSenderId: "436802511318",
+  appId: "436802511318:web:c7f103e4b09344f9bf4477"
 };
 
 const app = initializeApp(firebaseConfig);
