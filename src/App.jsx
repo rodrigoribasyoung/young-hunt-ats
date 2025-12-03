@@ -22,8 +22,12 @@ import {
   onSnapshot, serverTimestamp, query, orderBy, writeBatch 
 } from "firebase/firestore";
 
+// Component Imports
 import TransitionModal from './components/modals/TransitionModal';
 import SettingsPage from './components/SettingsPage';
+import CsvImportModal from './components/modals/CsvImportModal';
+import JobCandidatesModal from './components/modals/JobsCandidateModal';
+
 import { PIPELINE_STAGES, STATUS_COLORS, JOB_STATUSES } from './constants';
 
 const COLORS = ['#fe5009', '#00bcbc', '#fb923c', '#22d3ee', '#f87171', '#8884d8', '#82ca9d']; 
@@ -41,9 +45,39 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// --- COMPONENTES DE UI ---
+// --- COMPONENTES AUXILIARES ---
 
-// Sidebar de Filtros Avançados
+const LoginScreen = ({ onLogin }) => (
+  <div className="min-h-screen bg-brand-dark flex items-center justify-center p-4">
+    <div className="bg-brand-card p-8 rounded-xl border border-brand-border shadow-2xl max-w-md w-full text-center">
+      <div className="flex justify-center mb-6">
+        <div className="p-4 bg-brand-orange/10 rounded-full border border-brand-orange/20">
+          <Trophy size={48} className="text-brand-orange" />
+        </div>
+      </div>
+      
+      <h1 className="text-3xl font-bold text-white mb-2 font-sans">Young Talents ATS</h1>
+      <p className="text-slate-400 mb-8">
+        Sistema de gestão de recrutamento e seleção.
+        Faça login para continuar.
+      </p>
+
+      <button
+        onClick={onLogin}
+        className="w-full bg-white text-slate-900 py-3.5 px-4 rounded-lg font-bold hover:bg-slate-200 transition-all flex items-center justify-center gap-3 shadow-lg"
+      >
+        <svg className="w-5 h-5" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+        </svg>
+        Entrar com Google
+      </button>
+    </div>
+  </div>
+);
+
 const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, options }) => {
   if (!isOpen) return null;
   return (
@@ -104,23 +138,19 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
   );
 };
 
-// --- DASHBOARD COMPLETÃO ---
+// --- DASHBOARD ---
 const Dashboard = ({ filteredJobs, filteredCandidates }) => {
-  // 1. Cálculo de Métricas
   const totalCandidates = filteredCandidates.length;
   const activeJobsCount = filteredJobs.filter(j => j.status === 'Aberta').length;
   const hiredCount = filteredCandidates.filter(c => c.status === 'Contratado').length;
   const activeProcessCount = filteredCandidates.filter(c => ['Primeira Entrevista', 'Testes', 'Segunda Entrevista', 'Selecionado'].includes(c.status)).length;
-  
   const conversionRate = totalCandidates > 0 ? ((hiredCount / totalCandidates) * 100).toFixed(1) : 0;
 
-  // 2. Dados para o Gráfico de Funil
   const funnelData = PIPELINE_STAGES.map(stage => ({ 
     name: stage, 
     count: filteredCandidates.filter(c => (c.status || 'Inscrito') === stage).length 
   }));
 
-  // 3. Dados para o Gráfico de Fontes (Top 5)
   const sourceStats = filteredCandidates.reduce((acc, curr) => {
     const s = curr.source || 'Não Informado';
     acc[s] = (acc[s] || 0) + 1;
@@ -131,7 +161,6 @@ const Dashboard = ({ filteredJobs, filteredCandidates }) => {
     .sort((a,b) => b.value - a.value)
     .slice(0, 5);
 
-  // 4. Agenda (Mockup baseado em datas reais se existirem, ou placeholder)
   const upcomingInterviews = filteredCandidates
     .filter(c => c.firstInterviewDate || c.secondInterviewDate)
     .map(c => ({
@@ -139,17 +168,15 @@ const Dashboard = ({ filteredJobs, filteredCandidates }) => {
        nextDate: c.secondInterviewDate || c.firstInterviewDate
     }))
     .sort((a, b) => new Date(a.nextDate) - new Date(b.nextDate))
-    .filter(c => new Date(c.nextDate) >= new Date().setHours(0,0,0,0)) // Apenas datas futuras/hoje
+    .filter(c => new Date(c.nextDate) >= new Date().setHours(0,0,0,0))
     .slice(0, 5);
 
-  // 5. Últimos Inscritos
   const recentCandidates = [...filteredCandidates]
     .sort((a,b) => new Date(b.createdAt||0) - new Date(a.createdAt||0))
     .slice(0, 5);
 
   return (
     <div className="space-y-6 animate-fade-in pb-10">
-      {/* KPIs Principais */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="Total Talentos" value={totalCandidates} icon={Users} color="text-brand-cyan" bg="bg-brand-cyan/10" sub={`+${recentCandidates.length} esta semana`} />
         <StatCard title="Vagas Abertas" value={activeJobsCount} icon={Briefcase} color="text-brand-orange" bg="bg-brand-orange/10" sub="Posições ativas" />
@@ -157,13 +184,10 @@ const Dashboard = ({ filteredJobs, filteredCandidates }) => {
         <StatCard title="Taxa Conversão" value={`${conversionRate}%`} icon={TrendingUp} color="text-green-400" bg="bg-green-500/10" sub={`${hiredCount} Contratações`} />
       </div>
 
-      {/* Área Gráfica */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Funil */}
         <div className="lg:col-span-2 bg-brand-card p-6 rounded-xl border border-brand-border shadow-lg h-96">
            <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-white text-lg">Pipeline de Recrutamento</h3>
-              <button className="text-xs text-brand-cyan hover:underline">Ver Detalhes</button>
            </div>
            <ResponsiveContainer width="100%" height="90%">
               <BarChart data={funnelData} margin={{top: 5, right: 30, left: 0, bottom: 25}}>
@@ -176,7 +200,6 @@ const Dashboard = ({ filteredJobs, filteredCandidates }) => {
            </ResponsiveContainer>
         </div>
 
-        {/* Fontes */}
         <div className="bg-brand-card p-6 rounded-xl border border-brand-border shadow-lg h-96">
            <h3 className="font-bold text-white text-lg mb-4">Origem dos Candidatos</h3>
            <ResponsiveContainer width="100%" height="90%">
@@ -193,9 +216,7 @@ const Dashboard = ({ filteredJobs, filteredCandidates }) => {
         </div>
       </div>
 
-      {/* Listas Operacionais */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-         {/* Agenda */}
          <div className="bg-brand-card rounded-xl border border-brand-border shadow-lg overflow-hidden">
             <div className="p-4 border-b border-brand-border bg-brand-dark/30 flex justify-between items-center">
                <h3 className="font-bold text-white flex items-center gap-2"><CalendarCheck size={18} className="text-brand-cyan"/> Próximas Entrevistas</h3>
@@ -219,7 +240,6 @@ const Dashboard = ({ filteredJobs, filteredCandidates }) => {
             </div>
          </div>
 
-         {/* Últimos Inscritos */}
          <div className="bg-brand-card rounded-xl border border-brand-border shadow-lg overflow-hidden">
             <div className="p-4 border-b border-brand-border bg-brand-dark/30 flex justify-between items-center">
                <h3 className="font-bold text-white flex items-center gap-2"><UserPlus size={18} className="text-green-400"/> Novos Inscritos</h3>
@@ -257,14 +277,14 @@ const StatCard = ({ title, value, icon: Icon, color, bg, sub }) => (
   </div>
 );
 
-// --- APP PRINCIPAL (Lógica e Rotas) ---
+// --- APP PRINCIPAL ---
 export default function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
-  // Dados do Banco
+  // Estados para Data Sync
   const [jobs, setJobs] = useState([]);
   const [candidates, setCandidates] = useState([]);
   const [companies, setCompanies] = useState([]);
@@ -274,42 +294,13 @@ export default function App() {
   const [origins, setOrigins] = useState([]);
   const [schooling, setSchooling] = useState([]);
   const [marital, setMarital] = useState([]);
+  const [tags, setTags] = useState([]);
 
-// --- Adicione este componente ao seu arquivo src/App.jsx ---
-
-const LoginScreen = ({ onLogin }) => (
-  <div className="min-h-screen bg-brand-dark flex items-center justify-center p-4">
-    <div className="bg-brand-card p-8 rounded-xl border border-brand-border shadow-2xl max-w-md w-full text-center">
-      <div className="flex justify-center mb-6">
-        <div className="p-4 bg-brand-orange/10 rounded-full border border-brand-orange/20">
-          <Trophy size={48} className="text-brand-orange" />
-        </div>
-      </div>
-      
-      <h1 className="text-3xl font-bold text-white mb-2 font-sans">Young Talents ATS</h1>
-      <p className="text-slate-400 mb-8">
-        Sistema de gestão de recrutamento e seleção.
-        Faça login para continuar.
-      </p>
-
-      <button
-        onClick={onLogin}
-        className="w-full bg-white text-slate-900 py-3.5 px-4 rounded-lg font-bold hover:bg-slate-200 transition-all flex items-center justify-center gap-3 shadow-lg"
-      >
-        <svg className="w-5 h-5" viewBox="0 0 24 24">
-          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-        </svg>
-        Entrar com Google
-      </button>
-    </div>
-  </div>
-);
-
-  // UI State
+  // UI States para Modais
   const [isJobModalOpen, setIsJobModalOpen] = useState(false);
+  const [isCsvModalOpen, setIsCsvModalOpen] = useState(false); // Novo Estado
+  const [viewingJob, setViewingJob] = useState(null); // Novo Estado para JobCandidatesModal
+  
   const [editingCandidate, setEditingCandidate] = useState(null);
   const [editingJob, setEditingJob] = useState(null);
   const [pendingTransition, setPendingTransition] = useState(null);
@@ -324,11 +315,10 @@ const LoginScreen = ({ onLogin }) => (
   };
   const [filters, setFilters] = useState(initialFilters);
 
-  // Auth
+  // Auth & Sync
   useEffect(() => { return onAuthStateChanged(auth, (u) => { setUser(u); setAuthLoading(false); }); }, []);
   const handleGoogleLogin = async () => { try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { console.error(e); } };
 
-  // Data Sync
   useEffect(() => {
     if (!user) return;
     const unsubs = [
@@ -341,11 +331,12 @@ const LoginScreen = ({ onLogin }) => (
       onSnapshot(query(collection(db, 'origins'), orderBy('name')), s => setOrigins(s.docs.map(d => ({id:d.id, ...d.data()})))),
       onSnapshot(query(collection(db, 'schooling_levels'), orderBy('name')), s => setSchooling(s.docs.map(d => ({id:d.id, ...d.data()})))),
       onSnapshot(query(collection(db, 'marital_statuses'), orderBy('name')), s => setMarital(s.docs.map(d => ({id:d.id, ...d.data()})))),
+      onSnapshot(query(collection(db, 'tags'), orderBy('name')), s => setTags(s.docs.map(d => ({id:d.id, ...d.data()})))),
     ];
     return () => unsubs.forEach(u => u());
   }, [user]);
 
-  // Lógica de Filtros
+  // Lógica de Filtros Avançada
   const filteredData = useMemo(() => {
     let list = [...candidates];
     let fJobs = jobs;
@@ -383,22 +374,21 @@ const LoginScreen = ({ onLogin }) => (
     return { jobs: fJobs, candidates: list };
   }, [jobs, candidates, filters]);
 
-  // Handlers
+  // --- Handlers ---
+  
   const handleDragEnd = (cId, newStage) => {
     const candidate = candidates.find(c => c.id === cId);
     if (!candidate || candidate.status === newStage) return;
     const isConclusion = ['Selecionado', 'Contratado', 'Reprovado'].includes(newStage);
     const missing = []; 
+    // Validações básicas de campos obrigatórios ao avançar
     if (PIPELINE_STAGES.indexOf(newStage) > 1 && !candidate.city) missing.push('city'); 
-    if (missing.length > 0 || isConclusion) setPendingTransition({ candidate, toStage: newStage, missingFields: missing, isConclusion });
-    else updateDoc(doc(db, 'candidates', cId), { status: newStage });
-  };
-
-  const confirmTransition = async (d) => {
-    if (!pendingTransition) return;
-    setIsSaving(true);
-    try { await updateDoc(doc(db, 'candidates', pendingTransition.candidate.id), { ...d, status: pendingTransition.toStage }); setPendingTransition(null); } 
-    catch(e) { alert("Erro"); } finally { setIsSaving(false); }
+    
+    if (missing.length > 0 || isConclusion) {
+        setPendingTransition({ candidate, toStage: newStage, missingFields: missing, isConclusion });
+    } else {
+        updateDoc(doc(db, 'candidates', cId), { status: newStage });
+    }
   };
 
   const handleSaveGeneric = async (col, d, closeFn) => {
@@ -407,7 +397,49 @@ const LoginScreen = ({ onLogin }) => (
       if (d.id) await updateDoc(doc(db, col, d.id), d);
       else await addDoc(collection(db, col), { ...d, createdAt: serverTimestamp() });
       if(closeFn) closeFn();
-    } catch(e) { alert("Erro ao salvar."); } finally { setIsSaving(false); }
+    } catch(e) { alert("Erro ao salvar: " + e.message); } finally { setIsSaving(false); }
+  };
+
+  // Função para processar importação CSV
+  const handleImportData = async (importedCandidates, mode) => {
+    setIsSaving(true);
+    const batch = writeBatch(db);
+    let count = 0;
+
+    try {
+      importedCandidates.forEach(newCand => {
+         // Verifica duplicidade por email
+         const existing = candidates.find(c => c.email && c.email.toLowerCase() === newCand.email?.toLowerCase());
+         
+         if (existing) {
+             if (mode === 'skip') return; // Pula
+             if (mode === 'overwrite') {
+                 // Atualiza existente
+                 const ref = doc(db, 'candidates', existing.id);
+                 batch.update(ref, newCand);
+                 count++;
+             } else if (mode === 'duplicate') {
+                 // Cria novo mesmo existindo
+                 const ref = doc(collection(db, 'candidates'));
+                 batch.set(ref, newCand);
+                 count++;
+             }
+         } else {
+             // Cria novo
+             const ref = doc(collection(db, 'candidates'));
+             batch.set(ref, newCand);
+             count++;
+         }
+      });
+
+      if(count > 0) await batch.commit();
+      alert(`Importação concluída! ${count} registros processados.`);
+    } catch (error) {
+      console.error("Erro na importação:", error);
+      alert("Erro ao importar dados.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleAddAux = async (col, name) => { if(name.trim()) await addDoc(collection(db, col), { name }); };
@@ -416,10 +448,11 @@ const LoginScreen = ({ onLogin }) => (
   if (authLoading) return <div className="min-h-screen bg-brand-dark flex items-center justify-center text-brand-cyan"><Loader2 className="animate-spin mr-2"/> Carregando...</div>;
   if (!user) return <LoginScreen onLogin={handleGoogleLogin} />;
 
-  const optionsProps = { jobs, companies, cities, interestAreas, roles, origins, schooling, marital };
+  const optionsProps = { jobs, companies, cities, interestAreas, roles, origins, schooling, marital, tags };
 
   return (
     <div className="flex min-h-screen bg-brand-dark font-sans text-slate-200">
+      {/* Sidebar Mobile/Desktop */}
       <div className={`fixed lg:static inset-y-0 left-0 z-30 w-64 bg-brand-card border-r border-brand-border transform transition-transform duration-200 ${isSidebarOpen?'translate-x-0':'-translate-x-full'} lg:translate-x-0 flex flex-col`}>
         <div className="p-6 border-b border-brand-border flex items-center justify-between"><div className="flex items-center gap-2 font-bold text-xl text-white"><Trophy size={18} className="text-brand-orange"/> Young Talents</div><button onClick={()=>setIsSidebarOpen(false)} className="lg:hidden"><X/></button></div>
         <nav className="flex-1 p-4 space-y-1">{[{ id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard }, { id: 'pipeline', label: 'Pipeline', icon: Filter }, { id: 'jobs', label: 'Vagas', icon: Briefcase }, { id: 'candidates', label: 'Candidatos', icon: Users }, { id: 'settings', label: 'Configurações', icon: Settings }].map(i => (
@@ -447,26 +480,53 @@ const LoginScreen = ({ onLogin }) => (
           <div className="max-w-[1600px] mx-auto h-full">
             {activeTab === 'dashboard' && <Dashboard filteredJobs={filteredData.jobs} filteredCandidates={filteredData.candidates} />}
             {activeTab === 'pipeline' && <Pipeline candidates={filteredData.candidates} jobs={jobs} onDragEnd={handleDragEnd} onEdit={setEditingCandidate} />}
-            {activeTab === 'jobs' && <JobsList jobs={filteredData.jobs} candidates={candidates} onAdd={() => { setEditingJob({}); setIsJobModalOpen(true); }} onEdit={(j) => { setEditingJob(j); setIsJobModalOpen(true); }} onDelete={(id) => deleteDoc(doc(db, 'jobs', id))} onToggleStatus={handleSaveGeneric} onFilterPipeline={(id) => { setFilters({...filters, jobId: id}); setActiveTab('pipeline'); }} />}
+            {activeTab === 'jobs' && (
+              <JobsList 
+                jobs={filteredData.jobs} 
+                candidates={candidates} 
+                onAdd={() => { setEditingJob({}); setIsJobModalOpen(true); }} 
+                onEdit={(j) => { setEditingJob(j); setIsJobModalOpen(true); }} 
+                onDelete={(id) => deleteDoc(doc(db, 'jobs', id))} 
+                onToggleStatus={handleSaveGeneric} 
+                onFilterPipeline={(id) => { setFilters({...filters, jobId: id}); setActiveTab('pipeline'); }}
+                onViewCandidates={(job) => setViewingJob(job)} 
+              />
+            )}
             {activeTab === 'candidates' && <CandidatesList candidates={filteredData.candidates} jobs={jobs} onAdd={() => setEditingCandidate({})} onEdit={setEditingCandidate} onDelete={(id) => deleteDoc(doc(db, 'candidates', id))} />}
-            {activeTab === 'settings' && <SettingsPage {...optionsProps} onAddCompany={n=>handleAddAux('companies', n)} onDelCompany={id=>deleteDoc(doc(db,'companies',id))} onAddCity={n=>handleAddAux('cities', n)} onDelCity={id=>deleteDoc(doc(db,'cities',id))} onAddInterest={n=>handleAddAux('interest_areas', n)} onDelInterest={id=>deleteDoc(doc(db,'interest_areas',id))} onAddRole={n=>handleAddAux('roles', n)} onDelRole={id=>deleteDoc(doc(db,'roles',id))} onAddOrigin={n=>handleAddAux('origins', n)} onDelOrigin={id=>deleteDoc(doc(db,'origins',id))} onAddSchooling={n=>handleAddAux('schooling_levels', n)} onDelSchooling={id=>deleteDoc(doc(db,'schooling_levels',id))} onAddMarital={n=>handleAddAux('marital_statuses', n)} onDelMarital={id=>deleteDoc(doc(db,'marital_statuses',id))} onImportCSV={()=>{}} isImporting={false} />}
+            {activeTab === 'settings' && (
+              <SettingsPage 
+                {...optionsProps} 
+                onAddCompany={n=>handleAddAux('companies', n)} onDelCompany={id=>deleteDoc(doc(db,'companies',id))} 
+                onAddCity={n=>handleAddAux('cities', n)} onDelCity={id=>deleteDoc(doc(db,'cities',id))} 
+                onAddInterest={n=>handleAddAux('interest_areas', n)} onDelInterest={id=>deleteDoc(doc(db,'interest_areas',id))} 
+                onAddRole={n=>handleAddAux('roles', n)} onDelRole={id=>deleteDoc(doc(db,'roles',id))} 
+                onAddOrigin={n=>handleAddAux('origins', n)} onDelOrigin={id=>deleteDoc(doc(db,'origins',id))} 
+                onAddSchooling={n=>handleAddAux('schooling_levels', n)} onDelSchooling={id=>deleteDoc(doc(db,'schooling_levels',id))} 
+                onAddMarital={n=>handleAddAux('marital_statuses', n)} onDelMarital={id=>deleteDoc(doc(db,'marital_statuses',id))}
+                onAddTag={n=>handleAddAux('tags', n)} onDelTag={id=>deleteDoc(doc(db,'tags',id))}
+                onOpenCsvModal={() => setIsCsvModalOpen(true)}
+              />
+            )}
           </div>
         </main>
       </div>
 
       <FilterSidebar isOpen={isFilterSidebarOpen} onClose={() => setIsFilterSidebarOpen(false)} filters={filters} setFilters={setFilters} clearFilters={() => setFilters(initialFilters)} options={optionsProps} />
       
+      {/* Modais de Edição Principal */}
       {isJobModalOpen && <JobModal isOpen={isJobModalOpen} job={editingJob} onClose={() => { setIsJobModalOpen(false); setEditingJob(null); }} onSave={d => handleSaveGeneric('jobs', d, () => {setIsJobModalOpen(false); setEditingJob(null);})} options={optionsProps} isSaving={isSaving} />}
-      
       {editingCandidate && <CandidateModal candidate={editingCandidate} onClose={() => setEditingCandidate(null)} onSave={d => handleSaveGeneric('candidates', d, () => setEditingCandidate(null))} options={optionsProps} isSaving={isSaving} />}
-      
       {pendingTransition && <TransitionModal transition={pendingTransition} onClose={() => setPendingTransition(null)} onConfirm={d => handleSaveGeneric('candidates', {id: pendingTransition.candidate.id, ...d, status: pendingTransition.toStage}, () => setPendingTransition(null))} cities={cities} />}
+      
+      {/* Modais Auxiliares (Novos) */}
+      <CsvImportModal isOpen={isCsvModalOpen} onClose={() => setIsCsvModalOpen(false)} onImportData={handleImportData} />
+      <JobCandidatesModal isOpen={!!viewingJob} onClose={() => setViewingJob(null)} job={viewingJob} candidates={candidates.filter(c => c.jobId === viewingJob?.id)} />
     </div>
   );
 }
 
-// --- Subcomponentes (Listas, Modais) mantidos do anterior, já integrados na lógica acima ---
-// Apenas garantindo que eles estejam presentes:
+// --- SUB-COMPONENTES DE LISTA ---
+
 const Pipeline = ({ candidates, jobs, onDragEnd, onEdit }) => {
   const [draggedId, setDraggedId] = useState(null);
   const handleDragStart = (e, id) => { setDraggedId(id); e.dataTransfer.effectAllowed = "move"; };
@@ -501,7 +561,7 @@ const Pipeline = ({ candidates, jobs, onDragEnd, onEdit }) => {
   );
 };
 
-const JobsList = ({ jobs, candidates, onAdd, onEdit, onDelete, onToggleStatus, onFilterPipeline }) => (
+const JobsList = ({ jobs, candidates, onAdd, onEdit, onToggleStatus, onFilterPipeline, onViewCandidates }) => (
   <div className="space-y-6">
     <div className="flex justify-between"><h2 className="text-2xl font-bold text-white">Vagas</h2><button onClick={onAdd} className="bg-brand-orange text-white px-4 py-2 rounded flex items-center gap-2"><Plus size={18}/> Nova</button></div>
     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -519,7 +579,12 @@ const JobsList = ({ jobs, candidates, onAdd, onEdit, onDelete, onToggleStatus, o
           <p className="text-sm text-slate-400 mb-4">{j.company}</p>
           <div className="border-t border-brand-border pt-4 flex justify-between items-center">
             <button onClick={() => onFilterPipeline(j.id)} className="text-brand-orange text-sm hover:underline">Ver Pipeline</button>
-            <p className="text-xs text-slate-500">{candidates.filter(c => c.jobId === j.id).length} candidatos</p>
+            <p 
+                className="text-xs text-slate-500 cursor-pointer hover:text-brand-cyan transition-colors"
+                onClick={() => onViewCandidates(j)}
+            >
+                {candidates.filter(c => c.jobId === j.id).length} candidatos
+            </p>
           </div>
         </div>
       ))}
