@@ -3,10 +3,10 @@ import {
   LayoutDashboard, Users, Briefcase, Settings, Plus, Search, 
   FileText, MapPin, Filter, Trophy, Menu, X, LogOut, Loader2, Edit3, Trash2,
   Building2, Mail, Check, Ban, UserMinus, CheckSquare, Square, Kanban, List,
-  CalendarCheck, AlertCircle
+  CalendarCheck, AlertCircle, UserPlus
 } from 'lucide-react';
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,hz, ResponsiveContainer, 
   PieChart, Pie, Cell, Legend 
 } from 'recharts';
 
@@ -42,6 +42,28 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+
+// --- COMPONENTES AUXILIARES ---
+
+// Stub para Dashboard (Evita crash por falta do componente)
+const Dashboard = ({ filteredJobs, filteredCandidates }) => (
+  <div className="text-white">
+    <h2 className="text-2xl font-bold mb-4">Dashboard</h2>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="bg-brand-card p-6 rounded-xl border border-brand-border">
+         <h3 className="text-slate-400 text-sm">Total de Candidatos</h3>
+         <p className="text-3xl font-bold text-white">{filteredCandidates.length}</p>
+      </div>
+      <div className="bg-brand-card p-6 rounded-xl border border-brand-border">
+         <h3 className="text-slate-400 text-sm">Vagas Abertas</h3>
+         <p className="text-3xl font-bold text-brand-cyan">{filteredJobs.filter(j => j.status === 'Aberta').length}</p>
+      </div>
+    </div>
+    <div className="bg-brand-card p-8 rounded-xl border border-brand-border text-center text-slate-500">
+      Gráficos em desenvolvimento...
+    </div>
+  </div>
+);
 
 // --- LOGIN ---
 const LoginScreen = ({ onLogin }) => (
@@ -164,7 +186,7 @@ export default function App() {
   useEffect(() => { return onAuthStateChanged(auth, (u) => { setUser(u); setAuthLoading(false); }); }, []);
   const handleGoogleLogin = async () => { try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { console.error(e); } };
 
-  // Sync Data - CORREÇÃO: Removido orderBy('updatedAt') para garantir que docs antigos apareçam
+  // Sync Data
   useEffect(() => {
     if (!user) return;
     const unsubs = [
@@ -192,24 +214,35 @@ export default function App() {
     } catch(e) { alert("Erro ao salvar: " + e.message); } finally { setIsSaving(false); }
   };
 
+  // --- LÓGICA DE MOVIMENTO DE CARDS CORRIGIDA ---
   const handleDragEnd = (cId, newStage) => {
     const candidate = candidates.find(c => c.id === cId);
     if (!candidate || candidate.status === newStage) return;
+
+    // Regras de Validação (Campos obrigatórios por etapa)
     const missing = [];
-    if (newStage === 'Considerado' && !candidate.city) missing.push('Cidade');
-    if (newStage === 'Seleção' && (!candidate.email || !candidate.phone)) missing.push('Email/Telefone');
-    if (missing.length > 0) {
-        alert(`Preencha para mover para ${newStage}: ${missing.join(', ')}`);
-        setEditingCandidate(candidate);
+    if (newStage === 'Considerado' && !candidate.city) missing.push('city'); // Use ID do campo
+    if (newStage === 'Seleção' && !candidate.email && !candidate.phone) missing.push('email'); 
+
+    const isConclusion = ['Contratado', 'Reprovado', 'Desistiu da vaga'].includes(newStage);
+
+    // Se faltar campos ou for conclusão, abre o TransitionModal
+    if (missing.length > 0 || isConclusion) {
+        setPendingTransition({
+            candidate,
+            toStage: newStage,
+            missingFields: missing,
+            isConclusion
+        });
         return;
     }
+
+    // Se tudo ok, move direto
     updateDoc(doc(db, 'candidates', cId), { status: newStage, updatedAt: serverTimestamp() });
   };
 
   const handleCloseStatus = (cId, status) => {
-     if(confirm(`Mover para ${status}?`)) {
-        updateDoc(doc(db, 'candidates', cId), { status, updatedAt: serverTimestamp(), closedAt: serverTimestamp() });
-     }
+     handleDragEnd(cId, status); // Reutiliza a lógica do DragEnd para acionar o modal se necessário
   };
 
   // Filtra candidatos baseado nos filtros da Sidebar (Avançados)
@@ -275,10 +308,24 @@ export default function App() {
 
       <FilterSidebar isOpen={isFilterSidebarOpen} onClose={() => setIsFilterSidebarOpen(false)} filters={filters} setFilters={setFilters} clearFilters={() => setFilters(initialFilters)} options={optionsProps} />
 
-      {/* MODAIS GLOBAIS */}
+      {/* MODAIS GLOBAIS - CORRIGIDO PASSAGEM DE PROPS */}
       {isJobModalOpen && <JobModal isOpen={isJobModalOpen} job={editingJob} onClose={() => { setIsJobModalOpen(false); setEditingJob(null); }} onSave={d => handleSaveGeneric('jobs', d, () => {setIsJobModalOpen(false); setEditingJob(null);})} options={optionsProps} isSaving={isSaving} />}
       {editingCandidate && <CandidateModal candidate={editingCandidate} onClose={() => setEditingCandidate(null)} onSave={d => handleSaveGeneric('candidates', d, () => setEditingCandidate(null))} options={optionsProps} isSaving={isSaving} />}
-      {pendingTransition && <TransitionModal transition={pendingTransition} onClose={() => setPendingTransition(null)} onConfirm={d => handleSaveGeneric('candidates', {id: pendingTransition.candidate.id, ...d, status: pendingTransition.toStage}, () => setPendingTransition(null))} cities={cities} />}
+      
+      {/* CORREÇÃO IMPORTANTE: Passando todas as props necessárias para o TransitionModal */}
+      {pendingTransition && (
+          <TransitionModal 
+            transition={pendingTransition} 
+            onClose={() => setPendingTransition(null)} 
+            onConfirm={d => handleSaveGeneric('candidates', {id: pendingTransition.candidate.id, ...d, status: pendingTransition.toStage}, () => setPendingTransition(null))} 
+            cities={cities} 
+            interestAreas={interestAreas}
+            schooling={schooling}
+            marital={marital}
+            origins={origins}
+          />
+      )}
+      
       <CsvImportModal isOpen={isCsvModalOpen} onClose={() => setIsCsvModalOpen(false)} onImportData={(d) => handleSaveGeneric('candidates_batch', d)} />
       <JobCandidatesModal isOpen={!!viewingJob} onClose={() => setViewingJob(null)} job={viewingJob} candidates={candidates.filter(c => c.jobId === viewingJob?.id)} />
     </div>
@@ -301,30 +348,22 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus }) =>
   const handleSelectAll = () => selectedIds.length === candidates.length ? setSelectedIds([]) : setSelectedIds(candidates.map(c => c.id));
   const loadMore = (stage) => setVisibleCounts(prev => ({ ...prev, [stage]: prev[stage] + 20 }));
 
-  // Processamento Local dos Dados para a View
   const processedData = useMemo(() => {
      let data = [...candidates];
-     
-     // Filtro de Status
      if (statusFilter === 'active') data = data.filter(c => PIPELINE_STAGES.includes(c.status) || !c.status);
      else if (statusFilter === 'hired') data = data.filter(c => c.status === 'Contratado');
      else if (statusFilter === 'rejected') data = data.filter(c => c.status === 'Reprovado');
      else if (statusFilter === 'withdrawn') data = data.filter(c => c.status === 'Desistiu da vaga');
-     
-     // Busca Local
      if (localSearch) {
          const s = localSearch.toLowerCase();
          data = data.filter(c => c.fullName?.toLowerCase().includes(s));
      }
-
-     // Ordenação
      data.sort((a, b) => {
          if (localSort === 'recent') return (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0);
          if (localSort === 'oldest') return (a.createdAt?.seconds||0) - (b.createdAt?.seconds||0);
          if (localSort === 'az') return (a.fullName||'').localeCompare(b.fullName||'');
          return 0;
      });
-
      return data;
   }, [candidates, statusFilter, localSearch, localSort]);
 
@@ -382,7 +421,6 @@ const KanbanColumn = ({ stage, allCandidates, limit, onLoadMore, jobs, onDragEnd
    );
 };
 
-// --- LISTAS LEGADAS ---
 const JobsList = ({ jobs, candidates, onAdd, onEdit, onToggleStatus, onViewCandidates }) => (
   <div className="space-y-6"><div className="flex justify-between"><h2 className="text-2xl font-bold text-white">Vagas</h2><button onClick={onAdd} className="bg-brand-orange text-white px-4 py-2 rounded flex items-center gap-2"><Plus size={18}/> Nova</button></div>
   <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">{jobs.map(j => (<div key={j.id} className="bg-brand-card p-6 rounded-xl border border-brand-border shadow-lg group hover:border-brand-cyan/50"><div className="flex justify-between mb-4"><select className="text-xs px-2 py-1 rounded border bg-transparent outline-none cursor-pointer text-brand-cyan border-brand-cyan/30" value={j.status} onChange={(e) => onToggleStatus('jobs', {id: j.id, status: e.target.value})} onClick={(e) => e.stopPropagation()}>{JOB_STATUSES.map(s => <option key={s} value={s} className="bg-brand-card">{s}</option>)}</select><button onClick={() => onEdit(j)} className="text-slate-400 hover:text-white opacity-0 group-hover:opacity-100"><Edit3 size={16}/></button></div><h3 className="font-bold text-lg text-white mb-1">{j.title}</h3><p className="text-sm text-slate-400 mb-4">{j.company}</p><div className="border-t border-brand-border pt-4 flex justify-between items-center"><p className="text-xs text-slate-500 cursor-pointer hover:text-brand-cyan" onClick={() => onViewCandidates(j)}>{candidates.filter(c => c.jobId === j.id).length} candidatos</p></div></div>))}</div></div>
@@ -393,7 +431,15 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => (
   <div className="bg-brand-card rounded-xl border border-brand-border shadow-lg overflow-hidden"><div className="overflow-x-auto"><table className="w-full text-sm text-left text-slate-300"><thead className="bg-brand-hover text-slate-200 font-medium"><tr><th className="px-6 py-4">Nome</th><th className="px-6 py-4">Detalhes</th><th className="px-6 py-4">Status</th><th className="px-6 py-4 text-right">Ações</th></tr></thead><tbody className="divide-y divide-brand-border">{candidates.map(c => (<tr key={c.id} className="hover:bg-brand-hover/50 cursor-pointer" onClick={() => onEdit(c)}><td className="px-6 py-4"><div className="font-bold text-white">{c.fullName}</div><div className="text-xs text-slate-500">{c.email}</div></td><td className="px-6 py-4"><div className="text-xs text-slate-400">{c.city}</div></td><td className="px-6 py-4"><span className={`px-2 py-1 rounded text-xs border ${STATUS_COLORS[c.status]}`}>{c.status}</span></td><td className="px-6 py-4 text-right"><button onClick={(e)=>{e.stopPropagation();onDelete(c.id)}} className="text-red-500"><Trash2 size={16}/></button></td></tr>))}</tbody></table></div></div></div>
 );
 
-// MODAIS COMPLETOS
+// --- MODAIS COM CORREÇÃO DE PERFORMANCE (INPUTS FORA) ---
+
+const InputField = ({ label, field, value, onChange, type="text" }) => (
+  <div className="mb-3">
+    <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">{label}</label>
+    <input type={type} className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange" value={value||''} onChange={e => onChange(field, e.target.value)} />
+  </div>
+);
+
 const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
   const [d, setD] = useState(job?.id ? {...job} : { title: '', company: '', location: '', status: 'Aberta' });
   if (!isOpen) return null;
@@ -403,7 +449,8 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
 const CandidateModal = ({ candidate, onClose, onSave, options, isSaving }) => {
   const [d, setD] = useState({ ...candidate });
   const [activeSection, setActiveSection] = useState('pessoal');
-  const Input = ({ label, field, type="text" }) => (<div className="mb-3"><label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">{label}</label><input type={type} className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange" value={d[field]||''} onChange={e => setD({...d, [field]: e.target.value})} /></div>);
   
-  return (<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"><div className="bg-brand-card rounded-xl w-full max-w-4xl h-[90vh] flex flex-col border border-brand-border text-white"><div className="px-6 py-4 border-b border-brand-border flex justify-between bg-brand-dark/50"><div><h3 className="font-bold text-xl">{d.id?'Editar':'Novo'} Candidato</h3></div><button onClick={onClose}><X/></button></div><div className="flex border-b border-brand-border">{['pessoal', 'profissional', 'processo'].map(tab => (<button key={tab} onClick={() => setActiveSection(tab)} className={`flex-1 py-3 px-4 text-sm font-bold uppercase ${activeSection === tab ? 'text-brand-orange border-b-2 border-brand-orange' : 'text-slate-500'}`}>{tab}</button>))}</div><div className="p-8 overflow-y-auto flex-1 bg-brand-dark">{activeSection === 'pessoal' && <div className="grid grid-cols-2 gap-6"><Input label="Nome" field="fullName"/><Input label="Email" field="email"/><Input label="Celular" field="phone"/><Input label="Cidade" field="city"/></div>}{activeSection === 'profissional' && <div className="grid grid-cols-2 gap-6"><Input label="Formação" field="education"/><Input label="Área Interesse" field="interestAreas"/><Input label="Link CV" field="cvUrl"/><Input label="Link Portfolio" field="portfolioUrl"/></div>}{activeSection === 'processo' && <div className="grid grid-cols-2 gap-6"><div className="mb-3"><label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Status</label><select className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white" value={d.status} onChange={e=>setD({...d, status:e.target.value})}>{ALL_STATUSES.map(s=><option key={s} value={s}>{s}</option>)}</select></div></div>}</div><div className="px-6 py-4 border-t border-brand-border flex justify-end gap-2"><button onClick={onClose} className="px-6 py-2 text-slate-400">Cancelar</button><button onClick={()=>onSave(d)} disabled={isSaving} className="bg-brand-orange text-white px-8 py-2 rounded">Salvar</button></div></div></div>);
+  const handleInputChange = (field, value) => setD(prev => ({...prev, [field]: value}));
+
+  return (<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"><div className="bg-brand-card rounded-xl w-full max-w-4xl h-[90vh] flex flex-col border border-brand-border text-white"><div className="px-6 py-4 border-b border-brand-border flex justify-between bg-brand-dark/50"><div><h3 className="font-bold text-xl">{d.id?'Editar':'Novo'} Candidato</h3></div><button onClick={onClose}><X/></button></div><div className="flex border-b border-brand-border">{['pessoal', 'profissional', 'processo'].map(tab => (<button key={tab} onClick={() => setActiveSection(tab)} className={`flex-1 py-3 px-4 text-sm font-bold uppercase ${activeSection === tab ? 'text-brand-orange border-b-2 border-brand-orange' : 'text-slate-500'}`}>{tab}</button>))}</div><div className="p-8 overflow-y-auto flex-1 bg-brand-dark">{activeSection === 'pessoal' && <div className="grid grid-cols-2 gap-6"><InputField label="Nome" field="fullName" value={d.fullName} onChange={handleInputChange}/><InputField label="Email" field="email" value={d.email} onChange={handleInputChange}/><InputField label="Celular" field="phone" value={d.phone} onChange={handleInputChange}/><InputField label="Cidade" field="city" value={d.city} onChange={handleInputChange}/></div>}{activeSection === 'profissional' && <div className="grid grid-cols-2 gap-6"><InputField label="Formação" field="education" value={d.education} onChange={handleInputChange}/><InputField label="Área Interesse" field="interestAreas" value={d.interestAreas} onChange={handleInputChange}/><InputField label="Link CV" field="cvUrl" value={d.cvUrl} onChange={handleInputChange}/><InputField label="Link Portfolio" field="portfolioUrl" value={d.portfolioUrl} onChange={handleInputChange}/></div>}{activeSection === 'processo' && <div className="grid grid-cols-2 gap-6"><div className="mb-3"><label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Status</label><select className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white" value={d.status} onChange={e=>setD({...d, status:e.target.value})}>{ALL_STATUSES.map(s=><option key={s} value={s}>{s}</option>)}</select></div></div>}</div><div className="px-6 py-4 border-t border-brand-border flex justify-end gap-2"><button onClick={onClose} className="px-6 py-2 text-slate-400">Cancelar</button><button onClick={()=>onSave(d)} disabled={isSaving} className="bg-brand-orange text-white px-8 py-2 rounded">Salvar</button></div></div></div>);
 };

@@ -1,4 +1,3 @@
-// src/components/modals/TransitionModal.jsx
 import React, { useState } from 'react';
 import { X, Save, AlertTriangle } from 'lucide-react';
 
@@ -8,7 +7,6 @@ export default function TransitionModal({ transition, onClose, onConfirm, cities
   const [data, setData] = useState({
     feedback: '',
     returnSent: false,
-    // Pré-carrega dados existentes do candidato para edição rápida
     city: transition.candidate.city || '',
     hasLicense: transition.candidate.hasLicense || '',
     interestAreas: transition.candidate.interestAreas || '',
@@ -18,16 +16,26 @@ export default function TransitionModal({ transition, onClose, onConfirm, cities
     source: transition.candidate.source || ''
   });
 
+  const fieldLabels = {
+    city: 'Cidade',
+    hasLicense: 'Possui CNH',
+    interestAreas: 'Áreas de Interesse',
+    education: 'Formação',
+    experience: 'Experiência Anterior',
+    maritalStatus: 'Estado Civil',
+    source: 'Onde encontrou'
+  };
+
   const handleSave = () => {
     // Validação básica dos campos faltantes
     for (let field of transition.missingFields) {
+        // Verifica se o campo está vazio no state 'data'
         if (!data[field] || data[field] === '') {
-            alert(`O campo ${fieldLabels[field]} é obrigatório para esta etapa.`);
+            alert(`O campo ${fieldLabels[field] || field} é obrigatório para esta etapa.`);
             return;
         }
     }
 
-    // Validação se for conclusão (Fechamento)
     if (transition.isConclusion && !data.feedback) {
       alert("O feedback/observação é obrigatório para encerrar o processo.");
       return;
@@ -42,17 +50,6 @@ export default function TransitionModal({ transition, onClose, onConfirm, cities
     onConfirm(data);
   };
 
-  const fieldLabels = {
-    city: 'Cidade',
-    hasLicense: 'Possui CNH',
-    interestAreas: 'Áreas de Interesse',
-    education: 'Formação',
-    experience: 'Experiência Anterior',
-    maritalStatus: 'Estado Civil',
-    source: 'Onde encontrou'
-  };
-
-  // Renderiza o input correto baseado no campo
   const renderInput = (field) => {
     const commonClass = "w-full bg-brand-dark border border-brand-border p-2 rounded text-white text-sm focus:border-brand-orange outline-none";
 
@@ -69,7 +66,8 @@ export default function TransitionModal({ transition, onClose, onConfirm, cities
             return (
                 <select className={commonClass} value={data.city} onChange={e => setData({...data, city: e.target.value})}>
                     <option value="">Selecione...</option>
-                    {cities &&QHcities.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                    {/* CORREÇÃO AQUI: removido QHcities */}
+                    {cities && cities.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                 </select>
             );
         case 'interestAreas':
