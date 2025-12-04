@@ -7,13 +7,7 @@ export default function TransitionModal({ transition, onClose, onConfirm, cities
   const [data, setData] = useState({
     feedback: '',
     returnSent: false,
-    city: transition.candidate.city || '',
-    hasLicense: transition.candidate.hasLicense || '',
-    interestAreas: transition.candidate.interestAreas || '',
-    education: transition.candidate.education || '',
-    experience: transition.candidate.experience || '',
-    maritalStatus: transition.candidate.maritalStatus || '',
-    source: transition.candidate.source || ''
+    // Cidades agora vem do candidato, não é um campo editável aqui
   });
 
   const fieldLabels = {
@@ -60,14 +54,6 @@ export default function TransitionModal({ transition, onClose, onConfirm, cities
                     <option value="">Selecione...</option>
                     <option value="Sim">Sim</option>
                     <option value="Não">Não</option>
-                </select>
-            );
-        case 'city':
-            return (
-                <select className={commonClass} value={data.city} onChange={e => setData({...data, city: e.target.value})}>
-                    <option value="">Selecione...</option>
-                    {/* CORREÇÃO AQUI: removido QHcities */}
-                    {cities && cities.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                 </select>
             );
         case 'interestAreas':
@@ -117,6 +103,13 @@ export default function TransitionModal({ transition, onClose, onConfirm, cities
           <p className="text-sm text-slate-300">
             Movendo <strong>{transition.candidate.fullName}</strong> para <strong className="text-brand-cyan">{transition.toStage}</strong>.
           </p>
+
+          {/* Mostrar dados relevantes do candidato */}
+          {transition.candidate.city && (
+            <div className="bg-brand-dark/50 border border-brand-border p-3 rounded text-xs">
+              <p className="text-slate-400">📍 Cidade: <span className="text-brand-cyan font-bold">{transition.candidate.city}</span></p>
+            </div>
+          )}
 
           {transition.missingFields.length > 0 && (
              <div className="bg-red-500/10 border border-red-500/30 p-3 rounded text-xs text-red-200 mb-2">

@@ -3,10 +3,10 @@ import {
   LayoutDashboard, Users, Briefcase, Settings, Plus, Search, 
   FileText, MapPin, Filter, Trophy, Menu, X, LogOut, Loader2, Edit3, Trash2,
   Building2, Mail, Check, Ban, UserMinus, CheckSquare, Square, Kanban, List,
-  CalendarCheck, AlertCircle, UserPlus
+  CalendarCheck, AlertCircle, UserPlus, Moon, Sun
 } from 'lucide-react';
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,hz, ResponsiveContainer, 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, Legend 
 } from 'recharts';
 
@@ -25,6 +25,7 @@ import TransitionModal from './components/modals/TransitionModal';
 import SettingsPage from './components/SettingsPage';
 import CsvImportModal from './components/modals/CsvImportModal';
 import JobCandidatesModal from './components/modals/JobsCandidateModal';
+import { useTheme } from './ThemeContext';
 
 import { PIPELINE_STAGES, STATUS_COLORS, JOB_STATUSES, CSV_FIELD_MAPPING_OPTIONS, ALL_STATUSES } from './constants';
 
@@ -45,25 +46,159 @@ const db = getFirestore(app);
 
 // --- COMPONENTES AUXILIARES ---
 
-// Stub para Dashboard (Evita crash por falta do componente)
-const Dashboard = ({ filteredJobs, filteredCandidates }) => (
-  <div className="text-white">
-    <h2 className="text-2xl font-bold mb-4">Dashboard</h2>
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-      <div className="bg-brand-card p-6 rounded-xl border border-brand-border">
-         <h3 className="text-slate-400 text-sm">Total de Candidatos</h3>
-         <p className="text-3xl font-bold text-white">{filteredCandidates.length}</p>
+// Dashboard com Gráficos
+const Dashboard = ({ filteredJobs, filteredCandidates }) => {
+  // Dados para gráficos
+  const statusData = useMemo(() => {
+    const counts = {};
+    PIPELINE_STAGES.forEach(stage => {
+      counts[stage] = filteredCandidates.filter(c => (c.status || 'Inscrito') === stage).length;
+    });
+    counts['Contratado'] = filteredCandidates.filter(c => c.status === 'Contratado').length;
+    counts['Reprovado'] = filteredCandidates.filter(c => c.status === 'Reprovado').length;
+    return Object.entries(counts).map(([name, value]) => ({ name, value }));
+  }, [filteredCandidates]);
+
+  const areaData = useMemo(() => {
+    const areas = {};
+    filteredCandidates.forEach(c => {
+      if (c.interestAreas) {
+        areas[c.interestAreas] = (areas[c.interestAreas] || 0) + 1;
+      }
+    });
+    return Object.entries(areas).slice(0, 5).map(([name, value]) => ({ name, value }));
+  }, [filteredCandidates]);
+
+  const cityData = useMemo(() => {
+    const cities = {};
+    filteredCandidates.forEach(c => {
+      if (c.city) {
+        cities[c.city] = (cities[c.city] || 0) + 1;
+      }
+    });
+    return Object.entries(cities).slice(0, 5).map(([name, value]) => ({ name, value }));
+  }, [filteredCandidates]);
+
+  const jobStats = {
+    open: filteredJobs.filter(j => j.status === 'Aberta').length,
+    filled: filteredJobs.filter(j => j.status === 'Preenchida').length,
+    closed: filteredJobs.filter(j => j.status === 'Fechada').length,
+  };
+
+  const candidateStats = {
+    total: filteredCandidates.length,
+    hired: filteredCandidates.filter(c => c.status === 'Contratado').length,
+    rejected: filteredCandidates.filter(c => c.status === 'Reprovado').length,
+    active: filteredCandidates.filter(c => PIPELINE_STAGES.includes(c.status || 'Inscrito')).length,
+  };
+
+  return (
+    <div className="text-white space-y-6 overflow-y-auto h-full pb-6">
+      <h2 className="text-2xl font-bold mb-2">Dashboard</h2>
+      
+      {/* KPIs Principais */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-gradient-to-br from-blue-900/30 to-blue-800/10 p-6 rounded-xl border border-blue-700/30">
+          <h3 className="text-slate-400 text-sm font-semibold">Total de Candidatos</h3>
+          <p className="text-3xl font-bold text-blue-300 mt-2">{candidateStats.total}</p>
+          <p className="text-xs text-slate-500 mt-1">{candidateStats.active} em processo</p>
+        </div>
+        <div className="bg-gradient-to-br from-green-900/30 to-green-800/10 p-6 rounded-xl border border-green-700/30">
+          <h3 className="text-slate-400 text-sm font-semibold">Contratados</h3>
+          <p className="text-3xl font-bold text-green-300 mt-2">{candidateStats.hired}</p>
+          <p className="text-xs text-slate-500 mt-1">Taxa: {candidateStats.total > 0 ? ((candidateStats.hired / candidateStats.total) * 100).toFixed(1) : 0}%</p>
+        </div>
+        <div className="bg-gradient-to-br from-orange-900/30 to-orange-800/10 p-6 rounded-xl border border-orange-700/30">
+          <h3 className="text-slate-400 text-sm font-semibold">Vagas Abertas</h3>
+          <p className="text-3xl font-bold text-orange-300 mt-2">{jobStats.open}</p>
+          <p className="text-xs text-slate-500 mt-1">{jobStats.filled} preenchidas</p>
+        </div>
+        <div className="bg-gradient-to-br from-red-900/30 to-red-800/10 p-6 rounded-xl border border-red-700/30">
+          <h3 className="text-slate-400 text-sm font-semibold">Reprovados</h3>
+          <p className="text-3xl font-bold text-red-300 mt-2">{candidateStats.rejected}</p>
+          <p className="text-xs text-slate-500 mt-1">Taxa: {candidateStats.total > 0 ? ((candidateStats.rejected / candidateStats.total) * 100).toFixed(1) : 0}%</p>
+        </div>
       </div>
-      <div className="bg-brand-card p-6 rounded-xl border border-brand-border">
-         <h3 className="text-slate-400 text-sm">Vagas Abertas</h3>
-         <p className="text-3xl font-bold text-brand-cyan">{filteredJobs.filter(j => j.status === 'Aberta').length}</p>
+
+      {/* Gráficos */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Distribuição por Status */}
+        <div className="bg-brand-card p-6 rounded-xl border border-brand-border">
+          <h3 className="font-bold text-lg text-white mb-4">Distribuição por Status</h3>
+          {statusData.some(d => d.value > 0) ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={statusData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155"/>
+                <XAxis dataKey="name" stroke="#94a3b8" angle={-45} textAnchor="end" height={100}/>
+                <YAxis stroke="#94a3b8"/>
+                <Tooltip contentStyle={{backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '8px', color: '#e2e8f0'}}/>
+                <Bar dataKey="value" fill="#fe5009" radius={[8, 8, 0, 0]}/>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-slate-500">Sem dados</div>
+          )}
+        </div>
+
+        {/* Top 5 Áreas de Interesse */}
+        <div className="bg-brand-card p-6 rounded-xl border border-brand-border">
+          <h3 className="font-bold text-lg text-white mb-4">Principais Áreas de Interesse</h3>
+          {areaData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie data={areaData} cx="50%" cy="50%" labelLine={false} label={({name, value}) => `${name}: ${value}`} outerRadius={100} fill="#8884d8" dataKey="value">
+                  {areaData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]}/>
+                  ))}
+                </Pie>
+                <Tooltip contentStyle={{backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '8px', color: '#e2e8f0'}}/>
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-slate-500">Sem dados</div>
+          )}
+        </div>
+
+        {/* Top 5 Cidades */}
+        <div className="bg-brand-card p-6 rounded-xl border border-brand-border">
+          <h3 className="font-bold text-lg text-white mb-4">Candidatos por Cidade</h3>
+          {cityData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={cityData} layout="vertical" margin={{top: 5, right: 30, left: 200, bottom: 5}}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155"/>
+                <XAxis type="number" stroke="#94a3b8"/>
+                <YAxis type="category" dataKey="name" stroke="#94a3b8" width={190} tick={{fontSize: 12}}/>
+                <Tooltip contentStyle={{backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '8px', color: '#e2e8f0'}}/>
+                <Bar dataKey="value" fill="#00bcbc" radius={[0, 8, 8, 0]}/>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-slate-500">Sem dados</div>
+          )}
+        </div>
+
+        {/* Status de Vagas */}
+        <div className="bg-brand-card p-6 rounded-xl border border-brand-border">
+          <h3 className="font-bold text-lg text-white mb-4">Status das Vagas</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie data={[
+                { name: 'Abertas', value: jobStats.open },
+                { name: 'Preenchidas', value: jobStats.filled },
+                { name: 'Fechadas', value: jobStats.closed }
+              ]} cx="50%" cy="50%" labelLine={false} label={({name, value}) => `${name}: ${value}`} outerRadius={100} fill="#8884d8" dataKey="value">
+                <Cell fill="#fe5009"/>
+                <Cell fill="#00bcbc"/>
+                <Cell fill="#64748b"/>
+              </Pie>
+              <Tooltip contentStyle={{backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '8px', color: '#e2e8f0'}}/>
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     </div>
-    <div className="bg-brand-card p-8 rounded-xl border border-brand-border text-center text-slate-500">
-      Gráficos em desenvolvimento...
-    </div>
-  </div>
-);
+  );
+};
 
 // --- LOGIN ---
 const LoginScreen = ({ onLogin }) => (
@@ -149,6 +284,7 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
 
 // --- APP PRINCIPAL ---
 export default function App() {
+  const { isDark, toggleTheme } = useTheme();
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('pipeline');
@@ -219,25 +355,20 @@ export default function App() {
     const candidate = candidates.find(c => c.id === cId);
     if (!candidate || candidate.status === newStage) return;
 
-    // Regras de Validação (Campos obrigatórios por etapa)
-    const missing = [];
-    if (newStage === 'Considerado' && !candidate.city) missing.push('city'); // Use ID do campo
-    if (newStage === 'Seleção' && !candidate.email && !candidate.phone) missing.push('email'); 
-
     const isConclusion = ['Contratado', 'Reprovado', 'Desistiu da vaga'].includes(newStage);
 
-    // Se faltar campos ou for conclusão, abre o TransitionModal
-    if (missing.length > 0 || isConclusion) {
+    // Se for conclusão, abre modal para feedback
+    if (isConclusion) {
         setPendingTransition({
             candidate,
             toStage: newStage,
-            missingFields: missing,
-            isConclusion
+            missingFields: [],
+            isConclusion: true
         });
         return;
     }
 
-    // Se tudo ok, move direto
+    // Se tudo ok, move direto (sem validação obrigatória de campos)
     updateDoc(doc(db, 'candidates', cId), { status: newStage, updatedAt: serverTimestamp() });
   };
 
@@ -293,6 +424,9 @@ export default function App() {
            <div className="flex items-center gap-3">
               <button onClick={() => setIsFilterSidebarOpen(true)} className="flex items-center gap-2 text-sm text-slate-400 hover:text-brand-cyan font-bold px-3 py-1.5 rounded border border-slate-700 hover:border-brand-cyan transition-colors">
                  <Filter size={16}/> Filtros Avançados
+              </button>
+              <button onClick={toggleTheme} className="p-2 text-slate-400 hover:text-brand-cyan rounded border border-slate-700 hover:border-brand-cyan transition-colors">
+                 {isDark ? <Sun size={18}/> : <Moon size={18}/>}
               </button>
            </div>
         </header>
@@ -426,10 +560,200 @@ const JobsList = ({ jobs, candidates, onAdd, onEdit, onToggleStatus, onViewCandi
   <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">{jobs.map(j => (<div key={j.id} className="bg-brand-card p-6 rounded-xl border border-brand-border shadow-lg group hover:border-brand-cyan/50"><div className="flex justify-between mb-4"><select className="text-xs px-2 py-1 rounded border bg-transparent outline-none cursor-pointer text-brand-cyan border-brand-cyan/30" value={j.status} onChange={(e) => onToggleStatus('jobs', {id: j.id, status: e.target.value})} onClick={(e) => e.stopPropagation()}>{JOB_STATUSES.map(s => <option key={s} value={s} className="bg-brand-card">{s}</option>)}</select><button onClick={() => onEdit(j)} className="text-slate-400 hover:text-white opacity-0 group-hover:opacity-100"><Edit3 size={16}/></button></div><h3 className="font-bold text-lg text-white mb-1">{j.title}</h3><p className="text-sm text-slate-400 mb-4">{j.company}</p><div className="border-t border-brand-border pt-4 flex justify-between items-center"><p className="text-xs text-slate-500 cursor-pointer hover:text-brand-cyan" onClick={() => onViewCandidates(j)}>{candidates.filter(c => c.jobId === j.id).length} candidatos</p></div></div>))}</div></div>
 );
 
-const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => (
-  <div className="space-y-6"><div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-white">Banco de Talentos</h2><button onClick={onAdd} className="bg-brand-cyan text-brand-dark font-bold px-4 py-2 rounded flex items-center gap-2"><UserPlus size={18}/> Adicionar</button></div>
-  <div className="bg-brand-card rounded-xl border border-brand-border shadow-lg overflow-hidden"><div className="overflow-x-auto"><table className="w-full text-sm text-left text-slate-300"><thead className="bg-brand-hover text-slate-200 font-medium"><tr><th className="px-6 py-4">Nome</th><th className="px-6 py-4">Detalhes</th><th className="px-6 py-4">Status</th><th className="px-6 py-4 text-right">Ações</th></tr></thead><tbody className="divide-y divide-brand-border">{candidates.map(c => (<tr key={c.id} className="hover:bg-brand-hover/50 cursor-pointer" onClick={() => onEdit(c)}><td className="px-6 py-4"><div className="font-bold text-white">{c.fullName}</div><div className="text-xs text-slate-500">{c.email}</div></td><td className="px-6 py-4"><div className="text-xs text-slate-400">{c.city}</div></td><td className="px-6 py-4"><span className={`px-2 py-1 rounded text-xs border ${STATUS_COLORS[c.status]}`}>{c.status}</span></td><td className="px-6 py-4 text-right"><button onClick={(e)=>{e.stopPropagation();onDelete(c.id)}} className="text-red-500"><Trash2 size={16}/></button></td></tr>))}</tbody></table></div></div></div>
-);
+const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
+  const [localSearch, setLocalSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [sortField, setSortField] = useState('fullName');
+  const [sortOrder, setSortOrder] = useState('asc');
+
+  // Filtrar por busca
+  const filtered = useMemo(() => {
+    let data = [...candidates];
+    if (localSearch) {
+      const search = localSearch.toLowerCase();
+      data = data.filter(c => 
+        c.fullName?.toLowerCase().includes(search) ||
+        c.email?.toLowerCase().includes(search) ||
+        c.city?.toLowerCase().includes(search) ||
+        c.interestAreas?.toLowerCase().includes(search)
+      );
+    }
+    // Ordenar
+    data.sort((a, b) => {
+      let aVal = a[sortField] || '';
+      let bVal = b[sortField] || '';
+      if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+      if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+      const cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+      return sortOrder === 'asc' ? cmp : -cmp;
+    });
+    return data;
+  }, [candidates, localSearch, sortField, sortOrder]);
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const paginatedCandidates = filtered.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const toggleSort = (field) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  return (
+    <div className="space-y-4 h-full flex flex-col">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-white">Banco de Talentos</h2>
+        <button onClick={onAdd} className="bg-brand-cyan text-brand-dark font-bold px-4 py-2 rounded flex items-center gap-2">
+          <UserPlus size={18}/> Adicionar
+        </button>
+      </div>
+
+      {/* Barra de Busca e Controles */}
+      <div className="bg-brand-card rounded-lg border border-brand-border p-4 flex flex-wrap gap-4 items-center">
+        <div className="flex-1 min-w-[200px]">
+          <input 
+            type="text" 
+            placeholder="Buscar por nome, email, cidade, área..."
+            className="w-full bg-brand-dark border border-brand-border rounded px-3 py-2 text-sm text-white outline-none focus:border-brand-cyan"
+            value={localSearch}
+            onChange={e => {setLocalSearch(e.target.value); setCurrentPage(1);}}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-slate-400">Itens por página:</label>
+          <select 
+            className="bg-brand-dark border border-brand-border rounded px-2 py-1.5 text-xs text-white"
+            value={itemsPerPage}
+            onChange={e => {setItemsPerPage(Number(e.target.value)); setCurrentPage(1);}}
+          >
+            <option value={5}>5</option>
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+          </select>
+        </div>
+        <div className="text-xs text-slate-400">
+          {filtered.length} resultado{filtered.length !== 1 ? 's' : ''}
+        </div>
+      </div>
+
+      {/* Tabela */}
+      <div className="bg-brand-card rounded-xl border border-brand-border shadow-lg overflow-hidden flex-1 flex flex-col">
+        <div className="overflow-x-auto flex-1">
+          <table className="w-full text-sm text-left text-slate-300">
+            <thead className="bg-brand-hover text-slate-200 font-medium sticky top-0 z-10">
+              <tr>
+                <th className="px-6 py-3 cursor-pointer hover:bg-brand-hover/80" onClick={() => toggleSort('fullName')}>
+                  <div className="flex items-center gap-1">Nome {sortField === 'fullName' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
+                </th>
+                <th className="px-6 py-3 cursor-pointer hover:bg-brand-hover/80" onClick={() => toggleSort('email')}>
+                  <div className="flex items-center gap-1">Email {sortField === 'email' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
+                </th>
+                <th className="px-6 py-3 cursor-pointer hover:bg-brand-hover/80" onClick={() => toggleSort('city')}>
+                  <div className="flex items-center gap-1">Cidade {sortField === 'city' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
+                </th>
+                <th className="px-6 py-3 cursor-pointer hover:bg-brand-hover/80" onClick={() => toggleSort('interestAreas')}>
+                  <div className="flex items-center gap-1">Áreas {sortField === 'interestAreas' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
+                </th>
+                <th className="px-6 py-3">Formação</th>
+                <th className="px-6 py-3">CNH</th>
+                <th className="px-6 py-3 cursor-pointer hover:bg-brand-hover/80" onClick={() => toggleSort('status')}>
+                  <div className="flex items-center gap-1">Status {sortField === 'status' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
+                </th>
+                <th className="px-6 py-3 text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-brand-border">
+              {paginatedCandidates.length > 0 ? (
+                paginatedCandidates.map(c => (
+                  <tr key={c.id} className="hover:bg-brand-hover/50 cursor-pointer" onClick={() => onEdit(c)}>
+                    <td className="px-6 py-4">
+                      <div className="font-bold text-white">{c.fullName}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-xs text-slate-400 truncate">{c.email || 'N/A'}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-xs text-slate-400">{c.city || 'N/A'}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-xs text-brand-cyan truncate">{c.interestAreas || 'N/A'}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-xs text-slate-400 truncate">{c.education || 'N/A'}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-xs">
+                        {c.hasLicense === 'Sim' || c.hasLicense === true ? (
+                          <span className="text-green-400">✓ Sim</span>
+                        ) : c.hasLicense === 'Não' || c.hasLicense === false ? (
+                          <span className="text-red-400">✗ Não</span>
+                        ) : (
+                          <span className="text-slate-500">N/A</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded text-xs border ${STATUS_COLORS[c.status]}`}>
+                        {c.status || 'Sem Status'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex gap-2 justify-end">
+                        <button onClick={(e) => {e.stopPropagation(); onEdit(c);}} className="text-blue-400 hover:text-blue-300">
+                          <Edit3 size={16}/>
+                        </button>
+                        <button onClick={(e) => {e.stopPropagation(); onDelete(c.id);}} className="text-red-500 hover:text-red-400">
+                          <Trash2 size={16}/>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="8" className="px-6 py-8 text-center text-slate-500">
+                    Nenhum candidato encontrado
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Paginação */}
+        {totalPages > 1 && (
+          <div className="bg-brand-dark/50 border-t border-brand-border px-6 py-3 flex justify-between items-center">
+            <button 
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1 rounded bg-brand-card disabled:opacity-50 text-sm hover:bg-brand-hover"
+            >
+              ← Anterior
+            </button>
+            <div className="text-xs text-slate-400">
+              Página {currentPage} de {totalPages}
+            </div>
+            <button 
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1 rounded bg-brand-card disabled:opacity-50 text-sm hover:bg-brand-hover"
+            >
+              Próxima →
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 // --- MODAIS COM CORREÇÃO DE PERFORMANCE (INPUTS FORA) ---
 
