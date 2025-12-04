@@ -1,38 +1,48 @@
 // src/constants.js
 
+// Etapas Visuais do Kanban (O fluxo ativo)
 export const PIPELINE_STAGES = [
   'Inscrito', 
   'Considerado', 
-  'Primeira Entrevista', 
+  'Entrevista I', 
   'Testes', 
-  'Segunda Entrevista', 
-  'Selecionado', 
-  'Contratado',       
-  'Reprovado',        
-  'Desistiu da vaga'  
+  'Entrevista II', 
+  'Seleção' // Equivalente ao antigo 'Selecionado', ajustado conforme seu pedido
 ];
+
+// Status que encerram o processo (Gatilhos)
+export const CLOSING_STATUSES = [
+  'Contratado', 
+  'Reprovado', 
+  'Desistiu da vaga'
+];
+
+// Todos os status possíveis (para validação e cores)
+export const ALL_STATUSES = [...PIPELINE_STAGES, ...CLOSING_STATUSES];
 
 export const JOB_STATUSES = ['Aberta', 'Preenchida', 'Cancelada', 'Fechada'];
 
 export const STATUS_COLORS = {
   'Inscrito': 'bg-slate-700 text-slate-200 border-slate-600',
   'Considerado': 'bg-blue-900/40 text-blue-300 border-blue-700',
-  'Primeira Entrevista': 'bg-brand-cyan/20 text-brand-cyan border-brand-cyan/30',
+  'Entrevista I': 'bg-cyan-900/40 text-cyan-300 border-cyan-700',
   'Testes': 'bg-purple-900/40 text-purple-300 border-purple-700',
-  'Segunda Entrevista': 'bg-brand-orange/20 text-brand-orange border-brand-orange/30',
-  'Selecionado': 'bg-yellow-900/40 text-yellow-300 border-yellow-700',
+  'Entrevista II': 'bg-indigo-900/40 text-indigo-300 border-indigo-700',
+  'Seleção': 'bg-yellow-900/40 text-yellow-300 border-yellow-700',
+  
+  // Status de Fechamento
   'Contratado': 'bg-green-900/40 text-green-300 border-green-700',
   'Reprovado': 'bg-red-900/40 text-red-300 border-red-700',
   'Desistiu da vaga': 'bg-slate-800 text-slate-400 border-slate-600'
 };
 
-// --- AQUI ESTÁ A ALTERAÇÃO PRINCIPAL ---
 // Mapeamento EXATO das colunas do seu CSV para as variáveis do Sistema
 export const CSV_FIELD_MAPPING_OPTIONS = [
+  // ... (Mantenha o restante das opções de CSV igual ao anterior)
   // Identificação e Contato
   { label: 'Nome completo:', value: 'fullName' },
   { label: 'E-mail principal:', value: 'email' },
-  { label: 'Endereço de e-mail', value: 'email_secondary' }, // Caso venha duplicado
+  { label: 'Endereço de e-mail', value: 'email_secondary' },
   { label: 'Nº telefone celular / Whatsapp:', value: 'phone' },
   { label: 'Cidade onde reside:', value: 'city' },
   
@@ -68,7 +78,7 @@ export const CSV_FIELD_MAPPING_OPTIONS = [
   { label: 'Você está se candidatando a uma vaga específica...?', value: 'typeOfApp' },
   { label: 'Campo Livre, SEJA VOCÊ!', value: 'freeField' },
   
-  // Metadados do Google Forms/CSV
+  // Metadados
   { label: 'Carimbo de data/hora', value: 'original_timestamp' },
   { label: 'COD', value: 'external_id' }
 ];
