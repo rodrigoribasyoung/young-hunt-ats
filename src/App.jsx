@@ -352,7 +352,8 @@ export default function App() {
   const [pendingTransition, setPendingTransition] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(false);
-
+  const [dashboardModalCandidates, setDashboardModalCandidates] = useState(null);
+  
   // Filtro Global
   const initialFilters = { 
     jobId: 'all', company: 'all', city: 'all', interestArea: 'all',
