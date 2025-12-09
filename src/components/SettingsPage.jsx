@@ -196,8 +196,11 @@ const ImportExportManager = ({ onOpenCsvModal }) => (
         </div>
         <h3 className="text-xl font-bold text-white mb-2">Exportar Dados</h3>
         <p className="text-slate-400 text-sm mb-6">Baixe relatórios completos de candidatos, vagas e históricos em formato CSV ou Excel.</p>
-        <button className="bg-brand-dark border border-brand-border text-white px-6 py-3 rounded-lg font-bold hover:bg-brand-border w-full">
-           Configurar Exportação
+        <button
+          onClick={() => alert('Exportação ainda não configurada.')}
+          className="bg-brand-dark border border-brand-border text-white px-6 py-3 rounded-lg font-bold hover:bg-brand-border w-full"
+        >
+          Configurar Exportação
         </button>
      </div>
   </div>

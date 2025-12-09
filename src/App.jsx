@@ -286,6 +286,19 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
         
         <div className="space-y-6 flex-1 custom-scrollbar overflow-y-auto pr-2">
           <div className="space-y-2">
+            <label className="text-xs font-bold text-brand-orange uppercase">Período</label>
+            <select
+              className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange"
+              value={filters.createdAtPreset || 'all'}
+              onChange={e => setFilters({...filters, createdAtPreset: e.target.value})}
+            >
+              <option value="all">Qualquer data</option>
+              <option value="7d">Últimos 7 dias</option>
+              <option value="30d">Últimos 30 dias</option>
+              <option value="90d">Últimos 90 dias</option>
+            </select>
+          </div>
+          <div className="space-y-2">
             <label className="text-xs font-bold text-brand-orange uppercase">Vaga Vinculada</label>
             <select className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange" value={filters.jobId} onChange={e => setFilters({...filters, jobId: e.target.value})}>
                <option value="all">Todas as Vagas</option>{options.jobs.map(j=><option key={j.id} value={j.id}>{j.title}</option>)}
@@ -367,9 +380,16 @@ export default function App() {
   // Filtro Global
   const initialFilters = { 
     jobId: 'all', company: 'all', city: 'all', interestArea: 'all',
-    cnh: 'all', marital: 'all', origin: 'all', schooling: 'all'
+    cnh: 'all', marital: 'all', origin: 'all', schooling: 'all',
+    createdAtPreset: 'all'
   };
   const [filters, setFilters] = useState(initialFilters);
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 2500);
+  };
 
   useEffect(() => { return onAuthStateChanged(auth, (u) => { setUser(u); setAuthLoading(false); }); }, []);
   const handleGoogleLogin = async () => { try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { console.error(e); } };
@@ -399,6 +419,7 @@ export default function App() {
       if (d.id) await updateDoc(doc(db, col, d.id), payload);
       else await addDoc(collection(db, col), payload);
       if(closeFn) closeFn();
+      showToast('Salvo com sucesso', 'success');
     } catch(e) { alert("Erro ao salvar: " + e.message); } finally { setIsSaving(false); }
   };
 
@@ -431,6 +452,7 @@ export default function App() {
 
     // Movimentação direta quando não há pendências
     updateDoc(doc(db, 'candidates', cId), { status: newStage, updatedAt: serverTimestamp() });
+    showToast('Status atualizado', 'success');
   };
 
   const handleCloseStatus = (cId, status) => {
@@ -440,11 +462,29 @@ export default function App() {
   // Filtra candidatos baseado nos filtros da Sidebar (Avançados)
   const filteredCandidates = useMemo(() => {
     let data = [...candidates];
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const preset = filters.createdAtPreset || 'all';
+    const presetToSeconds = {
+      '7d': 7 * 24 * 60 * 60,
+      '30d': 30 * 24 * 60 * 60,
+      '90d': 90 * 24 * 60 * 60,
+    };
     Object.keys(filters).forEach(key => {
        if(filters[key] !== 'all' && filters[key] !== '') {
+          if (key === 'createdAtPreset') return;
           data = data.filter(c => c[key] === filters[key]);
        }
     });
+    if (preset !== 'all') {
+      const delta = presetToSeconds[preset];
+      if (delta) {
+        data = data.filter(c => {
+          const ts = c.createdAt?.seconds || c.createdAt?._seconds;
+          if (!ts) return false;
+          return ts >= nowSeconds - delta;
+        });
+      }
+    }
     return data;
   }, [candidates, filters]);
 
@@ -536,6 +576,15 @@ export default function App() {
       <JobCandidatesModal isOpen={!!viewingJob} onClose={() => setViewingJob(null)} job={viewingJob} candidates={candidates.filter(c => c.jobId === viewingJob?.id)} />
       {dashboardModalCandidates && (
         <JobCandidatesModal isOpen={true} onClose={() => setDashboardModalCandidates(null)} job={{ title: 'Resultados do Dashboard' }} candidates={dashboardModalCandidates} />
+      )}
+      {toast && (
+        <div className={`fixed bottom-4 right-4 z-[70] px-4 py-3 rounded-lg shadow-lg border text-sm ${
+          toast.type === 'success' ? 'bg-emerald-500/20 text-emerald-200 border-emerald-500/40' :
+          toast.type === 'error' ? 'bg-red-500/20 text-red-200 border-red-500/40' :
+          'bg-slate-800 text-slate-200 border-slate-600'
+        }`}>
+          {toast.message}
+        </div>
       )}
     </div>
   );
