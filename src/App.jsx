@@ -268,6 +268,8 @@ const LoginScreen = ({ onLogin }) => (
 );
 
 // --- SIDEBAR FILTROS AVANÇADOS ---
+const FILTER_STORAGE_KEY = 'yt-filters';
+
 const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, options, candidates = [] }) => {
   if (!isOpen) return null;
   
@@ -339,7 +341,21 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
 
         <div className="mt-8 pt-4 border-t border-brand-border flex flex-col gap-3">
           <button onClick={onClose} className="w-full bg-brand-orange text-white py-3 rounded font-bold hover:bg-orange-600">Aplicar Filtros</button>
-          <button onClick={clearFilters} className="w-full text-slate-400 hover:text-white py-2 text-sm">Limpar Tudo</button>
+        <div className="flex gap-2">
+          <button onClick={clearFilters} className="flex-1 text-slate-400 hover:text-white py-2 text-sm">Limpar Tudo</button>
+          <button
+            onClick={() => {
+              try {
+                localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(filters));
+              } catch (e) {
+                console.warn('Erro ao salvar filtros', e);
+              }
+            }}
+            className="flex-1 text-brand-cyan hover:text-white py-2 text-sm"
+          >
+            Salvar Filtros
+          </button>
+        </div>
         </div>
       </div>
     </>
@@ -383,7 +399,15 @@ export default function App() {
     cnh: 'all', marital: 'all', origin: 'all', schooling: 'all',
     createdAtPreset: 'all'
   };
-  const [filters, setFilters] = useState(initialFilters);
+  const [filters, setFilters] = useState(() => {
+    try {
+      const stored = localStorage.getItem(FILTER_STORAGE_KEY);
+      if (stored) return { ...initialFilters, ...JSON.parse(stored) };
+    } catch (e) {
+      console.warn('Erro ao carregar filtros salvos', e);
+    }
+    return initialFilters;
+  });
   const [toast, setToast] = useState(null);
 
   const showToast = (message, type = 'info') => {
@@ -420,7 +444,7 @@ export default function App() {
       else await addDoc(collection(db, col), payload);
       if(closeFn) closeFn();
       showToast('Salvo com sucesso', 'success');
-    } catch(e) { alert("Erro ao salvar: " + e.message); } finally { setIsSaving(false); }
+    } catch(e) { showToast(`Erro ao salvar: ${e.message}`, 'error'); } finally { setIsSaving(false); }
   };
 
   const computeMissingFields = (candidate, nextStatus) => {

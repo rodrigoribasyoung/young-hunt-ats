@@ -7,7 +7,6 @@ import { CSV_FIELD_MAPPING_OPTIONS, PIPELINE_STAGES } from '../constants';
 
 export default function SettingsPage({ 
   onOpenCsvModal,
-  // Props para manipulação de dados (mockadas para o exemplo visual, mas funcionais na estrutura)
 }) {
   const [activeTab, setActiveTab] = useState('campos');
 
@@ -102,13 +101,30 @@ const FieldsManager = () => {
                 <td className="p-4 font-mono text-xs text-brand-cyan">{field.id}</td>
                 <td className="p-4 text-slate-400">{field.type}</td>
                 <td className="p-4 text-center">
-                  <input type="checkbox" checked={field.visible} readOnly className="accent-brand-cyan cursor-pointer"/>
+                  <input
+                    type="checkbox"
+                    checked={field.visible}
+                    readOnly
+                    className="accent-brand-cyan cursor-pointer"
+                    title="Visível (mock - não editável ainda)"
+                  />
                 </td>
                 <td className="p-4 text-center">
-                   <input type="checkbox" checked={field.required} readOnly className="accent-brand-orange cursor-pointer"/>
+                   <input
+                     type="checkbox"
+                     checked={field.required}
+                     readOnly
+                     className="accent-brand-orange cursor-pointer"
+                     title="Obrigatório (mock - não editável ainda)"
+                   />
                 </td>
                 <td className="p-4 text-right">
-                  <button className="p-2 text-slate-400 hover:text-white"><Edit3 size={16}/></button>
+                  <button
+                    className="p-2 text-slate-400 hover:text-white"
+                    title="Edição pendente de implementação"
+                  >
+                    <Edit3 size={16}/>
+                  </button>
                 </td>
               </tr>
             ))}
