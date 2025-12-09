@@ -20,6 +20,18 @@ export const CLOSING_STATUSES = [
 // Todos os status possíveis (para validação e cores)
 export const ALL_STATUSES = [...PIPELINE_STAGES, ...CLOSING_STATUSES];
 
+// Campos obrigatórios por etapa/fechamento do funil
+export const STAGE_REQUIRED_FIELDS = {
+  'Considerado': ['fullName', 'email', 'phone'],
+  'Entrevista I': ['fullName', 'email', 'phone', 'city'],
+  'Testes': ['fullName', 'email', 'phone', 'city', 'interestAreas'],
+  'Entrevista II': ['fullName', 'email', 'phone', 'city', 'interestAreas'],
+  'Seleção': ['fullName', 'email', 'phone', 'city', 'interestAreas', 'experience'],
+  'Contratado': ['fullName', 'email', 'phone', 'city', 'interestAreas', 'experience', 'source'],
+  'Reprovado': ['fullName', 'email', 'phone', 'city'],
+  'Desistiu da vaga': ['fullName', 'email', 'phone']
+};
+
 export const JOB_STATUSES = ['Aberta', 'Preenchida', 'Cancelada', 'Fechada'];
 
 export const STATUS_COLORS = {

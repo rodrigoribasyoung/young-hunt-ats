@@ -4,10 +4,16 @@ import { X, Save, AlertTriangle } from 'lucide-react';
 export default function TransitionModal({ transition, onClose, onConfirm, cities, interestAreas, schooling, marital, origins }) {
   // transition contém: { candidate, toStage, missingFields, isConclusion }
   
-  const [data, setData] = useState({
-    feedback: '',
-    returnSent: false,
-    // Cidades agora vem do candidato, não é um campo editável aqui
+  const [data, setData] = useState(() => {
+    const base = {
+      feedback: '',
+      returnSent: false,
+    };
+    // Pré-preenche campos obrigatórios com o que já existe no candidato (quando houver)
+    (transition?.missingFields || []).forEach(field => {
+      base[field] = transition?.candidate?.[field] || '';
+    });
+    return base;
   });
 
   const fieldLabels = {

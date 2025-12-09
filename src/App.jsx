@@ -27,7 +27,7 @@ import CsvImportModal from './components/modals/CsvImportModal';
 import JobCandidatesModal from './components/modals/JobsCandidateModal';
 import { useTheme } from './ThemeContext';
 
-import { PIPELINE_STAGES, STATUS_COLORS, JOB_STATUSES, CSV_FIELD_MAPPING_OPTIONS, ALL_STATUSES } from './constants';
+import { PIPELINE_STAGES, STATUS_COLORS, JOB_STATUSES, CSV_FIELD_MAPPING_OPTIONS, ALL_STATUSES, CLOSING_STATUSES, STAGE_REQUIRED_FIELDS } from './constants';
 
 const COLORS = ['#fe5009', '#00bcbc', '#fb923c', '#22d3ee', '#f87171', '#8884d8', '#82ca9d']; 
 
@@ -391,25 +391,34 @@ export default function App() {
     } catch(e) { alert("Erro ao salvar: " + e.message); } finally { setIsSaving(false); }
   };
 
-  // --- LÓGICA DE MOVIMENTO DE CARDS CORRIGIDA ---
+  const computeMissingFields = (candidate, nextStatus) => {
+    const required = STAGE_REQUIRED_FIELDS[nextStatus] || [];
+    return required.filter((field) => {
+      const value = candidate[field];
+      return value === undefined || value === null || value === '';
+    });
+  };
+
+  // --- LÓGICA DE MOVIMENTO DE CARDS COM VALIDAÇÃO ---
   const handleDragEnd = (cId, newStage) => {
     const candidate = candidates.find(c => c.id === cId);
-    if (!candidate || candidate.status === newStage) return;
+    if (!candidate || candidate.status === newStage || !ALL_STATUSES.includes(newStage)) return;
 
-    const isConclusion = ['Contratado', 'Reprovado', 'Desistiu da vaga'].includes(newStage);
+    const missingFields = computeMissingFields(candidate, newStage);
+    const isConclusion = CLOSING_STATUSES.includes(newStage);
 
-    // Se for conclusão, abre modal para feedback
-    if (isConclusion) {
-        setPendingTransition({
-            candidate,
-            toStage: newStage,
-            missingFields: [],
-            isConclusion: true
-        });
-        return;
+    // Para conclusões ou quando há campos obrigatórios faltando, abre modal
+    if (isConclusion || missingFields.length > 0) {
+      setPendingTransition({
+        candidate,
+        toStage: newStage,
+        missingFields,
+        isConclusion
+      });
+      return;
     }
 
-    // Se tudo ok, move direto (sem validação obrigatória de campos)
+    // Movimentação direta quando não há pendências
     updateDoc(doc(db, 'candidates', cId), { status: newStage, updatedAt: serverTimestamp() });
   };
 
@@ -489,16 +498,27 @@ export default function App() {
       
       {/* CORREÇÃO IMPORTANTE: Passando todas as props necessárias para o TransitionModal */}
       {pendingTransition && (
-          <TransitionModal 
-            transition={pendingTransition} 
-            onClose={() => setPendingTransition(null)} 
-            onConfirm={d => handleSaveGeneric('candidates', {id: pendingTransition.candidate.id, ...d, status: pendingTransition.toStage}, () => setPendingTransition(null))} 
-            cities={cities} 
-            interestAreas={interestAreas}
-            schooling={schooling}
-            marital={marital}
-            origins={origins}
-          />
+        <TransitionModal 
+          transition={pendingTransition} 
+          onClose={() => setPendingTransition(null)} 
+          onConfirm={d => {
+            const payload = {
+              id: pendingTransition.candidate.id,
+              ...d,
+              status: pendingTransition.toStage,
+              updatedAt: serverTimestamp()
+            };
+            if (pendingTransition.isConclusion) {
+              payload.closedAt = serverTimestamp();
+            }
+            handleSaveGeneric('candidates', payload, () => setPendingTransition(null));
+          }} 
+          cities={cities} 
+          interestAreas={interestAreas}
+          schooling={schooling}
+          marital={marital}
+          origins={origins}
+        />
       )}
       
       <CsvImportModal isOpen={isCsvModalOpen} onClose={() => setIsCsvModalOpen(false)} onImportData={(d) => handleSaveGeneric('candidates_batch', d)} />
