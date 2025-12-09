@@ -147,17 +147,17 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates }) => {
         <div className="bg-brand-card p-6 rounded-xl border border-brand-border">
           <h3 className="font-bold text-lg text-white mb-4">Distribuição por Status</h3>
           {statusData.some(d => d.value > 0) ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={statusData}>
+            <ResponsiveContainer width="100%" height={320}>
+              <BarChart data={statusData} layout="vertical" margin={{ top: 5, right: 24, left: 180, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155"/>
-                <XAxis dataKey="name" stroke="#94a3b8" angle={-45} textAnchor="end" height={100}/>
-                <YAxis stroke="#94a3b8"/>
+                <XAxis type="number" stroke="#94a3b8" />
+                <YAxis type="category" dataKey="name" stroke="#94a3b8" width={170} tick={{ fontSize: 12 }}/>
                 <Tooltip contentStyle={{backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '8px', color: '#e2e8f0'}}/>
-                <Bar dataKey="value" fill="#fe5009" radius={[8, 8, 0, 0]}/>
+                <Bar dataKey="value" fill="#fe5009" radius={[0, 8, 8, 0]}/>
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[300px] flex items-center justify-center text-slate-500">Sem dados</div>
+            <div className="h-[320px] flex items-center justify-center text-slate-500">Sem dados</div>
           )}
         </div>
 
@@ -220,18 +220,28 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates }) => {
         {/* Status de Vagas */}
         <div className="bg-brand-card p-6 rounded-xl border border-brand-border">
           <h3 className="font-bold text-lg text-white mb-4">Status das Vagas</h3>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={320}>
             <PieChart>
-              <Pie data={[
-                { name: 'Abertas', value: jobStats.open },
-                { name: 'Preenchidas', value: jobStats.filled },
-                { name: 'Fechadas', value: jobStats.closed }
-              ]} cx="50%" cy="50%" labelLine={false} label={({name, value}) => `${name}: ${value}`} outerRadius={100} fill="#8884d8" dataKey="value">
+              <Pie
+                data={[
+                  { name: 'Abertas', value: jobStats.open },
+                  { name: 'Preenchidas', value: jobStats.filled },
+                  { name: 'Fechadas', value: jobStats.closed }
+                ]}
+                cx="50%"
+                cy="48%"
+                labelLine={false}
+                label={({name, value}) => `${name}: ${value}`}
+                outerRadius={110}
+                fill="#8884d8"
+                dataKey="value"
+              >
                 <Cell fill="#fe5009"/>
                 <Cell fill="#00bcbc"/>
                 <Cell fill="#64748b"/>
               </Pie>
               <Tooltip contentStyle={{backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '8px', color: '#e2e8f0'}}/>
+              <Legend verticalAlign="bottom" height={32} wrapperStyle={{ color: '#e2e8f0', fontSize: 12 }}/>
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -709,6 +719,9 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
             <option value={10}>10</option>
             <option value={25}>25</option>
             <option value={50}>50</option>
+            <option value={100}>100</option>
+            <option value={500}>500</option>
+            <option value={1000}>1000</option>
           </select>
         </div>
         <div className="text-xs text-slate-400">
