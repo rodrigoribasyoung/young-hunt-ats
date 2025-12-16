@@ -404,14 +404,19 @@ export default function App() {
     };
     window.addEventListener('popstate', handlePopState);
     
+    // Inicializar URL se não houver parâmetros
+    if (!window.location.search) {
+      updateURL({ page: activeTab });
+    }
+    
     // Inicializar settingsTab na URL se estiver na página de settings
     if (activeTab === 'settings' && !route.settingsTab) {
-      updateURL({ settingsTab: 'campos' });
+      updateURL({ page: activeTab, settingsTab: 'campos' });
       setRoute(prev => ({ ...prev, settingsTab: 'campos' }));
     }
     
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [activeTab]);
+  }, []);
 
   const setActiveTab = (tab) => {
     updateURL({ page: tab });
