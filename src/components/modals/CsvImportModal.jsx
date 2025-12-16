@@ -24,60 +24,126 @@ export default function CsvImportModal({ isOpen, onClose, onImportData }) {
     const reader = new FileReader();
     reader.onload = (evt) => {
       const text = evt.target.result;
-      const lines = text.split('\n');
-      if (lines.length > 0) {
-        // Parser CSV melhorado (suporta vírgulas dentro de aspas)
-        const parseCSVLine = (line) => {
-          const result = [];
-          let current = '';
-          let inQuotes = false;
-          for (let i = 0; i < line.length; i++) {
-            const char = line[i];
-            if (char === '"') {
-              inQuotes = !inQuotes;
-            } else if (char === ',' && !inQuotes) {
-              result.push(current.trim());
-              current = '';
+      
+      // Parser CSV completo que lida com quebras de linha dentro de campos com aspas
+      const parseCSV = (csvText) => {
+        const rows = [];
+        let currentRow = [];
+        let currentField = '';
+        let inQuotes = false;
+        
+        for (let i = 0; i < csvText.length; i++) {
+          const char = csvText[i];
+          const nextChar = csvText[i + 1];
+          
+          if (char === '"') {
+            if (inQuotes && nextChar === '"') {
+              // Aspas duplas dentro de campo = aspas literal
+              currentField += '"';
+              i++; // Pula o próximo caractere
             } else {
-              current += char;
+              // Toggle quotes
+              inQuotes = !inQuotes;
             }
+          } else if (char === ',' && !inQuotes) {
+            // Fim do campo
+            currentRow.push(currentField.trim());
+            currentField = '';
+          } else if ((char === '\n' || char === '\r') && !inQuotes) {
+            // Fim da linha (mas só se não estiver dentro de aspas)
+            if (char === '\r' && nextChar === '\n') {
+              i++; // Pula \n após \r
+            }
+            if (currentRow.length > 0 || currentField.trim()) {
+              currentRow.push(currentField.trim());
+              if (currentRow.some(f => f.trim())) {
+                // Só adiciona linha se tiver pelo menos um campo não vazio
+                rows.push(currentRow);
+              }
+              currentRow = [];
+              currentField = '';
+            }
+          } else {
+            currentField += char;
           }
-          result.push(current.trim());
-          return result;
-        };
+        }
+        
+        // Adiciona última linha se houver
+        if (currentField.trim() || currentRow.length > 0) {
+          currentRow.push(currentField.trim());
+          if (currentRow.some(f => f.trim())) {
+            rows.push(currentRow);
+          }
+        }
+        
+        return rows;
+      };
 
-        const head = parseCSVLine(lines[0]).map(h => h.replace(/^"|"$/g, '').trim());
-        setHeaders(head);
-        
-        // Valida se tem pelo menos uma linha de dados
-        if (lines.length < 2) {
-          alert('⚠️ O arquivo CSV precisa ter pelo menos uma linha de cabeçalho e uma linha de dados.');
+      const allRows = parseCSV(text);
+      
+      if (allRows.length === 0) {
+        alert('⚠️ Nenhuma linha encontrada no arquivo CSV.');
+        setFile(null);
+        return;
+      }
+      
+      // Primeira linha = headers
+      const head = allRows[0].map(h => h.replace(/^"|"$/g, '').trim());
+      setHeaders(head);
+      
+      // Valida se tem pelo menos uma linha de dados
+      if (allRows.length < 2) {
+        alert('⚠️ O arquivo CSV precisa ter pelo menos uma linha de cabeçalho e uma linha de dados.');
+        setFile(null);
+        return;
+      }
+      
+      // Processa linhas de dados (pula header)
+      const data = allRows.slice(1)
+        .map((row) => {
+          // Valida se a linha tem dados válidos (pelo menos 2 campos não vazios)
+          const nonEmptyFields = row.filter(f => f && f.trim()).length;
+          if (nonEmptyFields < 2) {
+            return null; // Linha muito vazia, provavelmente inválida
+          }
+          
+          const values = row.map(v => v.replace(/^"|"$/g, '').trim());
+          const rowObj = {};
+          head.forEach((h, i) => {
+            rowObj[h] = values[i] !== undefined ? values[i] : '';
+          });
+          
+          return rowObj;
+        })
+        .filter(Boolean); // Remove linhas nulas/vazias
+      
+      if (data.length === 0) {
+        alert('⚠️ Nenhuma linha de dados válida encontrada no CSV.');
+        setFile(null);
+        return;
+      }
+      
+      // Validação adicional: se o número de linhas for muito maior que o esperado, avisa
+      if (data.length > 5000) {
+        const confirm = window.confirm(
+          `⚠️ ATENÇÃO: O sistema detectou ${data.length} candidatos para importar.\n\n` +
+          `Isso parece ser um número muito alto. O arquivo pode ter:\n` +
+          `- Linhas duplicadas\n` +
+          `- Formatação incorreta\n` +
+          `- Quebras de linha mal formatadas\n\n` +
+          `Deseja continuar mesmo assim?`
+        );
+        if (!confirm) {
           setFile(null);
           return;
         }
-        
-        const data = lines.slice(1).map((line, lineIndex) => {
-            if(!line.trim()) return null;
-            const values = parseCSVLine(line).map(v => v.replace(/^"|"$/g, '').trim());
-            const row = {};
-            head.forEach((h, i) => {
-              // Garante que não ultrapasse o número de valores
-              row[h] = values[i] !== undefined ? values[i] : '';
-            });
-            return row;
-        }).filter(Boolean);
-        
-        if (data.length === 0) {
-          alert('⚠️ Nenhuma linha de dados válida encontrada no CSV.');
-          setFile(null);
-          return;
-        }
-        
-        setParsedData(data);
-        
-        // Auto-guess mapping (Lógica Melhorada para seus campos)
-        const initialMap = {};
-        head.forEach(h => {
+      }
+      
+      setParsedData(data);
+      
+      // Auto-guess mapping (Lógica Melhorada para seus campos)
+      const initialMap = {};
+      head.forEach(h => {
             const lowerH = h.toLowerCase().trim().replace(/^"|"$/g, '');
             
             // Primeiro: Tenta correspondência exata (case-insensitive)
@@ -158,10 +224,9 @@ export default function CsvImportModal({ isOpen, onClose, onImportData }) {
                     initialMap[h] = 'external_id';
                 }
             }
-        });
-        setMapping(initialMap);
-        setStep(2);
-      }
+      });
+      setMapping(initialMap);
+      setStep(2);
     };
     
     // Suporta CSV e XLSX
