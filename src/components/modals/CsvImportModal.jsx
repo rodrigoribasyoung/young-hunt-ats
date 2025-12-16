@@ -46,48 +46,117 @@ export default function CsvImportModal({ isOpen, onClose, onImportData }) {
           return result;
         };
 
-        const head = parseCSVLine(lines[0]).map(h => h.replace(/^"|"$/g, ''));
+        const head = parseCSVLine(lines[0]).map(h => h.replace(/^"|"$/g, '').trim());
         setHeaders(head);
         
-        const data = lines.slice(1).map(line => {
+        // Valida se tem pelo menos uma linha de dados
+        if (lines.length < 2) {
+          alert('⚠️ O arquivo CSV precisa ter pelo menos uma linha de cabeçalho e uma linha de dados.');
+          setFile(null);
+          return;
+        }
+        
+        const data = lines.slice(1).map((line, lineIndex) => {
             if(!line.trim()) return null;
-            const values = parseCSVLine(line).map(v => v.replace(/^"|"$/g, ''));
+            const values = parseCSVLine(line).map(v => v.replace(/^"|"$/g, '').trim());
             const row = {};
-            head.forEach((h, i) => row[h] = values[i] || '');
+            head.forEach((h, i) => {
+              // Garante que não ultrapasse o número de valores
+              row[h] = values[i] !== undefined ? values[i] : '';
+            });
             return row;
         }).filter(Boolean);
+        
+        if (data.length === 0) {
+          alert('⚠️ Nenhuma linha de dados válida encontrada no CSV.');
+          setFile(null);
+          return;
+        }
         
         setParsedData(data);
         
         // Auto-guess mapping (Lógica Melhorada para seus campos)
         const initialMap = {};
         head.forEach(h => {
-            const lowerH = h.toLowerCase().trim();
+            const lowerH = h.toLowerCase().trim().replace(/^"|"$/g, '');
             
-            // Tenta encontrar correspondência exata ou aproximada na lista de constantes
-            const foundOption = CSV_FIELD_MAPPING_OPTIONS.find(opt => {
+            // Primeiro: Tenta correspondência exata (case-insensitive)
+            let foundOption = CSV_FIELD_MAPPING_OPTIONS.find(opt => {
                 const optLabel = opt.label.toLowerCase().replace(':', '').trim();
-                return optLabel === lowerH || 
-                       lowerH.includes(optLabel) ||
-                       optLabel.includes(lowerH);
+                return optLabel === lowerH;
             });
+
+            // Segundo: Tenta correspondência parcial (mais específica primeiro)
+            if (!foundOption) {
+                foundOption = CSV_FIELD_MAPPING_OPTIONS.find(opt => {
+                    const optLabel = opt.label.toLowerCase().replace(':', '').trim();
+                    // Verifica se o header contém palavras-chave importantes do label
+                    const optKeywords = optLabel.split(/\s+/).filter(k => k.length > 3);
+                    const headerKeywords = lowerH.split(/\s+/).filter(k => k.length > 3);
+                    
+                    // Match exato de palavras-chave importantes
+                    const hasImportantMatch = optKeywords.some(k => 
+                        headerKeywords.some(hk => hk.includes(k) || k.includes(hk))
+                    );
+                    
+                    return hasImportantMatch || 
+                           lowerH.includes(optLabel) ||
+                           optLabel.includes(lowerH);
+                });
+            }
 
             if (foundOption) {
                 initialMap[h] = foundOption.value;
             } else {
-                // Fallbacks genéricos caso o nome mude um pouco - ordem importa!
-                if(lowerH.includes('nome completo') || (lowerH.includes('nome') && !lowerH.includes('instituição'))) initialMap[h] = 'fullName';
-                else if(lowerH.includes('e-mail') || lowerH.includes('email') || lowerH.includes('mail')) initialMap[h] = 'email';
-                else if(lowerH.includes('telefone') || lowerH.includes('celular') || lowerH.includes('whatsapp') || lowerH.includes('cel')) initialMap[h] = 'phone';
-                else if(lowerH.includes('cidade onde') || lowerH.includes('cidade')) initialMap[h] = 'city';
-                else if(lowerH.includes('onde você nos encontrou') || lowerH.includes('onde encontrou') || lowerH.includes('fonte') || lowerH.includes('origem')) initialMap[h] = 'source';
-                else if(lowerH.includes('áreas de interesse') || lowerH.includes('área de interesse') || lowerH.includes('area interesse')) initialMap[h] = 'interestAreas';
-                else if(lowerH.includes('formação') || lowerH.includes('formacao')) initialMap[h] = 'education';
-                else if(lowerH.includes('currículo') || lowerH.includes('curriculo') || lowerH.includes('cv')) initialMap[h] = 'cvUrl';
-                else if(lowerH.includes('portfólio') || lowerH.includes('portfolio')) initialMap[h] = 'portfolioUrl';
-                else if(lowerH.includes('cnh') || lowerH.includes('carteira')) initialMap[h] = 'hasLicense';
-                else if(lowerH.includes('estado civil')) initialMap[h] = 'maritalStatus';
-                else if(lowerH.includes('escolaridade') || lowerH.includes('nível de escolaridade')) initialMap[h] = 'schoolingLevel';
+                // Fallbacks genéricos - ordem importa! (mais específico primeiro)
+                if(lowerH.includes('nome completo') || (lowerH.includes('nome') && !lowerH.includes('instituição') && !lowerH.includes('social'))) {
+                    initialMap[h] = 'fullName';
+                }
+                else if((lowerH.includes('e-mail principal') || lowerH.includes('email principal')) && !lowerH.includes('secundário') && !lowerH.includes('secundario')) {
+                    initialMap[h] = 'email';
+                }
+                else if(lowerH.includes('endereço de e-mail') || lowerH.includes('endereco de email') || lowerH.includes('email secundário') || lowerH.includes('email secundario')) {
+                    initialMap[h] = 'email_secondary';
+                }
+                else if(lowerH.includes('telefone') || lowerH.includes('celular') || lowerH.includes('whatsapp') || lowerH.includes('cel') || lowerH.includes('fone')) {
+                    initialMap[h] = 'phone';
+                }
+                else if(lowerH.includes('cidade onde reside') || (lowerH.includes('cidade') && !lowerH.includes('nascimento'))) {
+                    initialMap[h] = 'city';
+                }
+                else if(lowerH.includes('onde você nos encontrou') || lowerH.includes('onde encontrou') || lowerH.includes('fonte') || lowerH.includes('origem')) {
+                    initialMap[h] = 'source';
+                }
+                else if(lowerH.includes('áreas de interesse profissional') || lowerH.includes('área de interesse') || lowerH.includes('area interesse')) {
+                    initialMap[h] = 'interestAreas';
+                }
+                else if(lowerH.includes('formação') || lowerH.includes('formacao')) {
+                    initialMap[h] = 'education';
+                }
+                else if(lowerH.includes('anexar currículo') || lowerH.includes('anexar curriculo') || lowerH.includes('currículo') || lowerH.includes('curriculo') || lowerH.includes('cv') || lowerH.includes('resume')) {
+                    initialMap[h] = 'cvUrl';
+                }
+                else if(lowerH.includes('portfólio') || lowerH.includes('portfolio')) {
+                    initialMap[h] = 'portfolioUrl';
+                }
+                else if(lowerH.includes('cnh tipo b') || lowerH.includes('cnh') || lowerH.includes('carteira')) {
+                    initialMap[h] = 'hasLicense';
+                }
+                else if(lowerH.includes('estado civil')) {
+                    initialMap[h] = 'maritalStatus';
+                }
+                else if(lowerH.includes('nível de escolaridade') || lowerH.includes('nivel de escolaridade') || lowerH.includes('escolaridade')) {
+                    initialMap[h] = 'schoolingLevel';
+                }
+                else if(lowerH.includes('data de nascimento') || lowerH.includes('nascimento')) {
+                    initialMap[h] = 'birthDate';
+                }
+                else if(lowerH === 'idade' || lowerH.includes('idade')) {
+                    initialMap[h] = 'age';
+                }
+                else if(lowerH.includes('cod') || lowerH.includes('id externo') || lowerH.includes('external_id')) {
+                    initialMap[h] = 'external_id';
+                }
             }
         });
         setMapping(initialMap);
@@ -254,6 +323,16 @@ export default function CsvImportModal({ isOpen, onClose, onImportData }) {
   };
 
   const finishImport = () => {
+    // Validação: Verifica se campos essenciais estão mapeados
+    const essentialFields = ['fullName', 'email'];
+    const mappedFields = Object.values(mapping).filter(Boolean);
+    const missingEssential = essentialFields.filter(field => !mappedFields.includes(field));
+    
+    if (missingEssential.length > 0) {
+      alert(`⚠️ Campos essenciais não mapeados: ${missingEssential.join(', ')}\n\nPor favor, mapeie pelo menos Nome completo e E-mail antes de importar.`);
+      return;
+    }
+
     // Gera tag de importação
     const fileName = file?.name?.replace(/\.[^/.]+$/, '') || 'importacao';
     const dateTime = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
@@ -263,8 +342,12 @@ export default function CsvImportModal({ isOpen, onClose, onImportData }) {
     const finalCandidates = parsedData.map(row => {
         const candidate = {};
         Object.keys(mapping).forEach(header => {
-            if(mapping[header]) {
-                candidate[mapping[header]] = row[header];
+            if(mapping[header] && row[header] !== undefined) {
+                // Limpa valores vazios e espaços
+                const value = String(row[header] || '').trim();
+                if (value) {
+                  candidate[mapping[header]] = value;
+                }
             }
         });
         // Default fields
@@ -274,7 +357,12 @@ export default function CsvImportModal({ isOpen, onClose, onImportData }) {
         candidate.importTag = importTag;
         candidate.importDate = new Date().toISOString();
         return candidate;
-    });
+    }).filter(c => c.fullName && c.email); // Remove candidatos sem nome ou email
+
+    if (finalCandidates.length === 0) {
+      alert('⚠️ Nenhum candidato válido encontrado. Verifique se os campos Nome completo e E-mail estão preenchidos no CSV.');
+      return;
+    }
 
     onImportData(finalCandidates, importMode);
     onClose();
@@ -369,28 +457,62 @@ export default function CsvImportModal({ isOpen, onClose, onImportData }) {
                         Revise os vínculos automáticos. Campos já identificados estão marcados. 
                         Você pode alterar ou ignorar colunas que não deseja importar.
                       </p>
+                      <p className="text-red-400 text-xs mt-2 font-bold">
+                        ⚠️ OBRIGATÓRIO: Mapeie pelo menos "Nome completo" e "E-mail principal"
+                      </p>
                     </div>
                   </div>
                 </div>
+
+                {/* Preview dos primeiros dados */}
+                {parsedData.length > 0 && (
+                  <div className="bg-brand-dark/50 border border-brand-border rounded-lg p-4 mb-4">
+                    <h5 className="text-white text-xs font-bold uppercase mb-2">Preview dos Dados (Primeira Linha):</h5>
+                    <div className="text-xs space-y-1 max-h-32 overflow-y-auto">
+                      {Object.keys(mapping).filter(h => mapping[h]).slice(0, 5).map(header => {
+                        const fieldName = CSV_FIELD_MAPPING_OPTIONS.find(opt => opt.value === mapping[header])?.label || mapping[header];
+                        const sampleValue = parsedData[0]?.[header] || '';
+                        return (
+                          <div key={header} className="text-slate-300">
+                            <span className="text-brand-cyan font-bold">{fieldName}:</span> {sampleValue ? `"${String(sampleValue).substring(0, 50)}${sampleValue.length > 50 ? '...' : ''}"` : '(vazio)'}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar">
                   {headers.map(header => {
                     const isMapped = !!mapping[header];
                     const mappedField = CSV_FIELD_MAPPING_OPTIONS.find(opt => opt.value === mapping[header]);
+                    const isEssential = mappedField && ['fullName', 'email'].includes(mappedField.value);
+                    const sampleValue = parsedData[0]?.[header] || '';
+                    
                     return (
                       <div 
                         key={header} 
                         className={`grid grid-cols-2 gap-4 items-center p-3 rounded-lg border ${
-                          isMapped 
+                          isEssential
+                            ? 'bg-red-900/20 border-red-500/50'
+                            : isMapped 
                             ? 'bg-brand-cyan/5 border-brand-cyan/30' 
                             : 'bg-brand-dark/30 border-brand-border'
                         }`}
                       >
                         <div className="flex items-center gap-2">
-                          <span className="text-white text-sm font-medium">{header}</span>
+                          <span className={`text-sm font-medium ${isEssential ? 'text-red-300' : 'text-white'}`}>
+                            {header}
+                            {isEssential && <span className="text-red-400 ml-1">*</span>}
+                          </span>
                           {isMapped && (
                             <span className="text-xs bg-brand-cyan/20 text-brand-cyan px-2 py-0.5 rounded">
                               ✓ Auto-detectado
+                            </span>
+                          )}
+                          {sampleValue && (
+                            <span className="text-xs text-slate-500 truncate max-w-[150px]" title={sampleValue}>
+                              "{String(sampleValue).substring(0, 20)}..."
                             </span>
                           )}
                         </div>
@@ -398,7 +520,11 @@ export default function CsvImportModal({ isOpen, onClose, onImportData }) {
                            <ArrowRight size={14} className="text-slate-500"/>
                            <select 
                              className={`bg-brand-dark border rounded p-2 text-sm text-white w-full focus:border-brand-cyan outline-none ${
-                               isMapped ? 'border-brand-cyan/50' : 'border-brand-border'
+                               isEssential
+                                 ? 'border-red-500/50'
+                                 : isMapped 
+                                 ? 'border-brand-cyan/50' 
+                                 : 'border-brand-border'
                              }`}
                              value={mapping[header] || ''}
                              onChange={e => handleMapChange(header, e.target.value)}
@@ -412,7 +538,7 @@ export default function CsvImportModal({ isOpen, onClose, onImportData }) {
                            </select>
                         </div>
                         {mappedField && (
-                          <div className="col-span-2 text-xs text-brand-cyan mt-1">
+                          <div className={`col-span-2 text-xs mt-1 ${isEssential ? 'text-red-300' : 'text-brand-cyan'}`}>
                             → Será mapeado para: <strong>{mappedField.label}</strong>
                           </div>
                         )}
@@ -422,9 +548,15 @@ export default function CsvImportModal({ isOpen, onClose, onImportData }) {
                 </div>
 
                 <div className="mt-4 p-3 bg-brand-dark/50 rounded-lg border border-brand-border">
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-400 mb-2">
                     <strong className="text-brand-cyan">{headers.filter(h => mapping[h]).length}</strong> de <strong>{headers.length}</strong> colunas mapeadas
                   </p>
+                  {!mapping[headers.find(h => mapping[h] === 'fullName')] && (
+                    <p className="text-red-400 text-xs font-bold">⚠️ Campo "Nome completo" não está mapeado!</p>
+                  )}
+                  {!mapping[headers.find(h => mapping[h] === 'email')] && (
+                    <p className="text-red-400 text-xs font-bold">⚠️ Campo "E-mail principal" não está mapeado!</p>
+                  )}
                 </div>
              </div>
            )}
