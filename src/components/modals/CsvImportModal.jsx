@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { UploadCloud, X, ArrowRight, CheckCircle, AlertCircle, Download, FileSpreadsheet } from 'lucide-react';
 import { CSV_FIELD_MAPPING_OPTIONS } from '../../constants';
+import * as XLSX from 'xlsx';
 
 export default function CsvImportModal({ isOpen, onClose, onImportData }) {
   const [step, setStep] = useState(1); // 1: Upload, 2: Map, 3: Options
@@ -11,6 +12,7 @@ export default function CsvImportModal({ isOpen, onClose, onImportData }) {
   const [importMode, setImportMode] = useState('skip'); // 'skip', 'overwrite', 'duplicate'
   const [customTag, setCustomTag] = useState('');
   const [useCustomTag, setUseCustomTag] = useState(false);
+  const [templateFormat, setTemplateFormat] = useState('csv'); // 'csv' ou 'xlsx'
 
   if (!isOpen) return null;
 
@@ -104,57 +106,147 @@ export default function CsvImportModal({ isOpen, onClose, onImportData }) {
   };
 
   const downloadTemplate = () => {
-    // Cria um CSV modelo com todos os campos
     const templateHeaders = CSV_FIELD_MAPPING_OPTIONS.map(opt => opt.label);
-    const csvContent = [
-      templateHeaders.join(','),
-      // Linha de exemplo
-      templateHeaders.map((_, i) => {
-        const examples = [
-          'João Silva',
-          'joao@email.com',
-          '(11) 99999-9999',
-          'São Paulo',
-          '1990-01-15',
-          '34',
-          'Solteiro',
-          '0',
-          'https://exemplo.com/foto.jpg',
-          'Sim',
-          'Engenharia de Software',
-          'Superior Completo',
-          'Universidade XYZ',
-          '2015-12-20',
-          'Não',
-          '5 anos como desenvolvedor...',
-          'Curso de React, Node.js...',
-          'Certificação AWS',
-          'Desenvolvimento, Tecnologia',
-          'https://exemplo.com/cv.pdf',
-          'https://exemplo.com/portfolio',
-          'LinkedIn',
-          'Maria Santos',
-          'R$ 8.000',
-          'Sim',
-          'Referência 1, Referência 2',
-          'Vaga Específica',
-          'Informações adicionais...',
-          '2024-12-04T10:30:00',
-          'COD123'
-        ];
-        return `"${examples[i] || ''}"`;
-      }).join(',')
-    ].join('\n');
+    
+    // 3 linhas de exemplo com dados diferentes
+    const exampleRows = [
+      [
+        'João Silva',
+        'joao.silva@email.com',
+        'joao.secundario@email.com',
+        '(11) 99999-9999',
+        'São Paulo',
+        '1990-01-15',
+        '34',
+        'Solteiro',
+        '0',
+        'https://exemplo.com/foto-joao.jpg',
+        'Sim',
+        'Engenharia de Software',
+        'Superior Completo',
+        'Universidade XYZ',
+        '2015-12-20',
+        'Não',
+        '5 anos como desenvolvedor full-stack em empresas de tecnologia',
+        'Curso de React Avançado, Node.js, Certificação AWS',
+        'Certificação AWS Solutions Architect',
+        'Desenvolvimento, Tecnologia, Inovação',
+        'https://exemplo.com/cv-joao.pdf',
+        'https://exemplo.com/portfolio-joao',
+        'LinkedIn',
+        'Maria Santos',
+        'R$ 8.000',
+        'Sim',
+        'João Referência - (11) 99999-8888, Maria Referência - (11) 99999-7777',
+        'Vaga Específica - Desenvolvedor Full Stack',
+        'Apaixonado por tecnologia e sempre buscando aprender',
+        '2024-12-04T10:30:00',
+        'COD001'
+      ],
+      [
+        'Maria Oliveira',
+        'maria.oliveira@email.com',
+        '',
+        '(21) 98888-7777',
+        'Rio de Janeiro',
+        '1988-05-22',
+        '36',
+        'Casada',
+        '2',
+        'https://exemplo.com/foto-maria.jpg',
+        'Não',
+        'Administração de Empresas',
+        'Superior Completo',
+        'PUC-Rio',
+        '2010-06-15',
+        'Sim',
+        '10 anos em gestão de projetos e liderança de equipes',
+        'PMP, Scrum Master, Gestão Ágil',
+        'Certificação PMP, Scrum Master',
+        'Gestão, Liderança, Estratégia',
+        'https://exemplo.com/cv-maria.pdf',
+        'https://exemplo.com/portfolio-maria',
+        'Indicação',
+        'Pedro Costa',
+        'R$ 12.000',
+        'Não',
+        'Ana Referência - (21) 98888-6666',
+        'Vaga Específica - Gerente de Projetos',
+        'Experiência em transformação digital',
+        '2024-12-05T14:20:00',
+        'COD002'
+      ],
+      [
+        'Pedro Santos',
+        'pedro.santos@email.com',
+        'pedro.pessoal@email.com',
+        '(47) 97777-6666',
+        'Florianópolis',
+        '1995-11-10',
+        '29',
+        'Solteiro',
+        '0',
+        'https://exemplo.com/foto-pedro.jpg',
+        'Sim',
+        'Design Gráfico',
+        'Superior Completo',
+        'UFSC',
+        '2018-07-30',
+        'Não',
+        '7 anos como designer UX/UI em startups',
+        'Figma Avançado, Design Thinking, UX Research',
+        'Certificação Google UX Design',
+        'Design, UX/UI, Criatividade',
+        'https://exemplo.com/cv-pedro.pdf',
+        'https://exemplo.com/portfolio-pedro',
+        'Instagram',
+        '',
+        'R$ 6.500',
+        'Sim',
+        'Carla Referência - (47) 97777-5555',
+        'Vaga Específica - Designer UX/UI',
+        'Portfólio focado em produtos digitais',
+        '2024-12-06T09:15:00',
+        'COD003'
+      ]
+    ];
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `modelo_importacao_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    if (templateFormat === 'csv') {
+      // Gera CSV
+      const csvRows = [
+        templateHeaders.map(h => `"${h}"`).join(','),
+        ...exampleRows.map(row => 
+          row.map(cell => `"${cell || ''}"`).join(',')
+        )
+      ];
+      const csvContent = csvRows.join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `modelo_importacao_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      // Gera XLSX
+      const worksheetData = [
+        templateHeaders,
+        ...exampleRows
+      ];
+      
+      const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Candidatos');
+      
+      // Ajusta largura das colunas
+      const colWidths = templateHeaders.map(() => ({ wch: 30 }));
+      worksheet['!cols'] = colWidths;
+      
+      XLSX.writeFile(workbook, `modelo_importacao_${new Date().toISOString().split('T')[0]}.xlsx`);
+    }
   };
 
   const handleMapChange = (header, systemField) => {
@@ -205,16 +297,47 @@ export default function CsvImportModal({ isOpen, onClose, onImportData }) {
                    <FileSpreadsheet size={24} className="text-brand-cyan"/>
                    <div>
                      <h4 className="text-white font-bold text-sm">Modelo de Importação</h4>
-                     <p className="text-slate-400 text-xs">Baixe o arquivo modelo para ver o formato correto</p>
+                     <p className="text-slate-400 text-xs">Baixe o arquivo modelo com 3 linhas de exemplo</p>
                    </div>
                  </div>
+                 
+                 {/* Seletor de Formato */}
+                 <div className="mb-4">
+                   <label className="text-white text-xs font-bold uppercase mb-2 block">Escolha o formato:</label>
+                   <div className="flex gap-2">
+                     <button
+                       onClick={() => setTemplateFormat('csv')}
+                       className={`flex-1 px-4 py-2 rounded-lg font-bold text-sm transition-colors ${
+                         templateFormat === 'csv'
+                           ? 'bg-brand-cyan text-brand-dark'
+                           : 'bg-brand-card text-slate-400 hover:bg-brand-hover hover:text-white border border-brand-border'
+                       }`}
+                     >
+                       CSV
+                     </button>
+                     <button
+                       onClick={() => setTemplateFormat('xlsx')}
+                       className={`flex-1 px-4 py-2 rounded-lg font-bold text-sm transition-colors ${
+                         templateFormat === 'xlsx'
+                           ? 'bg-brand-cyan text-brand-dark'
+                           : 'bg-brand-card text-slate-400 hover:bg-brand-hover hover:text-white border border-brand-border'
+                       }`}
+                     >
+                       XLSX
+                     </button>
+                   </div>
+                 </div>
+
                  <button 
                    onClick={downloadTemplate}
                    className="w-full bg-brand-cyan text-brand-dark font-bold px-4 py-3 rounded-lg hover:bg-cyan-400 flex items-center justify-center gap-2"
                  >
                    <Download size={18}/>
-                   Baixar Modelo CSV
+                   Baixar Modelo {templateFormat.toUpperCase()}
                  </button>
+                 <p className="text-slate-400 text-xs mt-2 text-center">
+                   O modelo inclui 3 linhas de exemplo para referência
+                 </p>
                </div>
 
                {/* Área de Upload */}
