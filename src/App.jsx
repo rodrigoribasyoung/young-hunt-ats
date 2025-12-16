@@ -323,26 +323,26 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates }) => {
         <div className="bg-brand-card p-6 rounded-xl border border-brand-border">
           <h3 className="font-bold text-lg text-white mb-4">Status das Vagas</h3>
           {jobStats.open > 0 || jobStats.filled > 0 || jobStats.closed > 0 ? (
-            <ResponsiveContainer width="100%" height={320}>
-              <PieChart>
-                <Pie
-                  data={[
-                    { name: 'Abertas', value: jobStats.open },
-                    { name: 'Preenchidas', value: jobStats.filled },
-                    { name: 'Fechadas', value: jobStats.closed }
+          <ResponsiveContainer width="100%" height={320}>
+            <PieChart>
+              <Pie
+                data={[
+                  { name: 'Abertas', value: jobStats.open },
+                  { name: 'Preenchidas', value: jobStats.filled },
+                  { name: 'Fechadas', value: jobStats.closed }
                   ].filter(d => d.value > 0)}
-                  cx="50%"
-                  cy="48%"
-                  labelLine={false}
+                cx="50%"
+                cy="48%"
+                labelLine={false}
                   label={({name, value}) => value > 0 ? `${name}: ${value}` : ''}
-                  outerRadius={110}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
+                outerRadius={110}
+                fill="#8884d8"
+                dataKey="value"
+              >
                   <Cell fill="#FBBC04"/>
                   <Cell fill="#34A853"/>
                   <Cell fill="#9E9E9E"/>
-                </Pie>
+              </Pie>
                 <Tooltip 
                   contentStyle={{
                     backgroundColor: '#1e293b', 
@@ -359,8 +359,8 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates }) => {
                   wrapperStyle={{ color: '#e2e8f0', fontSize: 11 }}
                   formatter={(value) => <span className="break-words">{value}</span>}
                 />
-              </PieChart>
-            </ResponsiveContainer>
+            </PieChart>
+          </ResponsiveContainer>
           ) : (
             <div className="h-[320px] flex items-center justify-center text-slate-500">Sem dados</div>
           )}
@@ -502,7 +502,7 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
                   onChange={e => setFilters({...filters, customDateEnd: e.target.value})}
                   placeholder="Data final"
                 />
-              </div>
+          </div>
             )}
           </div>
 
@@ -569,7 +569,7 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
           </div>
           <div className="space-y-2">
             <div className="flex justify-between items-center">
-              <label className="text-xs font-bold text-brand-orange uppercase">Vaga Vinculada</label>
+            <label className="text-xs font-bold text-brand-orange uppercase">Vaga Vinculada</label>
               <button
                 onClick={() => toggleExpanded('jobId')}
                 className="text-xs text-brand-cyan hover:text-white"
@@ -602,8 +602,8 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
               </div>
             ) : (
               <select className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange" value={Array.isArray(filters.jobId) ? filters.jobId[0] || 'all' : (filters.jobId || 'all')} onChange={e => setFilters({...filters, jobId: e.target.value === 'all' ? 'all' : [e.target.value]})}>
-                <option value="all">Todas as Vagas</option>{options.jobs.map(j=><option key={j.id} value={j.id}>{j.title}</option>)}
-              </select>
+               <option value="all">Todas as Vagas</option>{options.jobs.map(j=><option key={j.id} value={j.id}>{j.title}</option>)}
+            </select>
             )}
           </div>
 
@@ -651,7 +651,7 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
              return (
                <div key={field.value} className="space-y-2">
                  <div className="flex justify-between items-center">
-                   <label className="text-xs font-bold text-slate-400 uppercase">{field.label.replace(':', '')}</label>
+                 <label className="text-xs font-bold text-slate-400 uppercase">{field.label.replace(':', '')}</label>
                    {hasOptions && (
                      <button
                        onClick={() => toggleExpanded(field.value)}
@@ -700,9 +700,9 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
                        value={Array.isArray(filters[field.value]) ? filters[field.value][0] || 'all' : (filters[field.value] || 'all')} 
                        onChange={e => setFilters({...filters, [field.value]: e.target.value === 'all' ? 'all' : [e.target.value]})}
                      >
-                       <option value="all">Todos</option>
-                       {optionsList.map(o => <option key={o.id || o.name} value={o.name}>{o.name}</option>)}
-                     </select>
+                     <option value="all">Todos</option>
+                     {optionsList.map(o => <option key={o.id || o.name} value={o.name}>{o.name}</option>)}
+                   </select>
                    )
                  ) : isBoolean ? (
                    expandedFilters[field.value] ? (
@@ -737,8 +737,8 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
                      </div>
                    ) : (
                      <select className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange" value={Array.isArray(filters[field.value]) ? filters[field.value][0] || 'all' : (filters[field.value] || 'all')} onChange={e => setFilters({...filters, [field.value]: e.target.value === 'all' ? 'all' : [e.target.value]})}>
-                       <option value="all">Todos</option><option value="Sim">Sim</option><option value="Não">Não</option>
-                     </select>
+                     <option value="all">Todos</option><option value="Sim">Sim</option><option value="Não">Não</option>
+                   </select>
                    )
                  ) : (
                    <input type="text" className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange" placeholder={`Filtrar...`} value={filters[field.value] || ''} onChange={e => setFilters({...filters, [field.value]: e.target.value})}/>
@@ -1079,7 +1079,7 @@ export default function App() {
               data = data.filter(c => filters[key].includes(c[key]));
             }
           } else {
-            data = data.filter(c => c[key] === filters[key]);
+          data = data.filter(c => c[key] === filters[key]);
           }
        }
     });
@@ -1140,9 +1140,9 @@ export default function App() {
              <button onClick={()=>setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-brand-hover rounded transition-colors">
                {isSidebarOpen ? <ChevronLeft size={20} className="text-slate-400"/> : <Menu size={20} className="text-slate-400"/>}
              </button>
-             <h2 className="text-lg font-bold text-white ml-2 lg:ml-0">
-                {activeTab === 'pipeline' ? 'Pipeline de Talentos' : activeTab === 'jobs' ? 'Gestão de Vagas' : activeTab === 'candidates' ? 'Banco de Talentos' : activeTab === 'settings' ? 'Configurações' : 'Dashboard'}
-             </h2>
+           <h2 className="text-lg font-bold text-white ml-2 lg:ml-0">
+              {activeTab === 'pipeline' ? 'Pipeline de Talentos' : activeTab === 'jobs' ? 'Gestão de Vagas' : activeTab === 'candidates' ? 'Banco de Talentos' : activeTab === 'settings' ? 'Configurações' : 'Dashboard'}
+           </h2>
            </div>
            <div className="flex items-center gap-3">
               <button onClick={() => setIsFilterSidebarOpen(true)} className="flex items-center gap-2 text-sm text-slate-400 hover:text-brand-cyan font-bold px-3 py-1.5 rounded border border-slate-700 hover:border-brand-cyan transition-colors">
@@ -1167,7 +1167,16 @@ export default function App() {
 
       {/* MODAIS GLOBAIS - CORRIGIDO PASSAGEM DE PROPS */}
       {isJobModalOpen && <JobModal isOpen={isJobModalOpen} job={editingJob} onClose={closeJobModal} onSave={d => handleSaveGeneric('jobs', d, closeJobModal)} options={optionsProps} isSaving={isSaving} />}
-      {editingCandidate && <CandidateModal candidate={editingCandidate} onClose={() => setEditingCandidate(null)} onSave={d => handleSaveGeneric('candidates', d, () => setEditingCandidate(null))} options={optionsProps} isSaving={isSaving} />}
+      {editingCandidate && <CandidateModal candidate={editingCandidate} onClose={() => setEditingCandidate(null)} onSave={d => handleSaveGeneric('candidates', d, () => setEditingCandidate(null))} options={optionsProps} isSaving={isSaving} onAdvanceStage={(candidate, newStage) => {
+        const missingFields = computeMissingFields(candidate, newStage);
+        const isConclusion = CLOSING_STATUSES.includes(newStage);
+        if (isConclusion || missingFields.length > 0) {
+          setPendingTransition({ candidate, toStage: newStage, missingFields, isConclusion });
+        } else {
+          updateDoc(doc(db, 'candidates', candidate.id), { status: newStage, updatedAt: serverTimestamp() });
+          showToast('Status atualizado', 'success');
+        }
+      }} />}
       
       {/* CORREÇÃO IMPORTANTE: Passando todas as props necessárias para o TransitionModal */}
       {pendingTransition && (
@@ -1457,7 +1466,7 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
               </select>
            </div>
            <div className="flex items-center gap-4">
-             <div className="text-xs text-slate-500">{processedData.length} talentos</div>
+           <div className="text-xs text-slate-500">{processedData.length} talentos</div>
              {viewMode === 'list' && (
                <select
                  className="bg-brand-card border border-brand-border rounded px-2 py-1 text-xs text-white outline-none focus:border-brand-cyan"
@@ -1488,7 +1497,7 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                  <option value={20}>20 por coluna</option>
                </select>
              )}
-           </div>
+        </div>
         </div>
         <div className="flex-1 overflow-hidden flex flex-col">
            {viewMode === 'kanban' ? (
@@ -1687,7 +1696,7 @@ const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, jobs, 
               <button onClick={(e)=>{e.stopPropagation();onCloseStatus(c.id,'Reprovado')}} className="p-1.5 hover:text-red-400 hover:bg-red-500/20" title="Reprovar">
                 <Ban size={14}/>
               </button>
-            </div>
+          </div>
           </div>
         )}) : (
           <div className="text-center py-8 text-slate-500 text-xs">Nenhum candidato nesta etapa</div>
@@ -2202,9 +2211,9 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
               {String(filtered.length)} candidatos
             </div>
             <div className="flex items-center gap-2">
-              <button 
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1}
+            <button 
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
                 className={`px-3 py-1.5 rounded text-sm font-bold transition-colors ${
                   currentPage === 1
                     ? 'bg-brand-card text-slate-600 cursor-not-allowed'
@@ -2212,13 +2221,13 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
                 }`}
               >
                 <ChevronLeft size={16} className="inline"/>
-              </button>
+            </button>
               <span className="px-4 py-1.5 text-sm text-slate-300">
-                Página {currentPage} de {totalPages}
+              Página {currentPage} de {totalPages}
               </span>
-              <button 
-                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                disabled={currentPage === totalPages}
+            <button 
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
                 className={`px-3 py-1.5 rounded text-sm font-bold transition-colors ${
                   currentPage === totalPages
                     ? 'bg-brand-card text-slate-600 cursor-not-allowed'
@@ -2226,7 +2235,7 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
                 }`}
               >
                 <ChevronRight size={16} className="inline"/>
-              </button>
+            </button>
             </div>
           </div>
         )}
@@ -2518,11 +2527,25 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
   );
 };
 
-const CandidateModal = ({ candidate, onClose, onSave, options, isSaving }) => {
+const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvanceStage }) => {
   // Normaliza cidade ao carregar candidato
   const normalizedCandidate = candidate?.city ? { ...candidate, city: normalizeCity(candidate.city) } : candidate;
   const [d, setD] = useState({ ...normalizedCandidate });
   const [activeSection, setActiveSection] = useState('pessoal');
+  
+  // Determina próxima etapa disponível
+  const getCurrentStageIndex = () => {
+    const currentStatus = d.status || 'Inscrito';
+    return PIPELINE_STAGES.indexOf(currentStatus);
+  };
+  
+  const getNextStages = () => {
+    const currentIndex = getCurrentStageIndex();
+    if (currentIndex === -1 || currentIndex >= PIPELINE_STAGES.length - 1) {
+      return CLOSING_STATUSES; // Se já está na última etapa, mostra apenas status de fechamento
+    }
+    return [PIPELINE_STAGES[currentIndex + 1], ...CLOSING_STATUSES];
+  };
   
   const handleInputChange = (field, value) => {
     // Normaliza campos específicos quando o usuário digita
@@ -2567,11 +2590,43 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving }) => {
         </div>
         <div className="p-8 overflow-y-auto flex-1 bg-brand-dark dark:bg-brand-dark">
           {activeSection === 'pessoal' && (
-            <div className="grid grid-cols-2 gap-6">
-              <InputField label="Nome Completo" field="fullName" value={d.fullName} onChange={handleInputChange}/>
-              <InputField label="Email Principal" field="email" value={d.email} onChange={handleInputChange}/>
-              <InputField label="Email Secundário" field="email_secondary" value={d.email_secondary} onChange={handleInputChange}/>
-              <InputField label="Telefone/Celular" field="phone" value={d.phone} onChange={handleInputChange}/>
+            <>
+              {/* Menu de Avanço de Etapa - Destaque */}
+              {d.id && onAdvanceStage && (
+                <div className="bg-gradient-to-r from-blue-600/20 to-cyan-600/20 border-2 border-blue-500/50 rounded-lg p-4 mb-6">
+                  <label className="block text-sm font-bold text-white mb-2 flex items-center gap-2">
+                    <Trophy size={18} className="text-yellow-400"/> Avançar Etapa do Processo
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      className="flex-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 p-2.5 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                      value=""
+                      onChange={(e) => {
+                        if (e.target.value && onAdvanceStage) {
+                          onAdvanceStage(d, e.target.value);
+                        }
+                        e.target.value = '';
+                      }}
+                    >
+                      <option value="">Selecione a próxima etapa...</option>
+                      {getNextStages().map(stage => (
+                        <option key={stage} value={stage}>
+                          {stage}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="text-xs text-slate-300 self-center px-2">
+                      Etapa atual: <span className="font-bold text-blue-300">{d.status || 'Inscrito'}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <div className="grid grid-cols-2 gap-6">
+                <InputField label="Nome Completo" field="fullName" value={d.fullName} onChange={handleInputChange}/>
+                <InputField label="Email Principal" field="email" value={d.email} onChange={handleInputChange}/>
+                <InputField label="Email Secundário" field="email_secondary" value={d.email_secondary} onChange={handleInputChange}/>
+                <InputField label="Telefone/Celular" field="phone" value={d.phone} onChange={handleInputChange}/>
               <div className="mb-3">
                 <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Cidade</label>
                 <select className="w-full bg-brand-dark dark:bg-brand-dark border border-brand-border dark:border-brand-border p-2.5 rounded text-white dark:text-white outline-none focus:border-brand-orange" value={d.city || ''} onChange={e=>handleInputChange('city', e.target.value)}>
@@ -2606,7 +2661,8 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving }) => {
                   <option value="Não">Não</option>
                 </select>
               </div>
-            </div>
+              </div>
+            </>
           )}
           {activeSection === 'profissional' && (
             <div className="grid grid-cols-2 gap-6">

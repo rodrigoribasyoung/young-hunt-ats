@@ -54,18 +54,18 @@ html:not(.dark) ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8; 
 }
 
-/* Estilos Light Mode para componentes brand */
+/* Estilos Light Mode para componentes brand - Design Universal */
 html:not(.dark) .bg-brand-dark {
-  background-color: #f1f5f9; /* Slate 100 */
+  background-color: #ffffff; /* Branco */
 }
 
 html:not(.dark) .bg-brand-card {
-  background-color: #ffffff; /* Branco */
+  background-color: #f8fafc; /* Slate 50 */
   border-color: #e2e8f0; /* Slate 200 */
 }
 
 html:not(.dark) .bg-brand-hover {
-  background-color: #f8fafc; /* Slate 50 */
+  background-color: #f1f5f9; /* Slate 100 */
 }
 
 html:not(.dark) .border-brand-border {
@@ -90,4 +90,37 @@ html:not(.dark) .text-slate-300 {
 
 html:not(.dark) .text-slate-200 {
   color: #475569; /* Slate 600 */
+}
+
+/* Classes utilitárias universais para dark/light mode */
+.bg-surface {
+  @apply bg-white dark:bg-gray-900;
+}
+
+.bg-surface-elevated {
+  @apply bg-gray-50 dark:bg-gray-800;
+}
+
+.bg-surface-hover {
+  @apply bg-gray-100 dark:bg-gray-700;
+}
+
+.text-primary {
+  @apply text-gray-900 dark:text-gray-100;
+}
+
+.text-secondary {
+  @apply text-gray-600 dark:text-gray-400;
+}
+
+.border-default {
+  @apply border-gray-200 dark:border-gray-700;
+}
+
+.btn-primary {
+  @apply bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600;
+}
+
+.btn-secondary {
+  @apply bg-gray-200 hover:bg-gray-300 text-gray-900 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100;
 }
