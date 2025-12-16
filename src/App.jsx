@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, Briefcase, Settings, Plus, Search, 
   FileText, MapPin, Filter, Trophy, Menu, X, LogOut, Loader2, Edit3, Trash2,
   Building2, Mail, Check, Ban, UserMinus, CheckSquare, Square, Kanban, List,
-  CalendarCheck, AlertCircle, UserPlus, Moon, Sun
+  CalendarCheck, AlertCircle, UserPlus, Moon, Sun, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -759,10 +759,14 @@ export default function App() {
       {/* CONTEÚDO PRINCIPAL */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden lg:pl-64">
         <header className="h-16 border-b border-brand-border bg-brand-card flex items-center justify-between px-4 z-20">
-           <button onClick={()=>setIsSidebarOpen(true)} className="lg:hidden p-2"><Menu/></button>
-           <h2 className="text-lg font-bold text-white ml-2 lg:ml-0">
-              {activeTab === 'pipeline' ? 'Pipeline de Talentos' : activeTab === 'jobs' ? 'Gestão de Vagas' : activeTab === 'candidates' ? 'Banco de Talentos' : activeTab === 'settings' ? 'Configurações' : 'Dashboard'}
-           </h2>
+           <div className="flex items-center gap-2">
+             <button onClick={()=>setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-brand-hover rounded transition-colors">
+               {isSidebarOpen ? <ChevronLeft size={20} className="text-slate-400"/> : <Menu size={20} className="text-slate-400"/>}
+             </button>
+             <h2 className="text-lg font-bold text-white ml-2 lg:ml-0">
+                {activeTab === 'pipeline' ? 'Pipeline de Talentos' : activeTab === 'jobs' ? 'Gestão de Vagas' : activeTab === 'candidates' ? 'Banco de Talentos' : activeTab === 'settings' ? 'Configurações' : 'Dashboard'}
+             </h2>
+           </div>
            <div className="flex items-center gap-3">
               <button onClick={() => setIsFilterSidebarOpen(true)} className="flex items-center gap-2 text-sm text-slate-400 hover:text-brand-cyan font-bold px-3 py-1.5 rounded border border-slate-700 hover:border-brand-cyan transition-colors">
                  <Filter size={16}/> Filtros Avançados
@@ -775,7 +779,7 @@ export default function App() {
 
         <div className="flex-1 overflow-hidden bg-brand-dark relative">
            {activeTab === 'dashboard' && <div className="p-6 overflow-y-auto h-full"><Dashboard filteredJobs={jobs} filteredCandidates={filteredCandidates} onOpenCandidates={setDashboardModalCandidates} /></div>}
-           {activeTab === 'pipeline' && <PipelineView candidates={filteredCandidates} jobs={jobs} onDragEnd={handleDragEnd} onEdit={setEditingCandidate} onCloseStatus={handleCloseStatus} />}
+           {activeTab === 'pipeline' && <PipelineView candidates={filteredCandidates} jobs={jobs} companies={companies} onDragEnd={handleDragEnd} onEdit={setEditingCandidate} onCloseStatus={handleCloseStatus} />}
            {activeTab === 'jobs' && <div className="p-6 overflow-y-auto h-full"><JobsList jobs={jobs} candidates={candidates} onAdd={()=>openJobModal({})} onEdit={(j)=>openJobModal(j)} onDelete={(id)=>deleteDoc(doc(db,'jobs',id))} onToggleStatus={handleSaveGeneric} onFilterPipeline={()=>{setFilters({...filters, jobId: 'mock_id'}); setActiveTab('pipeline')}} onViewCandidates={openJobCandidatesModal}/></div>}
            {activeTab === 'candidates' && <div className="p-6 overflow-y-auto h-full"><CandidatesList candidates={filteredCandidates} jobs={jobs} onAdd={()=>setEditingCandidate({})} onEdit={setEditingCandidate} onDelete={(id)=>deleteDoc(doc(db,'candidates',id))}/></div>}
            {activeTab === 'settings' && <div className="p-0 h-full"><SettingsPage {...optionsProps} onOpenCsvModal={openCsvModal} activeSettingsTab={route.settingsTab} onSettingsTabChange={(tab) => { updateURL({ settingsTab: tab }); setRoute(prev => ({ ...prev, settingsTab: tab })); }} onShowToast={showToast} /></div>}
@@ -912,7 +916,7 @@ export default function App() {
 }
 
 // --- PIPELINE VIEW ---
-const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus }) => {
+const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, companies }) => {
   const [viewMode, setViewMode] = useState('kanban'); 
   const [itemsPerPage, setItemsPerPage] = useState(50);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -920,6 +924,10 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus }) =>
   const [localSearch, setLocalSearch] = useState('');
   const [localSort, setLocalSort] = useState('recent');
   const [statusFilter, setStatusFilter] = useState('active'); // active, hired, rejected
+  const [pipelineStatusFilter, setPipelineStatusFilter] = useState('all'); // Filtro específico por etapa
+  const [jobFilter, setJobFilter] = useState('all');
+  const [companyFilter, setCompanyFilter] = useState('all');
+  const [cityFilter, setCityFilter] = useState('all');
 
   useEffect(() => setSelectedIds([]), [candidates]);
 
@@ -933,40 +941,89 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus }) =>
      else if (statusFilter === 'hired') data = data.filter(c => c.status === 'Contratado');
      else if (statusFilter === 'rejected') data = data.filter(c => c.status === 'Reprovado');
      else if (statusFilter === 'withdrawn') data = data.filter(c => c.status === 'Desistiu da vaga');
+     
+     // Filtros adicionais para modo lista
+     if (pipelineStatusFilter !== 'all') {
+       data = data.filter(c => (c.status || 'Inscrito') === pipelineStatusFilter);
+     }
+     if (jobFilter !== 'all') {
+       data = data.filter(c => c.jobId === jobFilter);
+     }
+     if (companyFilter !== 'all') {
+       const job = jobs.find(j => j.id === jobFilter);
+       if (job) {
+         data = data.filter(c => c.jobId === jobFilter);
+       } else {
+         // Filtra por empresa da vaga
+         const companyJobs = jobs.filter(j => j.company === companyFilter).map(j => j.id);
+         data = data.filter(c => companyJobs.includes(c.jobId));
+       }
+     }
+     if (cityFilter !== 'all') {
+       data = data.filter(c => c.city === cityFilter);
+     }
+     
      if (localSearch) {
          const s = localSearch.toLowerCase();
-         data = data.filter(c => c.fullName?.toLowerCase().includes(s));
+         data = data.filter(c => 
+           c.fullName?.toLowerCase().includes(s) ||
+           c.email?.toLowerCase().includes(s) ||
+           c.city?.toLowerCase().includes(s) ||
+           c.interestAreas?.toLowerCase().includes(s) ||
+           jobs.find(j => j.id === c.jobId)?.title?.toLowerCase().includes(s)
+         );
      }
      data.sort((a, b) => {
          if (localSort === 'recent') return (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0);
          if (localSort === 'oldest') return (a.createdAt?.seconds||0) - (b.createdAt?.seconds||0);
          if (localSort === 'az') return (a.fullName||'').localeCompare(b.fullName||'');
+         if (localSort === 'za') return (b.fullName||'').localeCompare(a.fullName||'');
          return 0;
      });
      return data;
-  }, [candidates, statusFilter, localSearch, localSort]);
+  }, [candidates, statusFilter, localSearch, localSort, pipelineStatusFilter, jobFilter, companyFilter, cityFilter, jobs]);
 
   return (
      <div className="flex flex-col h-full relative">
         <div className="px-6 py-3 border-b border-brand-border flex flex-wrap gap-4 justify-between items-center bg-brand-dark">
-           <div className="flex gap-3 items-center">
+           <div className="flex gap-3 items-center flex-wrap">
               <div className="flex bg-brand-card p-1 rounded-lg border border-brand-border">
                  <button onClick={() => setViewMode('kanban')} className={`p-2 rounded ${viewMode==='kanban' ? 'bg-brand-dark text-brand-cyan' : 'text-slate-400'}`}><Kanban size={16}/></button>
                  <button onClick={() => setViewMode('list')} className={`p-2 rounded ${viewMode==='list' ? 'bg-brand-dark text-brand-cyan' : 'text-slate-400'}`}><List size={16}/></button>
               </div>
-              <input className="bg-brand-card border border-brand-border rounded px-3 py-1.5 text-sm text-white outline-none focus:border-brand-cyan w-48" placeholder="Buscar na view..." value={localSearch} onChange={e=>setLocalSearch(e.target.value)}/>
+              <input className="bg-brand-card border border-brand-border rounded px-3 py-1.5 text-sm text-white outline-none focus:border-brand-cyan w-48" placeholder="Buscar..." value={localSearch} onChange={e=>setLocalSearch(e.target.value)}/>
               <select className="bg-brand-card border border-brand-border rounded px-3 py-1.5 text-sm text-white outline-none" value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}>
                  <option value="active">Em Andamento</option><option value="hired">Contratados</option><option value="rejected">Reprovados</option><option value="all">Todos</option>
               </select>
+              {viewMode === 'list' && (
+                <>
+                  <select className="bg-brand-card border border-brand-border rounded px-3 py-1.5 text-sm text-white outline-none" value={pipelineStatusFilter} onChange={e=>setPipelineStatusFilter(e.target.value)}>
+                    <option value="all">Todas as Etapas</option>
+                    {PIPELINE_STAGES.map(stage => <option key={stage} value={stage}>{stage}</option>)}
+                  </select>
+                  <select className="bg-brand-card border border-brand-border rounded px-3 py-1.5 text-sm text-white outline-none" value={jobFilter} onChange={e=>setJobFilter(e.target.value)}>
+                    <option value="all">Todas as Vagas</option>
+                    {jobs.map(j => <option key={j.id} value={j.id}>{j.title}</option>)}
+                  </select>
+                  <select className="bg-brand-card border border-brand-border rounded px-3 py-1.5 text-sm text-white outline-none" value={companyFilter} onChange={e=>setCompanyFilter(e.target.value)}>
+                    <option value="all">Todas as Empresas</option>
+                    {companies.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                  </select>
+                  <select className="bg-brand-card border border-brand-border rounded px-3 py-1.5 text-sm text-white outline-none" value={cityFilter} onChange={e=>setCityFilter(e.target.value)}>
+                    <option value="all">Todas as Cidades</option>
+                    {Array.from(new Set(candidates.map(c => c.city).filter(Boolean))).sort().map(city => <option key={city} value={city}>{city}</option>)}
+                  </select>
+                </>
+              )}
               <select className="bg-brand-card border border-brand-border rounded px-3 py-1.5 text-sm text-white outline-none" value={localSort} onChange={e=>setLocalSort(e.target.value)}>
-                 <option value="recent">Mais Recentes</option><option value="oldest">Mais Antigos</option><option value="az">A-Z</option>
+                 <option value="recent">Mais Recentes</option><option value="oldest">Mais Antigos</option><option value="az">A-Z</option><option value="za">Z-A</option>
               </select>
            </div>
            <div className="text-xs text-slate-500">{processedData.length} talentos</div>
         </div>
         <div className="flex-1 overflow-hidden">
            {viewMode === 'kanban' ? (
-              <div className="h-full overflow-x-auto p-4 custom-scrollbar"><div className="flex gap-4 h-full min-w-max">
+              <div className="h-full overflow-x-auto p-2 custom-scrollbar"><div className="flex gap-2 h-full min-w-max">
                  {PIPELINE_STAGES.map(stage => (
                     <KanbanColumn key={stage} stage={stage} allCandidates={processedData.filter(c => (c.status || 'Inscrito') === stage)} limit={visibleCounts[stage]} onLoadMore={() => loadMore(stage)} jobs={jobs} onDragEnd={onDragEnd} onEdit={onEdit} onCloseStatus={onCloseStatus} selectedIds={selectedIds} onSelect={handleSelect} />
                  ))}
@@ -982,37 +1039,106 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus }) =>
 };
 
 const KanbanColumn = ({ stage, allCandidates, limit, onLoadMore, jobs, onDragEnd, onEdit, onCloseStatus, selectedIds, onSelect }) => {
+  const [columnColor, setColumnColor] = useState(() => {
+    const saved = localStorage.getItem(`kanban-color-${stage}`);
+    return saved || STATUS_COLORS[stage];
+  });
+  
   const displayedCandidates = allCandidates.slice(0, limit);
   const handleDrop = (e) => { e.preventDefault(); const cId = e.dataTransfer.getData("text/plain"); if (cId) onDragEnd(cId, stage); };
   const handleDragStart = (e, cId) => { try { e.dataTransfer.setData("text/plain", cId); e.dataTransfer.effectAllowed = 'move'; } catch(err){ console.warn('dragStart err', err); } };
+  
+  const handleColorChange = (color) => {
+    setColumnColor(color);
+    localStorage.setItem(`kanban-color-${stage}`, color);
+  };
+  
+  const presetColors = [
+    'bg-slate-700 text-slate-200 border-slate-600',
+    'bg-blue-900/40 text-blue-300 border-blue-700',
+    'bg-cyan-900/40 text-cyan-300 border-cyan-700',
+    'bg-purple-900/40 text-purple-300 border-purple-700',
+    'bg-indigo-900/40 text-indigo-300 border-indigo-700',
+    'bg-yellow-900/40 text-yellow-300 border-yellow-700',
+    'bg-green-900/40 text-green-300 border-green-700',
+    'bg-red-900/40 text-red-300 border-red-700',
+    'bg-orange-900/40 text-orange-300 border-orange-700',
+    'bg-pink-900/40 text-pink-300 border-pink-700'
+  ];
+  
    return (
-      <div className="w-[300px] flex flex-col bg-brand-card/40 border border-brand-border rounded-xl h-full backdrop-blur-sm" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
-         <div className={`p-3 border-b border-brand-border flex justify-between items-center rounded-t-xl ${STATUS_COLORS[stage]}`}><span className="font-bold text-sm uppercase">{stage}</span><span className="bg-black/20 px-2 py-0.5 rounded text-xs font-mono">{allCandidates.length}</span></div>
-        <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">{displayedCandidates.map(c => (
+      <div className="w-[240px] flex-shrink-0 flex flex-col bg-brand-card/40 border border-brand-border rounded-xl h-full backdrop-blur-sm" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
+         <div className={`p-2 border-b border-brand-border flex justify-between items-center rounded-t-xl ${columnColor} relative group`}>
+           <span className="font-bold text-xs uppercase break-words">{stage}</span>
+           <span className="bg-black/20 px-2 py-0.5 rounded text-xs font-mono">{allCandidates.length}</span>
+           <div className="absolute top-full left-0 right-0 bg-brand-card border border-brand-border rounded-b-lg p-2 opacity-0 group-hover:opacity-100 transition-opacity z-50 shadow-lg">
+             <div className="text-xs text-slate-400 mb-1">Cor da coluna:</div>
+             <div className="grid grid-cols-5 gap-1">
+               {presetColors.map((color, idx) => (
+                 <button
+                   key={idx}
+                   onClick={() => handleColorChange(color)}
+                   className={`h-6 rounded border-2 ${color} ${columnColor === color ? 'ring-2 ring-brand-orange' : ''}`}
+                   title={color}
+                 />
+               ))}
+             </div>
+           </div>
+         </div>
+        <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">{displayedCandidates.map(c => {
+          const candidateJob = jobs.find(j => j.id === c.jobId);
+          return (
           <div key={c.id} draggable onDragStart={(e) => handleDragStart(e, c.id)} onClick={() => onEdit(c)} className={`bg-brand-card p-3 rounded-lg border hover:border-brand-cyan cursor-grab shadow-sm group relative ${selectedIds.includes(c.id) ? 'border-brand-orange bg-brand-orange/5' : 'border-brand-border'}`}>
             <div className={`absolute top-2 left-2 z-20 ${selectedIds.includes(c.id)?'opacity-100':'opacity-0 group-hover:opacity-100'}`} onClick={e=>e.stopPropagation()}><input type="checkbox" className="accent-brand-orange" checked={selectedIds.includes(c.id)} onChange={()=>onSelect(c.id)}/></div>
-            <div className="pl-6 mb-2"><h4 className="font-bold text-white text-sm line-clamp-1">{c.fullName}</h4></div>
+            
+            {/* Cabeçalho com resumo */}
+            <div className="pl-6 mb-2 border-b border-brand-border/50 pb-2">
+              <h4 className="font-bold text-white text-sm break-words mb-1">{c.fullName}</h4>
+              <div className="text-xs space-y-0.5">
+                {candidateJob && (
+                  <div className="text-brand-cyan flex items-center gap-1">
+                    <Briefcase size={10}/> <span className="break-words">{candidateJob.title}</span>
+                  </div>
+                )}
+                <div className="text-slate-300 flex items-center gap-1">
+                  <span className={`px-1.5 py-0.5 rounded text-xs border ${STATUS_COLORS[c.status] || 'bg-slate-700 text-slate-200 border-slate-600'}`}>{c.status || 'Inscrito'}</span>
+                </div>
+                {c.city && (
+                  <div className="text-slate-400 flex items-center gap-1">
+                    <MapPin size={10}/> <span className="break-words">{c.city}</span>
+                  </div>
+                )}
+                {c.interestAreas && (
+                  <div className="text-slate-400 flex items-center gap-1">
+                    <Building2 size={10}/> <span className="break-words">{c.interestAreas}</span>
+                  </div>
+                )}
+                {candidateJob && candidateJob.company && (
+                  <div className="text-slate-400 flex items-center gap-1">
+                    <Building2 size={10}/> <span className="break-words">{candidateJob.company}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            
             <div className="grid grid-cols-1 gap-1 pl-6">
-              <div className="text-xs text-brand-cyan truncate flex gap-1"><Building2 size={10}/> {c.interestAreas || 'N/D'}</div>
-              <div className="text-xs text-slate-400 truncate flex gap-1"><MapPin size={10}/> {c.city || 'N/D'}</div>
               <div className="text-xs text-slate-400 truncate flex gap-1"><Mail size={10}/> {c.email || 'N/D'}</div>
               <div className="text-xs text-slate-400 truncate flex gap-1">📞 {c.phone || 'N/D'}</div>
-              <div className="text-xs text-slate-400 truncate flex gap-1">🎓 {c.education || 'N/D'}</div>
               {c.score && <div className="text-xs text-brand-orange font-bold">Match: {c.score}%</div>}
             </div>
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-brand-card shadow-lg rounded border border-brand-border z-30">
-              <button onClick={(e)=>{e.stopPropagation();onEdit(c)}} className="p-1.5 hover:text-blue-400" title="Editar">
+              <button onClick={(e)=>{e.stopPropagation();onEdit(c)}} className="p-1.5 hover:text-blue-400 hover:bg-blue-500/20" title="Editar">
                 <Edit3 size={14}/>
               </button>
-              <button onClick={(e)=>{e.stopPropagation();onCloseStatus(c.id,'Contratado')}} className="p-1.5 hover:text-green-400" title="Contratar">
+              <button onClick={(e)=>{e.stopPropagation();onCloseStatus(c.id,'Contratado')}} className="p-1.5 hover:text-green-400 hover:bg-green-500/20" title="Contratar">
                 <Check size={14}/>
               </button>
-              <button onClick={(e)=>{e.stopPropagation();onCloseStatus(c.id,'Reprovado')}} className="p-1.5 hover:text-red-400" title="Reprovar">
+              <button onClick={(e)=>{e.stopPropagation();onCloseStatus(c.id,'Reprovado')}} className="p-1.5 hover:text-red-400 hover:bg-red-500/20" title="Reprovar">
                 <Ban size={14}/>
               </button>
             </div>
           </div>
-        ))}{allCandidates.length > limit && <button onClick={onLoadMore} className="w-full py-2 text-xs text-slate-400 dashed border border-slate-700 hover:bg-brand-card">Carregar mais</button>}</div>
+        )})}{allCandidates.length > limit && <button onClick={onLoadMore} className="w-full py-2 text-xs text-slate-400 dashed border border-slate-700 hover:bg-brand-card">Carregar mais</button>}</div>
       </div>
    );
 };
