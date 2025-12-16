@@ -151,3 +151,4 @@ E atualize também o `Code.gs` com a mesma lógica.
 - O sistema é **case-insensitive** (não diferencia maiúsculas/minúsculas)
 - Acentos são ignorados na comparação (ex: `Bagé` = `Bage`)
 
+

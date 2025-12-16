@@ -225,3 +225,4 @@ export function isMainInterestArea(interestArea) {
   return Object.keys(MAIN_INTEREST_AREAS).includes(normalized);
 }
 
+

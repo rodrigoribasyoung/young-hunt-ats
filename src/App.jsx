@@ -384,6 +384,7 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
     source: ''
   });
   const [showCustomPeriod, setShowCustomPeriod] = React.useState(filters.createdAtPreset === 'custom');
+  const [expandedFilters, setExpandedFilters] = React.useState({});
   
   React.useEffect(() => {
     setShowCustomPeriod(filters.createdAtPreset === 'custom');
@@ -412,6 +413,36 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
       const name = (opt.name || opt).toLowerCase();
       return name.includes(lowerSearch);
     });
+  };
+
+  // Função para gerenciar seleção múltipla
+  const handleMultiSelect = (field, value) => {
+    const currentValues = Array.isArray(filters[field]) ? filters[field] : (filters[field] && filters[field] !== 'all' ? [filters[field]] : []);
+    const newValues = currentValues.includes(value)
+      ? currentValues.filter(v => v !== value)
+      : [...currentValues, value];
+    
+    setFilters({
+      ...filters,
+      [field]: newValues.length > 0 ? newValues : 'all'
+    });
+  };
+
+  // Função para verificar se um valor está selecionado
+  const isSelected = (field, value) => {
+    if (filters[field] === 'all' || !filters[field]) return false;
+    if (Array.isArray(filters[field])) {
+      return filters[field].includes(value);
+    }
+    return filters[field] === value;
+  };
+
+  // Função para toggle de expansão
+  const toggleExpanded = (field) => {
+    setExpandedFilters(prev => ({
+      ...prev,
+      [field]: !prev[field]
+    }));
   };
 
   return (
@@ -462,28 +493,105 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
             )}
           </div>
 
-          {/* Status (Etapa da Pipeline) */}
+          {/* Status (Etapa da Pipeline) - Seleção Múltipla */}
           <div className="space-y-2">
-            <label className="text-xs font-bold text-brand-orange uppercase">Status (Etapa)</label>
-            <select
-              className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange"
-              value={filters.status || 'all'}
-              onChange={e => setFilters({...filters, status: e.target.value})}
-            >
-              <option value="all">Todas as etapas</option>
-              {PIPELINE_STAGES.map(stage => (
-                <option key={stage} value={stage}>{stage}</option>
-              ))}
-              {CLOSING_STATUSES.map(status => (
-                <option key={status} value={status}>{status}</option>
-              ))}
-            </select>
+            <div className="flex justify-between items-center">
+              <label className="text-xs font-bold text-brand-orange uppercase">Status (Etapa)</label>
+              <button
+                onClick={() => toggleExpanded('status')}
+                className="text-xs text-brand-cyan hover:text-white"
+              >
+                {expandedFilters.status ? 'Recolher' : 'Expandir'}
+              </button>
+            </div>
+            {expandedFilters.status ? (
+              <div className="max-h-48 overflow-y-auto bg-brand-dark border border-brand-border rounded p-2 space-y-1">
+                <label className="flex items-center gap-2 p-2 hover:bg-brand-hover rounded cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={filters.status === 'all' || !filters.status || (Array.isArray(filters.status) && filters.status.length === 0)}
+                    onChange={() => setFilters({...filters, status: 'all'})}
+                    className="accent-brand-orange"
+                  />
+                  <span className="text-sm text-white">Todas as etapas</span>
+                </label>
+                {PIPELINE_STAGES.map(stage => (
+                  <label key={stage} className="flex items-center gap-2 p-2 hover:bg-brand-hover rounded cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isSelected('status', stage)}
+                      onChange={() => handleMultiSelect('status', stage)}
+                      className="accent-brand-orange"
+                    />
+                    <span className="text-sm text-white">{stage}</span>
+                  </label>
+                ))}
+                {CLOSING_STATUSES.map(status => (
+                  <label key={status} className="flex items-center gap-2 p-2 hover:bg-brand-hover rounded cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isSelected('status', status)}
+                      onChange={() => handleMultiSelect('status', status)}
+                      className="accent-brand-orange"
+                    />
+                    <span className="text-sm text-white">{status}</span>
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <select
+                className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange"
+                value={Array.isArray(filters.status) ? filters.status[0] || 'all' : (filters.status || 'all')}
+                onChange={e => setFilters({...filters, status: e.target.value === 'all' ? 'all' : [e.target.value]})}
+              >
+                <option value="all">Todas as etapas</option>
+                {PIPELINE_STAGES.map(stage => (
+                  <option key={stage} value={stage}>{stage}</option>
+                ))}
+                {CLOSING_STATUSES.map(status => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
+            )}
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-bold text-brand-orange uppercase">Vaga Vinculada</label>
-            <select className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange" value={filters.jobId} onChange={e => setFilters({...filters, jobId: e.target.value})}>
-               <option value="all">Todas as Vagas</option>{options.jobs.map(j=><option key={j.id} value={j.id}>{j.title}</option>)}
-            </select>
+            <div className="flex justify-between items-center">
+              <label className="text-xs font-bold text-brand-orange uppercase">Vaga Vinculada</label>
+              <button
+                onClick={() => toggleExpanded('jobId')}
+                className="text-xs text-brand-cyan hover:text-white"
+              >
+                {expandedFilters.jobId ? 'Recolher' : 'Expandir'}
+              </button>
+            </div>
+            {expandedFilters.jobId ? (
+              <div className="max-h-48 overflow-y-auto bg-brand-dark border border-brand-border rounded p-2 space-y-1">
+                <label className="flex items-center gap-2 p-2 hover:bg-brand-hover rounded cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={filters.jobId === 'all' || !filters.jobId || (Array.isArray(filters.jobId) && filters.jobId.length === 0)}
+                    onChange={() => setFilters({...filters, jobId: 'all'})}
+                    className="accent-brand-orange"
+                  />
+                  <span className="text-sm text-white">Todas as Vagas</span>
+                </label>
+                {options.jobs.map(j => (
+                  <label key={j.id} className="flex items-center gap-2 p-2 hover:bg-brand-hover rounded cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isSelected('jobId', j.id)}
+                      onChange={() => handleMultiSelect('jobId', j.id)}
+                      className="accent-brand-orange"
+                    />
+                    <span className="text-sm text-white">{j.title}</span>
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <select className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange" value={Array.isArray(filters.jobId) ? filters.jobId[0] || 'all' : (filters.jobId || 'all')} onChange={e => setFilters({...filters, jobId: e.target.value === 'all' ? 'all' : [e.target.value]})}>
+                <option value="all">Todas as Vagas</option>{options.jobs.map(j=><option key={j.id} value={j.id}>{j.title}</option>)}
+              </select>
+            )}
           </div>
 
            {dynamicFilters.map(field => {
@@ -529,7 +637,17 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
 
              return (
                <div key={field.value} className="space-y-2">
-                 <label className="text-xs font-bold text-slate-400 uppercase">{field.label.replace(':', '')}</label>
+                 <div className="flex justify-between items-center">
+                   <label className="text-xs font-bold text-slate-400 uppercase">{field.label.replace(':', '')}</label>
+                   {hasOptions && (
+                     <button
+                       onClick={() => toggleExpanded(field.value)}
+                       className="text-xs text-brand-cyan hover:text-white"
+                     >
+                       {expandedFilters[field.value] ? 'Recolher' : 'Expandir'}
+                     </button>
+                   )}
+                 </div>
                  {needsSearch && (
                    <input
                      type="text"
@@ -540,18 +658,75 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
                    />
                  )}
                  {hasOptions ? (
-                   <select 
-                     className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange" 
-                     value={filters[field.value] || 'all'} 
-                     onChange={e => setFilters({...filters, [field.value]: e.target.value})}
-                   >
-                     <option value="all">Todos</option>
-                     {optionsList.map(o => <option key={o.id || o.name} value={o.name}>{o.name}</option>)}
-                   </select>
+                   expandedFilters[field.value] ? (
+                     <div className="max-h-48 overflow-y-auto bg-brand-dark border border-brand-border rounded p-2 space-y-1">
+                       <label className="flex items-center gap-2 p-2 hover:bg-brand-hover rounded cursor-pointer">
+                         <input
+                           type="checkbox"
+                           checked={filters[field.value] === 'all' || !filters[field.value] || (Array.isArray(filters[field.value]) && filters[field.value].length === 0)}
+                           onChange={() => setFilters({...filters, [field.value]: 'all'})}
+                           className="accent-brand-orange"
+                         />
+                         <span className="text-sm text-white">Todos</span>
+                       </label>
+                       {optionsList.map(o => (
+                         <label key={o.id || o.name} className="flex items-center gap-2 p-2 hover:bg-brand-hover rounded cursor-pointer">
+                           <input
+                             type="checkbox"
+                             checked={isSelected(field.value, o.name)}
+                             onChange={() => handleMultiSelect(field.value, o.name)}
+                             className="accent-brand-orange"
+                           />
+                           <span className="text-sm text-white">{o.name}</span>
+                         </label>
+                       ))}
+                     </div>
+                   ) : (
+                     <select 
+                       className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange" 
+                       value={Array.isArray(filters[field.value]) ? filters[field.value][0] || 'all' : (filters[field.value] || 'all')} 
+                       onChange={e => setFilters({...filters, [field.value]: e.target.value === 'all' ? 'all' : [e.target.value]})}
+                     >
+                       <option value="all">Todos</option>
+                       {optionsList.map(o => <option key={o.id || o.name} value={o.name}>{o.name}</option>)}
+                     </select>
+                   )
                  ) : isBoolean ? (
-                   <select className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange" value={filters[field.value] || 'all'} onChange={e => setFilters({...filters, [field.value]: e.target.value})}>
-                     <option value="all">Todos</option><option value="Sim">Sim</option><option value="Não">Não</option>
-                   </select>
+                   expandedFilters[field.value] ? (
+                     <div className="max-h-32 overflow-y-auto bg-brand-dark border border-brand-border rounded p-2 space-y-1">
+                       <label className="flex items-center gap-2 p-2 hover:bg-brand-hover rounded cursor-pointer">
+                         <input
+                           type="checkbox"
+                           checked={filters[field.value] === 'all' || !filters[field.value] || (Array.isArray(filters[field.value]) && filters[field.value].length === 0)}
+                           onChange={() => setFilters({...filters, [field.value]: 'all'})}
+                           className="accent-brand-orange"
+                         />
+                         <span className="text-sm text-white">Todos</span>
+                       </label>
+                       <label className="flex items-center gap-2 p-2 hover:bg-brand-hover rounded cursor-pointer">
+                         <input
+                           type="checkbox"
+                           checked={isSelected(field.value, 'Sim')}
+                           onChange={() => handleMultiSelect(field.value, 'Sim')}
+                           className="accent-brand-orange"
+                         />
+                         <span className="text-sm text-white">Sim</span>
+                       </label>
+                       <label className="flex items-center gap-2 p-2 hover:bg-brand-hover rounded cursor-pointer">
+                         <input
+                           type="checkbox"
+                           checked={isSelected(field.value, 'Não')}
+                           onChange={() => handleMultiSelect(field.value, 'Não')}
+                           className="accent-brand-orange"
+                         />
+                         <span className="text-sm text-white">Não</span>
+                       </label>
+                     </div>
+                   ) : (
+                     <select className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange" value={Array.isArray(filters[field.value]) ? filters[field.value][0] || 'all' : (filters[field.value] || 'all')} onChange={e => setFilters({...filters, [field.value]: e.target.value === 'all' ? 'all' : [e.target.value]})}>
+                       <option value="all">Todos</option><option value="Sim">Sim</option><option value="Não">Não</option>
+                     </select>
+                   )
                  ) : (
                    <input type="text" className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange" placeholder={`Filtrar...`} value={filters[field.value] || ''} onChange={e => setFilters({...filters, [field.value]: e.target.value})}/>
                  )}
@@ -747,6 +922,16 @@ export default function App() {
     try {
       const payload = { ...d, updatedAt: serverTimestamp() };
       
+      // Adiciona histórico de edição/criação
+      if (user && user.email) {
+        if (!d.id) {
+          payload.createdBy = user.email;
+          payload.createdAt = serverTimestamp();
+        } else {
+          payload.updatedBy = user.email;
+        }
+      }
+      
       // Normaliza campos específicos se for collection de candidatos
       if (col === 'candidates') {
         if (payload.city) {
@@ -760,12 +945,39 @@ export default function App() {
         }
       }
       
-      if (!d.id) payload.createdAt = serverTimestamp();
-      if (d.id) await updateDoc(doc(db, col, d.id), payload);
-      else await addDoc(collection(db, col), payload);
+      if (d.id) {
+        await updateDoc(doc(db, col, d.id), payload);
+      } else {
+        await addDoc(collection(db, col), payload);
+      }
       if(closeFn) closeFn();
       showToast('Salvo com sucesso', 'success');
     } catch(e) { showToast(`Erro ao salvar: ${e.message}`, 'error'); } finally { setIsSaving(false); }
+  };
+
+  const handleDeleteGeneric = async (col, id) => {
+    if (!window.confirm('Tem certeza que deseja excluir este item?')) return;
+    
+    try {
+      setIsSaving(true);
+      const docRef = doc(db, col, id);
+      
+      // Registra histórico antes de deletar
+      if (user && user.email) {
+        await updateDoc(docRef, {
+          deletedBy: user.email,
+          deletedAt: serverTimestamp()
+        });
+      }
+      
+      // Deleta o documento
+      await deleteDoc(docRef);
+      showToast('Excluído com sucesso', 'success');
+    } catch(e) {
+      showToast(`Erro ao excluir: ${e.message}`, 'error');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const computeMissingFields = (candidate, nextStatus) => {
@@ -816,11 +1028,29 @@ export default function App() {
     };
     Object.keys(filters).forEach(key => {
        if(filters[key] !== 'all' && filters[key] !== '') {
-          if (key === 'createdAtPreset') return;
-          data = data.filter(c => c[key] === filters[key]);
+          if (key === 'createdAtPreset' || key === 'customDateStart' || key === 'customDateEnd') return;
+          
+          // Suporta arrays para seleção múltipla
+          if (Array.isArray(filters[key])) {
+            if (filters[key].length > 0) {
+              data = data.filter(c => filters[key].includes(c[key]));
+            }
+          } else {
+            data = data.filter(c => c[key] === filters[key]);
+          }
        }
     });
-    if (preset !== 'all') {
+    
+    // Filtro por período personalizado
+    if (preset === 'custom' && filters.customDateStart && filters.customDateEnd) {
+      const startDate = new Date(filters.customDateStart).getTime() / 1000;
+      const endDate = new Date(filters.customDateEnd).getTime() / 1000 + 86400; // +1 dia para incluir o dia final
+      data = data.filter(c => {
+        const ts = c.createdAt?.seconds || c.createdAt?._seconds;
+        if (!ts) return false;
+        return ts >= startDate && ts <= endDate;
+      });
+    } else if (preset !== 'all') {
       const delta = presetToSeconds[preset];
       if (delta) {
         data = data.filter(c => {
@@ -884,8 +1114,8 @@ export default function App() {
         <div className="flex-1 overflow-hidden bg-brand-dark relative">
            {activeTab === 'dashboard' && <div className="p-6 overflow-y-auto h-full"><Dashboard filteredJobs={jobs} filteredCandidates={filteredCandidates} onOpenCandidates={setDashboardModalCandidates} /></div>}
            {activeTab === 'pipeline' && <PipelineView candidates={filteredCandidates} jobs={jobs} companies={companies} onDragEnd={handleDragEnd} onEdit={setEditingCandidate} onCloseStatus={handleCloseStatus} />}
-           {activeTab === 'jobs' && <div className="p-6 overflow-y-auto h-full"><JobsList jobs={jobs} candidates={candidates} companies={companies} onAdd={()=>openJobModal({})} onEdit={(j)=>openJobModal(j)} onDelete={(id)=>deleteDoc(doc(db,'jobs',id))} onToggleStatus={handleSaveGeneric} onFilterPipeline={()=>{setFilters({...filters, jobId: 'mock_id'}); setActiveTab('pipeline')}} onViewCandidates={openJobCandidatesModal}/></div>}
-           {activeTab === 'candidates' && <div className="p-6 overflow-y-auto h-full"><CandidatesList candidates={filteredCandidates} jobs={jobs} onAdd={()=>setEditingCandidate({})} onEdit={setEditingCandidate} onDelete={(id)=>deleteDoc(doc(db,'candidates',id))}/></div>}
+           {activeTab === 'jobs' && <div className="p-6 overflow-y-auto h-full"><JobsList jobs={jobs} candidates={candidates} companies={companies} onAdd={()=>openJobModal({})} onEdit={(j)=>openJobModal(j)} onDelete={(id)=>handleDeleteGeneric('jobs', id)} onToggleStatus={handleSaveGeneric} onFilterPipeline={()=>{setFilters({...filters, jobId: 'mock_id'}); setActiveTab('pipeline')}} onViewCandidates={openJobCandidatesModal}/></div>}
+           {activeTab === 'candidates' && <div className="p-6 overflow-y-auto h-full"><CandidatesList candidates={filteredCandidates} jobs={jobs} onAdd={()=>setEditingCandidate({})} onEdit={setEditingCandidate} onDelete={(id)=>handleDeleteGeneric('candidates', id)}/></div>}
            {activeTab === 'settings' && <div className="p-0 h-full"><SettingsPage {...optionsProps} onOpenCsvModal={openCsvModal} activeSettingsTab={route.settingsTab} onSettingsTabChange={(tab) => { updateURL({ settingsTab: tab }); setRoute(prev => ({ ...prev, settingsTab: tab })); }} onShowToast={showToast} /></div>}
         </div>
       </div>
@@ -957,30 +1187,42 @@ export default function App() {
                     continue;
                   } else if (importMode === 'overwrite') {
                     const candidateRef = doc(db, 'candidates', existingCandidate.id);
-                    batch.update(candidateRef, {
+                    const updateData = {
                       ...candidateData,
                       updatedAt: serverTimestamp()
-                    });
+                    };
+                    if (user && user.email) {
+                      updateData.updatedBy = user.email;
+                    }
+                    batch.update(candidateRef, updateData);
                     updated++;
                     batchOps++;
                   } else if (importMode === 'duplicate') {
                     const candidateRef = doc(collection(db, 'candidates'));
-                    batch.set(candidateRef, {
+                    const duplicateData = {
                       ...candidateData,
                       createdAt: serverTimestamp(),
                       imported: true
-                    });
+                    };
+                    if (user && user.email) {
+                      duplicateData.createdBy = user.email;
+                    }
+                    batch.set(candidateRef, duplicateData);
                     duplicated++;
                     batchOps++;
                   }
                 } else {
                   // Novo candidato
                   const candidateRef = doc(collection(db, 'candidates'));
-                  batch.set(candidateRef, {
+                  const newCandidateData = {
                     ...candidateData,
                     createdAt: serverTimestamp(),
                     imported: true
-                  });
+                  };
+                  if (user && user.email) {
+                    newCandidateData.createdBy = user.email;
+                  }
+                  batch.set(candidateRef, newCandidateData);
                   imported++;
                   batchOps++;
                 }
@@ -1248,9 +1490,9 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
              <div className="border-t border-brand-border px-6 py-4 bg-brand-card flex items-center justify-between">
                <div className="text-xs text-slate-400">
                  Mostrando {viewMode === 'list' 
-                   ? `${(currentPage - 1) * itemsPerPage + 1} - ${Math.min(currentPage * itemsPerPage, processedData.length)}`
-                   : `${(currentPage - 1) * kanbanItemsPerPage + 1} - ${Math.min(currentPage * kanbanItemsPerPage, Math.max(...PIPELINE_STAGES.map(s => kanbanDataByStage[s]?.total || 0)))}`
-                 } de {processedData.length} talentos
+                   ? `${(currentPage - 1) * itemsPerPage + 1} - ${Math.min(currentPage * itemsPerPage, processedData.length)} de ${processedData.length} talentos`
+                   : `${(currentPage - 1) * kanbanItemsPerPage + 1} - ${Math.min(currentPage * kanbanItemsPerPage, Math.max(...PIPELINE_STAGES.map(s => kanbanDataByStage[s]?.total || 0)))} de ${processedData.length} talentos`
+                 }
                </div>
                <div className="flex items-center gap-2">
                  <button
@@ -1870,11 +2112,15 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
           </table>
         </div>
 
-        {/* Paginação */}
         {filtered.length > 0 && (
-          <div className="bg-brand-dark/50 border-t border-brand-border px-6 py-3 flex justify-between items-center">
+          <div className="bg-brand-card border-t border-brand-border px-6 py-3 flex justify-between items-center opacity-50">
             <div className="text-xs text-slate-400">
-              Mostrando {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filtered.length)} de {filtered.length} candidatos
+              Mostrando{' '}
+              {String((currentPage - 1) * itemsPerPage + 1)}
+              {' - '}
+              {String(Math.min(currentPage * itemsPerPage, filtered.length))}
+              {' de '}
+              {String(filtered.length)} candidatos
             </div>
             <div className="flex items-center gap-2">
               <button 
@@ -1885,23 +2131,24 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
                     ? 'bg-brand-card text-slate-600 cursor-not-allowed'
                     : 'bg-brand-dark text-white hover:bg-brand-hover'
                 }`}
-            >
-              <ChevronLeft size={16} className="inline"/>
-            </button>
-            <span className="px-4 py-1.5 text-sm text-slate-300">
-              Página {currentPage} de {totalPages}
-            </span>
-            <button 
-              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-              disabled={currentPage === totalPages}
-              className={`px-3 py-1.5 rounded text-sm font-bold transition-colors ${
-                currentPage === totalPages
-                  ? 'bg-brand-card text-slate-600 cursor-not-allowed'
-                  : 'bg-brand-dark text-white hover:bg-brand-hover'
-              }`}
-            >
-              <ChevronRight size={16} className="inline"/>
-            </button>
+              >
+                <ChevronLeft size={16} className="inline"/>
+              </button>
+              <span className="px-4 py-1.5 text-sm text-slate-300">
+                Página {currentPage} de {totalPages}
+              </span>
+              <button 
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                className={`px-3 py-1.5 rounded text-sm font-bold transition-colors ${
+                  currentPage === totalPages
+                    ? 'bg-brand-card text-slate-600 cursor-not-allowed'
+                    : 'bg-brand-dark text-white hover:bg-brand-hover'
+                }`}
+              >
+                <ChevronRight size={16} className="inline"/>
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -1960,7 +2207,7 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 dark:bg-black/80 p-4 backdrop-blur-sm">
       <div className="bg-brand-card dark:bg-brand-card rounded-xl w-full max-w-4xl h-[90vh] flex flex-col border border-brand-border dark:border-brand-border text-white dark:text-white">
-        <div className="px-6 py-4 border-b border-brand-border dark:border-brand-border flex justify-between bg-brand-dark/50 dark:bg-brand-dark/50">
+        <div className="px-6 py-4 border-b border-brand-border dark:border-brand-border flex justify-between bg-brand-card dark:bg-brand-card opacity-50">
           <div><h3 className="font-bold text-xl">{d.id?'Editar':'Novo'} Candidato</h3></div>
           <button onClick={onClose}><X/></button>
         </div>
