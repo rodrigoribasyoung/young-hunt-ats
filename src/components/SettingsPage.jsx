@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { CSV_FIELD_MAPPING_OPTIONS, PIPELINE_STAGES } from '../constants';
 import { 
-  collection, onSnapshot, query, orderBy, limit, getDocs, addDoc, serverTimestamp
+  collection, onSnapshot, query, orderBy, limit, getDocs, addDoc, updateDoc, doc, serverTimestamp
 } from 'firebase/firestore';
 import { getFirestore } from 'firebase/firestore';
 import { initializeApp } from 'firebase/app';
@@ -89,26 +89,52 @@ export default function SettingsPage({
 // --- SUB-COMPONENTES DE CADA ABA ---
 
 const FieldsManager = () => {
-  // Separar campos de candidato e de vaga
-  const candidateFields = CSV_FIELD_MAPPING_OPTIONS.map((f, i) => ({
-    id: f.value, label: f.label.replace(':', ''), type: 'Texto', visible: true, required: i < 3
-  }));
-  
-  // Campos de vaga (mock - pode ser expandido)
-  const jobFields = [
-    { id: 'title', label: 'Título da Vaga', type: 'Texto', visible: true, required: true },
-    { id: 'company', label: 'Empresa', type: 'Texto', visible: true, required: true },
-    { id: 'city', label: 'Cidade', type: 'Texto', visible: true, required: false },
-    { id: 'description', label: 'Descrição', type: 'Texto Longo', visible: true, required: false },
-    { id: 'requirements', label: 'Requisitos', type: 'Texto Longo', visible: true, required: false },
-    { id: 'salary', label: 'Salário', type: 'Número', visible: true, required: false },
-    { id: 'status', label: 'Status', type: 'Seleção', visible: true, required: true },
-  ];
-  
-  const [candidateFieldsState, setCandidateFieldsState] = useState(candidateFields);
-  const [jobFieldsState, setJobFieldsState] = useState(jobFields);
+  const [candidateFieldsState, setCandidateFieldsState] = useState([]);
+  const [jobFieldsState, setJobFieldsState] = useState([]);
   const [activeSection, setActiveSection] = useState('candidate');
   const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [editingField, setEditingField] = useState(null);
+
+  // Inicializar campos padrão
+  useEffect(() => {
+    const defaultCandidateFields = CSV_FIELD_MAPPING_OPTIONS.map((f, i) => ({
+      id: f.value, label: f.label.replace(':', ''), type: 'Texto', visible: true, required: i < 3
+    }));
+    setCandidateFieldsState(defaultCandidateFields);
+    
+    const defaultJobFields = [
+      { id: 'title', label: 'Título da Vaga', type: 'Texto', visible: true, required: true },
+      { id: 'company', label: 'Empresa', type: 'Texto', visible: true, required: true },
+      { id: 'city', label: 'Cidade', type: 'Texto', visible: true, required: false },
+      { id: 'description', label: 'Descrição', type: 'Texto Longo', visible: true, required: false },
+      { id: 'requirements', label: 'Requisitos', type: 'Texto Longo', visible: true, required: false },
+      { id: 'salary', label: 'Salário', type: 'Número', visible: true, required: false },
+      { id: 'status', label: 'Status', type: 'Seleção', visible: true, required: true },
+    ];
+    setJobFieldsState(defaultJobFields);
+    setLoading(false);
+  }, []);
+
+  const handleToggleVisibility = (fieldId, currentValue) => {
+    if (activeSection === 'candidate') {
+      setCandidateFieldsState(prev => prev.map(f => f.id === fieldId ? { ...f, visible: !currentValue } : f));
+    } else {
+      setJobFieldsState(prev => prev.map(f => f.id === fieldId ? { ...f, visible: !currentValue } : f));
+    }
+    if (onShowToast) onShowToast('Visibilidade atualizada', 'success');
+    // TODO: Salvar no Firestore quando implementar persistência
+  };
+
+  const handleToggleRequired = (fieldId, currentValue) => {
+    if (activeSection === 'candidate') {
+      setCandidateFieldsState(prev => prev.map(f => f.id === fieldId ? { ...f, required: !currentValue } : f));
+    } else {
+      setJobFieldsState(prev => prev.map(f => f.id === fieldId ? { ...f, required: !currentValue } : f));
+    }
+    if (onShowToast) onShowToast('Obrigatoriedade atualizada', 'success');
+    // TODO: Salvar no Firestore quando implementar persistência
+  };
 
   const filteredCandidateFields = candidateFieldsState.filter(f => 
     f.label.toLowerCase().includes(search.toLowerCase())
@@ -183,25 +209,27 @@ const FieldsManager = () => {
                   <input
                     type="checkbox"
                     checked={field.visible}
-                    readOnly
+                    onChange={() => handleToggleVisibility(field.id, field.visible)}
                     className="accent-brand-cyan cursor-pointer"
-                    title="Visível (mock - não editável ainda)"
+                    title="Alternar visibilidade"
                   />
                 </td>
                 <td className="p-4 text-center">
                    <input
                      type="checkbox"
                      checked={field.required}
-                     readOnly
+                     onChange={() => handleToggleRequired(field.id, field.required)}
                      className="accent-brand-orange cursor-pointer"
-                     title="Obrigatório (mock - não editável ainda)"
+                     title="Alternar obrigatoriedade"
                    />
                 </td>
                 <td className="p-4 text-right">
                   <button
-                    onClick={() => showToast(`Edição do campo "${field.label}" em desenvolvimento`, 'info')}
+                    onClick={() => {
+                      if (onShowToast) onShowToast(`Edição completa do campo "${field.label}" em desenvolvimento`, 'info');
+                    }}
                     className="p-2 text-slate-400 hover:text-brand-cyan transition-colors"
-                    title="Editar campo"
+                    title="Editar campo (em desenvolvimento)"
                   >
                     <Edit3 size={16}/>
                   </button>
@@ -216,6 +244,53 @@ const FieldsManager = () => {
 };
 
 const PipelineManager = () => {
+  const [stages, setStages] = useState(PIPELINE_STAGES);
+  const [editingStage, setEditingStage] = useState(null);
+  const [newStageName, setNewStageName] = useState('');
+  const [showAddStage, setShowAddStage] = useState(false);
+  const [rejectionReasons, setRejectionReasons] = useState([
+    'Salário Incompatível',
+    'Sem qualificação técnica',
+    'Fit Cultural',
+    'Aceitou outra proposta'
+  ]);
+
+  const handleAddStage = () => {
+    if (newStageName.trim() && !stages.includes(newStageName.trim())) {
+      const updated = [...stages, newStageName.trim()];
+      setStages(updated);
+      setNewStageName('');
+      setShowAddStage(false);
+      if (onShowToast) onShowToast('Etapa adicionada com sucesso', 'success');
+      // TODO: Salvar no Firestore quando implementar persistência
+    } else if (stages.includes(newStageName.trim())) {
+      if (onShowToast) onShowToast('Esta etapa já existe', 'error');
+    }
+  };
+
+  const handleEditStage = (oldName, newName) => {
+    if (newName.trim() && newName.trim() !== oldName) {
+      if (stages.includes(newName.trim())) {
+        if (onShowToast) onShowToast('Esta etapa já existe', 'error');
+        return;
+      }
+      const updated = stages.map(s => s === oldName ? newName.trim() : s);
+      setStages(updated);
+      setEditingStage(null);
+      if (onShowToast) onShowToast('Etapa atualizada', 'success');
+      // TODO: Salvar no Firestore quando implementar persistência
+    }
+  };
+
+  const handleDeleteStage = (stageName) => {
+    if (window.confirm(`Tem certeza que deseja remover a etapa "${stageName}"?`)) {
+      const updated = stages.filter(s => s !== stageName);
+      setStages(updated);
+      if (onShowToast) onShowToast('Etapa removida', 'success');
+      // TODO: Salvar no Firestore quando implementar persistência
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto animate-in fade-in">
       {/* Etapas do Funil */}
@@ -223,29 +298,66 @@ const PipelineManager = () => {
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-bold text-white">Etapas do Funil (Kanban)</h3>
           <button 
-            onClick={() => showToast('Funcionalidade de adicionar etapa em desenvolvimento', 'info')}
+            onClick={() => setShowAddStage(!showAddStage)}
             className="text-brand-cyan hover:underline text-sm font-bold flex items-center gap-1"
           >
             <Plus size={14}/> Adicionar Etapa
           </button>
         </div>
+        
+        {showAddStage && (
+          <div className="bg-brand-card border border-brand-border rounded-lg p-4 flex gap-2">
+            <input
+              type="text"
+              value={newStageName}
+              onChange={e => setNewStageName(e.target.value)}
+              placeholder="Nome da nova etapa"
+              className="flex-1 bg-brand-dark border border-brand-border rounded px-3 py-2 text-sm text-white outline-none focus:border-brand-cyan"
+              onKeyPress={e => e.key === 'Enter' && handleAddStage()}
+            />
+            <button
+              onClick={handleAddStage}
+              className="bg-brand-cyan text-white px-4 py-2 rounded text-sm font-bold hover:bg-cyan-400"
+            >
+              Adicionar
+            </button>
+            <button
+              onClick={() => { setShowAddStage(false); setNewStageName(''); }}
+              className="bg-brand-dark border border-brand-border text-slate-400 px-4 py-2 rounded text-sm hover:text-white"
+            >
+              <X size={16}/>
+            </button>
+          </div>
+        )}
+
         <div className="bg-brand-card border border-brand-border rounded-xl overflow-hidden">
-           {PIPELINE_STAGES.map((stage, index) => (
+           {stages.map((stage, index) => (
              <div key={stage} className="p-4 border-b border-brand-border last:border-0 flex justify-between items-center hover:bg-brand-dark/30 group">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-1">
                   <span className="bg-brand-dark text-slate-500 w-6 h-6 flex items-center justify-center rounded-full text-xs font-mono">{index + 1}</span>
-                  <span className="font-medium text-white">{stage}</span>
+                  {editingStage === stage ? (
+                    <input
+                      type="text"
+                      defaultValue={stage}
+                      onBlur={e => handleEditStage(stage, e.target.value)}
+                      onKeyPress={e => e.key === 'Enter' && handleEditStage(stage, e.target.value)}
+                      className="flex-1 bg-brand-dark border border-brand-border rounded px-2 py-1 text-sm text-white outline-none focus:border-brand-cyan"
+                      autoFocus
+                    />
+                  ) : (
+                    <span className="font-medium text-white">{stage}</span>
+                  )}
                 </div>
                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button 
-                    onClick={() => showToast(`Edição da etapa "${stage}" em desenvolvimento`, 'info')}
+                    onClick={() => setEditingStage(editingStage === stage ? null : stage)}
                     className="p-1.5 text-blue-400 hover:bg-blue-500/10 rounded"
                     title="Editar etapa"
                   >
                     <Edit3 size={14}/>
                   </button>
                   <button 
-                    onClick={() => showToast(`Remoção da etapa "${stage}" em desenvolvimento`, 'info')}
+                    onClick={() => handleDeleteStage(stage)}
                     className="p-1.5 text-red-400 hover:bg-red-500/10 rounded"
                     title="Remover etapa"
                   >
@@ -275,25 +387,43 @@ const PipelineManager = () => {
            <div className="flex justify-between items-center">
              <h3 className="text-lg font-bold text-white">Motivos de Perda</h3>
              <button 
-               onClick={() => showToast('Funcionalidade de adicionar motivo em desenvolvimento', 'info')}
+               onClick={() => {
+                 const newReason = prompt('Digite o novo motivo de perda:');
+                 if (newReason && newReason.trim() && !rejectionReasons.includes(newReason.trim())) {
+                   setRejectionReasons(prev => [...prev, newReason.trim()]);
+                   if (onShowToast) onShowToast('Motivo adicionado', 'success');
+                   // TODO: Salvar no Firestore quando implementar persistência
+                 } else if (rejectionReasons.includes(newReason.trim())) {
+                   if (onShowToast) onShowToast('Este motivo já existe', 'error');
+                 }
+               }}
                className="text-brand-cyan hover:underline text-sm font-bold flex items-center gap-1"
              >
                <Plus size={14}/> Novo Motivo
              </button>
            </div>
            <div className="bg-brand-card border border-brand-border rounded-xl p-4 space-y-2">
-              {['Salário Incompatível', 'Sem qualificação técnica', 'Fit Cultural', 'Aceitou outra proposta'].map(m => (
-                <div key={m} className="text-sm text-slate-300 p-2 border-b border-brand-border last:border-0 flex justify-between">
-                  {m}
+              {rejectionReasons.map((m, idx) => (
+                <div key={idx} className="text-sm text-slate-300 p-2 border-b border-brand-border last:border-0 flex justify-between items-center">
+                  <span>{m}</span>
                   <button 
-                    onClick={() => showToast(`Remoção do motivo "${m}" em desenvolvimento`, 'info')}
-                    className="text-slate-500 hover:text-red-400"
+                    onClick={() => {
+                      if (window.confirm(`Remover motivo "${m}"?`)) {
+                        setRejectionReasons(prev => prev.filter(r => r !== m));
+                        if (onShowToast) onShowToast('Motivo removido', 'success');
+                        // TODO: Salvar no Firestore quando implementar persistência
+                      }
+                    }}
+                    className="text-slate-500 hover:text-red-400 transition-colors"
                     title="Remover motivo"
                   >
                     <Trash2 size={14}/>
                   </button>
                 </div>
               ))}
+              {rejectionReasons.length === 0 && (
+                <div className="text-sm text-slate-500 text-center py-4">Nenhum motivo cadastrado</div>
+              )}
            </div>
         </div>
       </div>

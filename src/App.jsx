@@ -32,7 +32,21 @@ import { normalizeCity, getMainCitiesOptions } from './utils/cityNormalizer';
 import { normalizeSource, getMainSourcesOptions } from './utils/sourceNormalizer';
 import { normalizeInterestArea, normalizeInterestAreasString, getMainInterestAreasOptions } from './utils/interestAreaNormalizer';
 
-const COLORS = ['#fe5009', '#00bcbc', '#fb923c', '#22d3ee', '#f87171', '#8884d8', '#82ca9d']; 
+// Material Design Colors (Google)
+const MATERIAL_COLORS = [
+  '#4285F4', // Google Blue
+  '#34A853', // Google Green
+  '#FBBC04', // Google Yellow
+  '#EA4335', // Google Red
+  '#9C27B0', // Purple
+  '#FF9800', // Orange
+  '#00BCD4', // Cyan
+  '#E91E63', // Pink
+  '#3F51B5', // Indigo
+  '#009688', // Teal
+];
+
+const COLORS = MATERIAL_COLORS; 
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -111,35 +125,34 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates }) => {
     <div className="text-white space-y-6 overflow-y-auto h-full pb-6">
       <h2 className="text-2xl font-bold mb-2">Dashboard</h2>
       
-      {/* KPIs Principais */}
+      {/* KPIs Principais - Material Design Colors */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div onClick={() => onOpenCandidates && onOpenCandidates(filteredCandidates)} className="cursor-pointer bg-gradient-to-br from-blue-900/30 to-blue-800/10 p-6 rounded-xl border border-blue-700/30 hover:scale-[1.01] transition-transform">
+        <div onClick={() => onOpenCandidates && onOpenCandidates(filteredCandidates)} className="cursor-pointer bg-gradient-to-br from-[#4285F4]/20 to-[#4285F4]/10 p-6 rounded-xl border border-[#4285F4]/30 hover:scale-[1.01] transition-transform shadow-lg hover:shadow-[#4285F4]/20">
           <h3 className="text-slate-400 text-sm font-semibold">Total de Candidatos</h3>
-          <p className="text-3xl font-bold text-blue-300 mt-2">{candidateStats.total}</p>
+          <p className="text-3xl font-bold text-[#4285F4] mt-2">{candidateStats.total}</p>
           <p className="text-xs text-slate-500 mt-1">{candidateStats.active} em processo</p>
         </div>
-        <div onClick={() => onOpenCandidates && onOpenCandidates(filteredCandidates.filter(c=>c.status==='Contratado'))} className="cursor-pointer bg-gradient-to-br from-green-900/30 to-green-800/10 p-6 rounded-xl border border-green-700/30 hover:scale-[1.01] transition-transform">
+        <div onClick={() => onOpenCandidates && onOpenCandidates(filteredCandidates.filter(c=>c.status==='Contratado'))} className="cursor-pointer bg-gradient-to-br from-[#34A853]/20 to-[#34A853]/10 p-6 rounded-xl border border-[#34A853]/30 hover:scale-[1.01] transition-transform shadow-lg hover:shadow-[#34A853]/20">
           <h3 className="text-slate-400 text-sm font-semibold">Contratados</h3>
-          <p className="text-3xl font-bold text-green-300 mt-2">{candidateStats.hired}</p>
+          <p className="text-3xl font-bold text-[#34A853] mt-2">{candidateStats.hired}</p>
           <p className="text-xs text-slate-500 mt-1">Taxa: {candidateStats.total > 0 ? ((candidateStats.hired / candidateStats.total) * 100).toFixed(1) : 0}%</p>
         </div>
-        <div onClick={() => onOpenCandidates && onOpenCandidates(filteredJobs.filter(j=>j.status==='Aberta').flatMap(j=>filteredCandidates.filter(c=>c.jobId===j.id)))} className="cursor-pointer bg-gradient-to-br from-orange-900/30 to-orange-800/10 p-6 rounded-xl border border-orange-700/30 hover:scale-[1.01] transition-transform">
+        <div onClick={() => onOpenCandidates && onOpenCandidates(filteredJobs.filter(j=>j.status==='Aberta').flatMap(j=>filteredCandidates.filter(c=>c.jobId===j.id)))} className="cursor-pointer bg-gradient-to-br from-[#FBBC04]/20 to-[#FBBC04]/10 p-6 rounded-xl border border-[#FBBC04]/30 hover:scale-[1.01] transition-transform shadow-lg hover:shadow-[#FBBC04]/20">
           <h3 className="text-slate-400 text-sm font-semibold">Vagas Abertas</h3>
-          <p className="text-3xl font-bold text-orange-300 mt-2">{jobStats.open}</p>
+          <p className="text-3xl font-bold text-[#FBBC04] mt-2">{jobStats.open}</p>
           <p className="text-xs text-slate-500 mt-1">{jobStats.filled} preenchidas</p>
         </div>
-        <div onClick={() => onOpenCandidates && onOpenCandidates(filteredCandidates.filter(c=>c.status==='Reprovado'))} className="cursor-pointer bg-gradient-to-br from-red-900/30 to-red-800/10 p-6 rounded-xl border border-red-700/30 hover:scale-[1.01] transition-transform">
+        <div onClick={() => onOpenCandidates && onOpenCandidates(filteredCandidates.filter(c=>c.status==='Reprovado'))} className="cursor-pointer bg-gradient-to-br from-[#EA4335]/20 to-[#EA4335]/10 p-6 rounded-xl border border-[#EA4335]/30 hover:scale-[1.01] transition-transform shadow-lg hover:shadow-[#EA4335]/20">
           <h3 className="text-slate-400 text-sm font-semibold">Reprovados</h3>
-          <p className="text-3xl font-bold text-red-300 mt-2">{candidateStats.rejected}</p>
+          <p className="text-3xl font-bold text-[#EA4335] mt-2">{candidateStats.rejected}</p>
           <p className="text-xs text-slate-500 mt-1">Taxa: {candidateStats.total > 0 ? ((candidateStats.rejected / candidateStats.total) * 100).toFixed(1) : 0}%</p>
         </div>
-
       </div>
       {/* Card rápido: falta dar retorno */}
       <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div onClick={() => onOpenCandidates && onOpenCandidates(filteredCandidates.filter(c => (c.status === 'Seleção' || c.status === 'Selecionado') && !c.returnSent))} className="cursor-pointer bg-brand-card p-4 rounded-xl border border-brand-border">
+        <div onClick={() => onOpenCandidates && onOpenCandidates(filteredCandidates.filter(c => (c.status === 'Seleção' || c.status === 'Selecionado') && !c.returnSent))} className="cursor-pointer bg-gradient-to-br from-[#9C27B0]/20 to-[#9C27B0]/10 p-4 rounded-xl border border-[#9C27B0]/30 hover:scale-[1.01] transition-transform shadow-lg hover:shadow-[#9C27B0]/20">
           <div className="text-slate-400 text-sm">Faltam dar retorno</div>
-          <div className="text-2xl font-bold text-brand-orange mt-2">{missingReturnCount}</div>
+          <div className="text-2xl font-bold text-[#9C27B0] mt-2">{missingReturnCount}</div>
           <div className="text-xs text-slate-500 mt-1">Candidatos selecionados sem confirmação</div>
         </div>
       </div>
@@ -167,13 +180,13 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates }) => {
                 />
                 <Bar 
                   dataKey="value" 
-                  fill="#fe5009" 
+                  fill="#4285F4" 
                   radius={[0, 8, 8, 0]}
                   onMouseEnter={(e) => {
-                    if (e) e.target.style.opacity = '0.8';
+                    if (e) e.target.style.fill = '#5a95f5';
                   }}
                   onMouseLeave={(e) => {
-                    if (e) e.target.style.opacity = '1';
+                    if (e) e.target.style.fill = '#4285F4';
                   }}
                 />
               </BarChart>
@@ -290,13 +303,13 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates }) => {
                 />
                 <Bar 
                   dataKey="value" 
-                  fill="#00bcbc" 
+                  fill="#00BCD4" 
                   radius={[0, 8, 8, 0]}
                   onMouseEnter={(e) => {
-                    if (e) e.target.style.opacity = '0.8';
+                    if (e) e.target.style.fill = '#26c6da';
                   }}
                   onMouseLeave={(e) => {
-                    if (e) e.target.style.opacity = '1';
+                    if (e) e.target.style.fill = '#00BCD4';
                   }}
                 />
               </BarChart>
@@ -326,9 +339,9 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates }) => {
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  <Cell fill="#fe5009"/>
-                  <Cell fill="#00bcbc"/>
-                  <Cell fill="#64748b"/>
+                  <Cell fill="#FBBC04"/>
+                  <Cell fill="#34A853"/>
+                  <Cell fill="#9E9E9E"/>
                 </Pie>
                 <Tooltip 
                   contentStyle={{
