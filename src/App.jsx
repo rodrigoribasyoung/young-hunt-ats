@@ -682,7 +682,87 @@ export default function App() {
         />
       )}
       
-      <CsvImportModal isOpen={isCsvModalOpen} onClose={closeCsvModal} onImportData={(d) => { handleSaveGeneric('candidates_batch', d); closeCsvModal(); }} />
+      <CsvImportModal 
+        isOpen={isCsvModalOpen} 
+        onClose={closeCsvModal} 
+        onImportData={async (candidatesData, importMode) => {
+          setIsSaving(true);
+          try {
+            const BATCH_SIZE = 400; // Limite do Firestore é 500, usamos 400 para segurança
+            let imported = 0;
+            let skipped = 0;
+            let updated = 0;
+            let duplicated = 0;
+
+            // Processa em lotes
+            for (let i = 0; i < candidatesData.length; i += BATCH_SIZE) {
+              const batch = writeBatch(db);
+              const chunk = candidatesData.slice(i, i + BATCH_SIZE);
+              let batchOps = 0;
+
+              for (const candidateData of chunk) {
+                const email = candidateData.email?.toLowerCase().trim();
+                if (!email) {
+                  skipped++;
+                  continue;
+                }
+
+                // Busca candidato existente por email
+                const existingCandidate = candidates.find(c => 
+                  c.email?.toLowerCase().trim() === email
+                );
+
+                if (existingCandidate) {
+                  if (importMode === 'skip') {
+                    skipped++;
+                    continue;
+                  } else if (importMode === 'overwrite') {
+                    const candidateRef = doc(db, 'candidates', existingCandidate.id);
+                    batch.update(candidateRef, {
+                      ...candidateData,
+                      updatedAt: serverTimestamp()
+                    });
+                    updated++;
+                    batchOps++;
+                  } else if (importMode === 'duplicate') {
+                    const candidateRef = doc(collection(db, 'candidates'));
+                    batch.set(candidateRef, {
+                      ...candidateData,
+                      createdAt: serverTimestamp(),
+                      imported: true
+                    });
+                    duplicated++;
+                    batchOps++;
+                  }
+                } else {
+                  // Novo candidato
+                  const candidateRef = doc(collection(db, 'candidates'));
+                  batch.set(candidateRef, {
+                    ...candidateData,
+                    createdAt: serverTimestamp(),
+                    imported: true
+                  });
+                  imported++;
+                  batchOps++;
+                }
+              }
+
+              if (batchOps > 0) {
+                await batch.commit();
+              }
+            }
+            
+            const message = `Importação concluída! ${imported} novos, ${updated} atualizados, ${duplicated} duplicados, ${skipped} ignorados.`;
+            showToast(message, 'success');
+            closeCsvModal();
+          } catch (error) {
+            console.error('Erro na importação:', error);
+            showToast(`Erro ao importar: ${error.message}`, 'error');
+          } finally {
+            setIsSaving(false);
+          }
+        }} 
+      />
       <JobCandidatesModal isOpen={!!viewingJob} onClose={closeJobCandidatesModal} job={viewingJob} candidates={candidates.filter(c => c.jobId === viewingJob?.id)} />
       {dashboardModalCandidates && (
         <JobCandidatesModal isOpen={true} onClose={() => setDashboardModalCandidates(null)} job={{ title: 'Resultados do Dashboard' }} candidates={dashboardModalCandidates} />
