@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { X, Save, AlertTriangle } from 'lucide-react';
 import { normalizeCity, getMainCitiesOptions } from '../../utils/cityNormalizer';
+import { normalizeSource, getMainSourcesOptions } from '../../utils/sourceNormalizer';
+import { normalizeInterestArea, normalizeInterestAreasString, getMainInterestAreasOptions } from '../../utils/interestAreaNormalizer';
 
 export default function TransitionModal({ transition, onClose, onConfirm, cities, interestAreas, schooling, marital, origins }) {
   // transition contém: { candidate, toStage, missingFields, isConclusion }
@@ -48,10 +50,16 @@ export default function TransitionModal({ transition, onClose, onConfirm, cities
        }
     }
     
-    // Normaliza cidade antes de salvar
+    // Normaliza campos antes de salvar
     const dataToSave = { ...data };
     if (dataToSave.city) {
       dataToSave.city = normalizeCity(dataToSave.city);
+    }
+    if (dataToSave.source) {
+      dataToSave.source = normalizeSource(dataToSave.source);
+    }
+    if (dataToSave.interestAreas) {
+      dataToSave.interestAreas = normalizeInterestAreasString(dataToSave.interestAreas);
     }
     
     onConfirm(dataToSave);
@@ -88,9 +96,19 @@ export default function TransitionModal({ transition, onClose, onConfirm, cities
             );
         case 'interestAreas':
              return (
-                <select className={commonClass} value={data.interestAreas} onChange={e => setData({...data, interestAreas: e.target.value})}>
+                <select className={commonClass} value={data.interestAreas} onChange={e => {
+                  const value = normalizeInterestAreasString(e.target.value);
+                  setData({...data, interestAreas: value});
+                }}>
                     <option value="">Selecione...</option>
-                    {interestAreas && interestAreas.map(i => <option key={i.id} value={i.name}>{i.name}</option>)}
+                    <optgroup label="Áreas Principais">
+                      {getMainInterestAreasOptions().map(i => <option key={i.id} value={i.name}>{i.name}</option>)}
+                    </optgroup>
+                    {interestAreas && interestAreas.length > 0 && (
+                      <optgroup label="Outras Áreas">
+                        {interestAreas.map(i => <option key={i.id} value={i.name}>{i.name}</option>)}
+                      </optgroup>
+                    )}
                 </select>
             );
         case 'maritalStatus':
@@ -102,9 +120,19 @@ export default function TransitionModal({ transition, onClose, onConfirm, cities
             );
         case 'source':
              return (
-                <select className={commonClass} value={data.source} onChange={e => setData({...data, source: e.target.value})}>
+                <select className={commonClass} value={data.source} onChange={e => {
+                  const value = normalizeSource(e.target.value);
+                  setData({...data, source: value});
+                }}>
                     <option value="">Selecione...</option>
-                    {origins && origins.map(o => <option key={o.id} value={o.name}>{o.name}</option>)}
+                    <optgroup label="Origens Principais">
+                      {getMainSourcesOptions().map(o => <option key={o.id} value={o.name}>{o.name}</option>)}
+                    </optgroup>
+                    {origins && origins.length > 0 && (
+                      <optgroup label="Outras Origens">
+                        {origins.map(o => <option key={o.id} value={o.name}>{o.name}</option>)}
+                      </optgroup>
+                    )}
                 </select>
             );
         case 'experience':

@@ -29,6 +29,8 @@ import { useTheme } from './ThemeContext';
 
 import { PIPELINE_STAGES, STATUS_COLORS, JOB_STATUSES, CSV_FIELD_MAPPING_OPTIONS, ALL_STATUSES, CLOSING_STATUSES, STAGE_REQUIRED_FIELDS } from './constants';
 import { normalizeCity, getMainCitiesOptions } from './utils/cityNormalizer';
+import { normalizeSource, getMainSourcesOptions } from './utils/sourceNormalizer';
+import { normalizeInterestArea, normalizeInterestAreasString, getMainInterestAreasOptions } from './utils/interestAreaNormalizer';
 
 const COLORS = ['#fe5009', '#00bcbc', '#fb923c', '#22d3ee', '#f87171', '#8884d8', '#82ca9d']; 
 
@@ -527,9 +529,17 @@ export default function App() {
     try {
       const payload = { ...d, updatedAt: serverTimestamp() };
       
-      // Normaliza cidade se for collection de candidatos
-      if (col === 'candidates' && payload.city) {
-        payload.city = normalizeCity(payload.city);
+      // Normaliza campos específicos se for collection de candidatos
+      if (col === 'candidates') {
+        if (payload.city) {
+          payload.city = normalizeCity(payload.city);
+        }
+        if (payload.source) {
+          payload.source = normalizeSource(payload.source);
+        }
+        if (payload.interestAreas) {
+          payload.interestAreas = normalizeInterestAreasString(payload.interestAreas);
+        }
       }
       
       if (!d.id) payload.createdAt = serverTimestamp();
@@ -1140,18 +1150,28 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving }) => {
   const [activeSection, setActiveSection] = useState('pessoal');
   
   const handleInputChange = (field, value) => {
-    // Normaliza cidade quando o usuário digita
+    // Normaliza campos específicos quando o usuário digita
     if (field === 'city' && value) {
       value = normalizeCity(value);
+    } else if (field === 'source' && value) {
+      value = normalizeSource(value);
+    } else if (field === 'interestAreas' && value) {
+      value = normalizeInterestAreasString(value);
     }
     setD(prev => ({...prev, [field]: value}));
   };
   
   const handleSave = () => {
-    // Garante que a cidade está normalizada antes de salvar
+    // Garante que os campos estão normalizados antes de salvar
     const dataToSave = { ...d };
     if (dataToSave.city) {
       dataToSave.city = normalizeCity(dataToSave.city);
+    }
+    if (dataToSave.source) {
+      dataToSave.source = normalizeSource(dataToSave.source);
+    }
+    if (dataToSave.interestAreas) {
+      dataToSave.interestAreas = normalizeInterestAreasString(dataToSave.interestAreas);
     }
     onSave(dataToSave);
   };
@@ -1235,10 +1255,18 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving }) => {
               </div>
               <div className="mb-3">
                 <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Área de Interesse</label>
-                <select className="w-full bg-brand-dark dark:bg-brand-dark border border-brand-border dark:border-brand-border p-2.5 rounded text-white dark:text-white outline-none focus:border-brand-orange" value={d.interestAreas || ''} onChange={e=>setD({...d, interestAreas:e.target.value})}>
+                <select className="w-full bg-brand-dark dark:bg-brand-dark border border-brand-border dark:border-brand-border p-2.5 rounded text-white dark:text-white outline-none focus:border-brand-orange" value={d.interestAreas || ''} onChange={e=>handleInputChange('interestAreas', e.target.value)}>
                   <option value="">Selecione...</option>
-                  {options.interestAreas && options.interestAreas.map(i => <option key={i.id} value={i.name}>{i.name}</option>)}
+                  <optgroup label="Áreas Principais">
+                    {getMainInterestAreasOptions().map(i => <option key={i.id} value={i.name}>{i.name}</option>)}
+                  </optgroup>
+                  {options.interestAreas && options.interestAreas.length > 0 && (
+                    <optgroup label="Outras Áreas">
+                      {options.interestAreas.map(i => <option key={i.id} value={i.name}>{i.name}</option>)}
+                    </optgroup>
+                  )}
                 </select>
+                <p className="text-xs text-slate-400 mt-1">Digite ou selecione - será normalizado automaticamente</p>
               </div>
               <div className="mb-3 col-span-2">
                 <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Experiências Anteriores</label>
@@ -1263,10 +1291,18 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving }) => {
               </div>
               <div className="mb-3">
                 <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Onde encontrou (Fonte)</label>
-                <select className="w-full bg-brand-dark dark:bg-brand-dark border border-brand-border dark:border-brand-border p-2.5 rounded text-white dark:text-white outline-none focus:border-brand-orange" value={d.source || ''} onChange={e=>setD({...d, source:e.target.value})}>
+                <select className="w-full bg-brand-dark dark:bg-brand-dark border border-brand-border dark:border-brand-border p-2.5 rounded text-white dark:text-white outline-none focus:border-brand-orange" value={d.source || ''} onChange={e=>handleInputChange('source', e.target.value)}>
                   <option value="">Selecione...</option>
-                  {options.origins && options.origins.map(o => <option key={o.id} value={o.name}>{o.name}</option>)}
+                  <optgroup label="Origens Principais">
+                    {getMainSourcesOptions().map(o => <option key={o.id} value={o.name}>{o.name}</option>)}
+                  </optgroup>
+                  {options.origins && options.origins.length > 0 && (
+                    <optgroup label="Outras Origens">
+                      {options.origins.map(o => <option key={o.id} value={o.name}>{o.name}</option>)}
+                    </optgroup>
+                  )}
                 </select>
+                <p className="text-xs text-slate-400 mt-1">Digite ou selecione - será normalizado automaticamente</p>
               </div>
               <InputField label="Indicação (Quem indicou?)" field="referral" value={d.referral} onChange={handleInputChange}/>
               <InputField label="Expectativa Salarial" field="salaryExpectation" value={d.salaryExpectation} onChange={handleInputChange}/>

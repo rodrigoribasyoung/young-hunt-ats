@@ -67,7 +67,7 @@ function onFormSubmit(e) {
     portfolioUrl: get('Portfólio de trabalho:'),
     
     // Processo e Fit Cultural
-    source: get('Onde você nos encontrou?') || "Google Forms", // Renomeado de sourceOrigin
+    source: normalizeSource(get('Onde você nos encontrou?') || "Google Forms"), // Renomeado de sourceOrigin
     referral: get('Você foi indicado por algum colaborador da Young? Se sim, quem?') || "",
     salaryExpectation: get('Qual seria sua expectativa salarial?') || "",
     canRelocate: get('Teria disponibilidade para mudança de cidade?') || "",
@@ -230,7 +230,7 @@ function rowToCandidateObject(row, headers) {
     portfolioUrl: get('Portfólio de trabalho:'),
     
     // Processo e Fit Cultural
-    source: get('Onde você nos encontrou?') || "Legado", // CORRIGIDO: era sourceOrigin
+    source: normalizeSource(get('Onde você nos encontrou?') || "Legado"), // CORRIGIDO: era sourceOrigin
     referral: get('Você foi indicado por algum colaborador da Young? Se sim, quem?') || "",
     salaryExpectation: get('Qual seria sua expectativa salarial?') || "",
     canRelocate: get('Teria disponibilidade para mudança de cidade?') || "",
