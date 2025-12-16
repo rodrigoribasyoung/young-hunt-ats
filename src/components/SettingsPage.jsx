@@ -179,12 +179,17 @@ const FieldsManager = () => {
               onChange={e => setSearch(e.target.value)}
             />
           </div>
-          <button 
-            onClick={() => showToast('Funcionalidade de campo personalizado em desenvolvimento', 'info')}
-            className="bg-brand-orange hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 text-sm transition-colors"
-          >
-            <Plus size={16}/> Novo Campo Personalizado
-          </button>
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => showToast('Funcionalidade de campo personalizado em desenvolvimento', 'info')}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 text-sm transition-colors dark:bg-blue-500 dark:hover:bg-blue-600"
+                        >
+                          <Plus size={16}/> Novo Campo Personalizado
+                        </button>
+                        <div className="px-3 py-1.5 bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-700 rounded-lg text-xs text-yellow-800 dark:text-yellow-300 font-medium">
+                          ⚠️ Em desenvolvimento
+                        </div>
+                      </div>
         </div>
       </div>
 
@@ -618,12 +623,17 @@ const UserManager = () => (
   <div className="max-w-4xl mx-auto animate-in fade-in space-y-6">
      <div className="flex justify-between items-center">
         <h3 className="text-lg font-bold text-white">Usuários do Sistema</h3>
-        <button 
-          onClick={() => showToast('Funcionalidade de convidar usuário em desenvolvimento', 'info')}
-          className="bg-brand-orange text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2"
-        >
-          <Plus size={16}/> Convidar Usuário
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => showToast('Funcionalidade de convidar usuário em desenvolvimento', 'info')}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 dark:bg-blue-500 dark:hover:bg-blue-600"
+          >
+            <Plus size={16}/> Convidar Usuário
+          </button>
+          <div className="px-3 py-1.5 bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-700 rounded-lg text-xs text-yellow-800 dark:text-yellow-300 font-medium">
+            ⚠️ Em desenvolvimento
+          </div>
+        </div>
      </div>
      <div className="bg-brand-card border border-brand-border rounded-xl overflow-hidden">
         <table className="w-full text-left text-sm">
@@ -654,12 +664,17 @@ const EmailTemplateManager = () => (
    <div className="max-w-5xl mx-auto animate-in fade-in space-y-6">
       <div className="flex justify-between items-center">
          <h3 className="text-lg font-bold text-white">Modelos de Email Automáticos</h3>
-         <button 
-           onClick={() => showToast('Funcionalidade de criar template em desenvolvimento', 'info')}
-           className="bg-brand-cyan text-brand-dark px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2"
-         >
-           <Plus size={16}/> Novo Template
-         </button>
+         <div className="flex items-center gap-2">
+           <button 
+             onClick={() => showToast('Funcionalidade de criar template em desenvolvimento', 'info')}
+             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 dark:bg-blue-500 dark:hover:bg-blue-600"
+           >
+             <Plus size={16}/> Novo Template
+           </button>
+           <div className="px-3 py-1.5 bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-700 rounded-lg text-xs text-yellow-800 dark:text-yellow-300 font-medium">
+             ⚠️ Em desenvolvimento
+           </div>
+         </div>
       </div>
       <div className="grid md:grid-cols-2 gap-4">
          {[
@@ -682,6 +697,285 @@ const EmailTemplateManager = () => (
       </div>
    </div>
 );
+
+const CompaniesManager = ({ onShowToast }) => {
+  const [companies, setCompanies] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [interestAreas, setInterestAreas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editingCompany, setEditingCompany] = useState(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [formData, setFormData] = useState({ name: '', city: '', interestArea: '', address: '', phone: '', email: '' });
+
+  useEffect(() => {
+    const q = query(collection(db, 'companies'), orderBy('name', 'asc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const companiesData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setCompanies(companiesData);
+      setLoading(false);
+    }, (error) => {
+      console.error('Erro ao carregar empresas:', error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const qCities = query(collection(db, 'cities'), orderBy('name', 'asc'));
+    const unsubscribeCities = onSnapshot(qCities, (snapshot) => {
+      setCities(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+    const qAreas = query(collection(db, 'interestAreas'), orderBy('name', 'asc'));
+    const unsubscribeAreas = onSnapshot(qAreas, (snapshot) => {
+      setInterestAreas(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+    return () => {
+      unsubscribeCities();
+      unsubscribeAreas();
+    };
+  }, []);
+
+  const handleSave = async () => {
+    if (!formData.name.trim()) {
+      if (onShowToast) onShowToast('Nome da empresa é obrigatório', 'error');
+      return;
+    }
+
+    try {
+      const companyData = {
+        name: formData.name.trim(),
+        city: formData.city || '',
+        interestArea: formData.interestArea || '',
+        address: formData.address || '',
+        phone: formData.phone || '',
+        email: formData.email || '',
+        updatedAt: serverTimestamp()
+      };
+
+      if (editingCompany) {
+        await updateDoc(doc(db, 'companies', editingCompany.id), companyData);
+        if (onShowToast) onShowToast('Empresa atualizada com sucesso', 'success');
+      } else {
+        companyData.createdAt = serverTimestamp();
+        companyData.createdBy = 'system';
+        await addDoc(collection(db, 'companies'), companyData);
+        if (onShowToast) onShowToast('Empresa criada com sucesso', 'success');
+      }
+
+      setEditingCompany(null);
+      setShowAddForm(false);
+      setFormData({ name: '', city: '', interestArea: '', address: '', phone: '', email: '' });
+    } catch (error) {
+      console.error('Erro ao salvar empresa:', error);
+      if (onShowToast) onShowToast('Erro ao salvar empresa', 'error');
+    }
+  };
+
+  const handleDelete = async (companyId, companyName) => {
+    if (!window.confirm(`Tem certeza que deseja excluir a empresa "${companyName}"?`)) return;
+
+    try {
+      await deleteDoc(doc(db, 'companies', companyId));
+      if (onShowToast) onShowToast('Empresa excluída com sucesso', 'success');
+    } catch (error) {
+      console.error('Erro ao excluir empresa:', error);
+      if (onShowToast) onShowToast('Erro ao excluir empresa', 'error');
+    }
+  };
+
+  const handleEdit = (company) => {
+    setEditingCompany(company);
+    setFormData({
+      name: company.name || '',
+      city: company.city || '',
+      interestArea: company.interestArea || '',
+      address: company.address || '',
+      phone: company.phone || '',
+      email: company.email || ''
+    });
+    setShowAddForm(true);
+  };
+
+  const handleCancel = () => {
+    setEditingCompany(null);
+    setShowAddForm(false);
+    setFormData({ name: '', city: '', interestArea: '', address: '', phone: '', email: '' });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-5xl mx-auto animate-in fade-in space-y-6">
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Empresas e Unidades</h3>
+        <button
+          onClick={() => {
+            setEditingCompany(null);
+            setFormData({ name: '', city: '', interestArea: '', address: '', phone: '', email: '' });
+            setShowAddForm(true);
+          }}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 text-sm dark:bg-blue-500 dark:hover:bg-blue-600"
+        >
+          <Plus size={16}/> Nova Empresa/Unidade
+        </button>
+      </div>
+
+      {showAddForm && (
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 space-y-4 shadow-lg">
+          <h4 className="font-bold text-gray-900 dark:text-white text-lg">{editingCompany ? 'Editar' : 'Nova'} Empresa/Unidade</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1.5">Nome *</label>
+              <input
+                type="text"
+                className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 p-2.5 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                value={formData.name}
+                onChange={e => setFormData({...formData, name: e.target.value})}
+                placeholder="Nome da empresa/unidade"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1.5">Cidade</label>
+              <select
+                className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 p-2.5 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                value={formData.city}
+                onChange={e => setFormData({...formData, city: e.target.value})}
+              >
+                <option value="">Selecione uma cidade...</option>
+                {cities.map(c => (
+                  <option key={c.id} value={c.name}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1.5">Área de Interesse</label>
+              <select
+                className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 p-2.5 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                value={formData.interestArea}
+                onChange={e => setFormData({...formData, interestArea: e.target.value})}
+              >
+                <option value="">Selecione uma área...</option>
+                {interestAreas.map(area => (
+                  <option key={area.id} value={area.name}>{area.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1.5">Endereço</label>
+              <input
+                type="text"
+                className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 p-2.5 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                value={formData.address}
+                onChange={e => setFormData({...formData, address: e.target.value})}
+                placeholder="Endereço completo"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1.5">Telefone</label>
+              <input
+                type="text"
+                className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 p-2.5 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                value={formData.phone}
+                onChange={e => setFormData({...formData, phone: e.target.value})}
+                placeholder="(51) 99999-9999"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1.5">Email</label>
+              <input
+                type="email"
+                className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 p-2.5 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                value={formData.email}
+                onChange={e => setFormData({...formData, email: e.target.value})}
+                placeholder="contato@empresa.com"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              onClick={handleCancel}
+              className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSave}
+              className="bg-blue-600 text-white px-6 py-2 rounded font-medium hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+            >
+              {editingCompany ? 'Atualizar' : 'Criar'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden shadow-lg">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 font-bold uppercase text-xs">
+            <tr>
+              <th className="p-4">Nome</th>
+              <th className="p-4">Cidade</th>
+              <th className="p-4">Área</th>
+              <th className="p-4">Contato</th>
+              <th className="p-4 text-right">Ações</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            {companies.length > 0 ? (
+              companies.map(company => (
+                <tr key={company.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                  <td className="p-4 font-bold text-gray-900 dark:text-white">{company.name}</td>
+                  <td className="p-4 text-gray-600 dark:text-gray-400">{company.city || 'N/A'}</td>
+                  <td className="p-4 text-gray-600 dark:text-gray-400">{company.interestArea || 'N/A'}</td>
+                  <td className="p-4 text-gray-600 dark:text-gray-400 text-xs">
+                    {company.phone && <div>{company.phone}</div>}
+                    {company.email && <div>{company.email}</div>}
+                    {!company.phone && !company.email && 'N/A'}
+                  </td>
+                  <td className="p-4 text-right">
+                    <div className="flex gap-2 justify-end">
+                      <button
+                        onClick={() => handleEdit(company)}
+                        className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
+                        title="Editar"
+                      >
+                        <Edit3 size={16}/>
+                      </button>
+                      <button
+                        onClick={() => handleDelete(company.id, company.name)}
+                        className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                        title="Excluir"
+                      >
+                        <Trash2 size={16}/>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="5" className="p-8 text-center text-gray-500 dark:text-gray-400">
+                  Nenhuma empresa cadastrada
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
 
 const MassActionHistory = () => {
   const [history, setHistory] = useState([]);

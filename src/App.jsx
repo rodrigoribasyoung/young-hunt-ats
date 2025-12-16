@@ -2032,6 +2032,11 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
     }
     // Ordenar
     data.sort((a, b) => {
+      if (sortField === 'createdAt') {
+        const aTs = a.createdAt?.seconds || a.createdAt?._seconds || 0;
+        const bTs = b.createdAt?.seconds || b.createdAt?._seconds || 0;
+        return sortOrder === 'asc' ? aTs - bTs : bTs - aTs;
+      }
       let aVal = a[sortField] || '';
       let bVal = b[sortField] || '';
       if (typeof aVal === 'string') aVal = aVal.toLowerCase();
@@ -2060,19 +2065,19 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
   return (
     <div className="space-y-4 h-full flex flex-col">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-white">Banco de Talentos</h2>
-        <button onClick={onAdd} className="bg-brand-cyan text-brand-dark font-bold px-4 py-2 rounded flex items-center gap-2">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Banco de Talentos</h2>
+        <button onClick={onAdd} className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded flex items-center gap-2 transition-colors dark:bg-blue-500 dark:hover:bg-blue-600">
           <UserPlus size={18}/> Adicionar
         </button>
       </div>
 
       {/* Barra de Busca e Controles */}
-      <div className="bg-brand-card rounded-lg border border-brand-border p-4 flex flex-wrap gap-4 items-center">
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 flex flex-wrap gap-4 items-center shadow-sm">
         <div className="flex-1 min-w-[200px]">
           <input 
             type="text" 
             placeholder="Buscar por nome, email, telefone, cidade, fonte, área..."
-            className="w-full bg-brand-dark border border-brand-border rounded px-3 py-2 text-sm text-white outline-none focus:border-brand-cyan"
+            className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             value={localSearch}
             onChange={e => {setLocalSearch(e.target.value); setCurrentPage(1);}}
           />
@@ -2080,7 +2085,7 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
         <div className="flex items-center gap-2">
           <label className="text-xs text-slate-400">Itens por página:</label>
           <select 
-            className="bg-brand-dark border border-brand-border rounded px-2 py-1.5 text-xs text-white"
+            className="bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 text-xs text-gray-900 dark:text-white"
             value={itemsPerPage}
             onChange={e => {setItemsPerPage(Number(e.target.value)); setCurrentPage(1);}}
           >
@@ -2093,7 +2098,7 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
             <option value={1000}>1000</option>
           </select>
         </div>
-        <div className="text-xs text-slate-400">
+        <div className="text-xs text-gray-600 dark:text-gray-400 font-medium">
           {filtered.length} resultado{filtered.length !== 1 ? 's' : ''}
         </div>
       </div>
@@ -2104,31 +2109,34 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
           <table className="w-full text-sm text-left text-slate-300">
             <thead className="bg-brand-hover text-slate-200 font-medium sticky top-0 z-10">
               <tr>
-                <th className="px-4 py-3 cursor-pointer hover:bg-brand-hover/80" onClick={() => toggleSort('fullName')}>
-                  <div className="flex items-center gap-1 text-xs">Nome {sortField === 'fullName' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
+                <th className="px-4 py-3 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" onClick={() => toggleSort('fullName')}>
+                  <div className="flex items-center gap-1 text-xs font-semibold">Nome {sortField === 'fullName' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
                 </th>
-                <th className="px-4 py-3 cursor-pointer hover:bg-brand-hover/80" onClick={() => toggleSort('email')}>
-                  <div className="flex items-center gap-1 text-xs">Email {sortField === 'email' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
+                <th className="px-4 py-3 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" onClick={() => toggleSort('email')}>
+                  <div className="flex items-center gap-1 text-xs font-semibold">Email {sortField === 'email' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
                 </th>
-                <th className="px-4 py-3 cursor-pointer hover:bg-brand-hover/80" onClick={() => toggleSort('phone')}>
-                  <div className="flex items-center gap-1 text-xs">Telefone {sortField === 'phone' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
+                <th className="px-4 py-3 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" onClick={() => toggleSort('phone')}>
+                  <div className="flex items-center gap-1 text-xs font-semibold">Telefone {sortField === 'phone' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
                 </th>
-                <th className="px-4 py-3 cursor-pointer hover:bg-brand-hover/80" onClick={() => toggleSort('city')}>
-                  <div className="flex items-center gap-1 text-xs">Cidade {sortField === 'city' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
+                <th className="px-4 py-3 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" onClick={() => toggleSort('city')}>
+                  <div className="flex items-center gap-1 text-xs font-semibold">Cidade {sortField === 'city' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
                 </th>
-                <th className="px-4 py-3 cursor-pointer hover:bg-brand-hover/80" onClick={() => toggleSort('source')}>
-                  <div className="flex items-center gap-1 text-xs">Fonte {sortField === 'source' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
+                <th className="px-4 py-3 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" onClick={() => toggleSort('source')}>
+                  <div className="flex items-center gap-1 text-xs font-semibold">Fonte {sortField === 'source' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
                 </th>
-                <th className="px-4 py-3 cursor-pointer hover:bg-brand-hover/80" onClick={() => toggleSort('interestAreas')}>
-                  <div className="flex items-center gap-1 text-xs">Áreas {sortField === 'interestAreas' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
+                <th className="px-4 py-3 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" onClick={() => toggleSort('interestAreas')}>
+                  <div className="flex items-center gap-1 text-xs font-semibold">Áreas {sortField === 'interestAreas' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
                 </th>
-                <th className="px-4 py-3 text-xs">Formação</th>
-                <th className="px-4 py-3 cursor-pointer hover:bg-brand-hover/80" onClick={() => toggleSort('schoolingLevel')}>
-                  <div className="flex items-center gap-1 text-xs">Escolaridade {sortField === 'schoolingLevel' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
+                <th className="px-4 py-3 text-xs font-semibold">Formação</th>
+                <th className="px-4 py-3 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" onClick={() => toggleSort('schoolingLevel')}>
+                  <div className="flex items-center gap-1 text-xs font-semibold">Escolaridade {sortField === 'schoolingLevel' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
                 </th>
-                <th className="px-4 py-3 text-xs">CNH</th>
-                <th className="px-4 py-3 cursor-pointer hover:bg-brand-hover/80" onClick={() => toggleSort('status')}>
-                  <div className="flex items-center gap-1 text-xs">Status {sortField === 'status' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
+                <th className="px-4 py-3 text-xs font-semibold">CNH</th>
+                <th className="px-4 py-3 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" onClick={() => toggleSort('status')}>
+                  <div className="flex items-center gap-1 text-xs font-semibold">Status {sortField === 'status' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
+                </th>
+                <th className="px-4 py-3 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" onClick={() => toggleSort('createdAt')}>
+                  <div className="flex items-center gap-1 text-xs font-semibold">Data Cadastro {sortField === 'createdAt' && (sortOrder === 'asc' ? '↑' : '↓')}</div>
                 </th>
                 <th className="px-4 py-3 text-right text-xs">Ações</th>
               </tr>
@@ -2136,30 +2144,30 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
             <tbody className="divide-y divide-brand-border">
               {paginatedCandidates.length > 0 ? (
                 paginatedCandidates.map(c => (
-                  <tr key={c.id} className="hover:bg-brand-hover/50 cursor-pointer" onClick={() => onEdit(c)}>
+                  <tr key={c.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors border-b border-gray-200 dark:border-gray-700" onClick={() => onEdit(c)}>
                     <td className="px-4 py-3">
-                      <div className="font-bold text-white text-sm">{c.fullName || 'N/A'}</div>
+                      <div className="font-semibold text-gray-900 dark:text-white text-sm">{c.fullName || 'N/A'}</div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="text-xs text-slate-400 truncate max-w-[200px]" title={c.email}>{c.email || 'N/A'}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-300 truncate max-w-[200px]" title={c.email}>{c.email || 'N/A'}</div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="text-xs text-slate-400">{c.phone || 'N/A'}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-300">{c.phone || 'N/A'}</div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="text-xs text-slate-400">{c.city || 'N/A'}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-300">{c.city || 'N/A'}</div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="text-xs text-brand-cyan truncate max-w-[150px]" title={c.source}>{c.source || 'N/A'}</div>
+                      <div className="text-xs text-blue-600 dark:text-blue-400 font-medium truncate max-w-[150px]" title={c.source}>{c.source || 'N/A'}</div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="text-xs text-brand-cyan truncate max-w-[150px]" title={c.interestAreas}>{c.interestAreas || 'N/A'}</div>
+                      <div className="text-xs text-blue-600 dark:text-blue-400 font-medium truncate max-w-[150px]" title={c.interestAreas}>{c.interestAreas || 'N/A'}</div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="text-xs text-slate-400 truncate max-w-[150px]" title={c.education}>{c.education || 'N/A'}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-300 truncate max-w-[150px]" title={c.education}>{c.education || 'N/A'}</div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="text-xs text-slate-400 truncate max-w-[120px]" title={c.schoolingLevel}>{c.schoolingLevel || 'N/A'}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-300 truncate max-w-[120px]" title={c.schoolingLevel}>{c.schoolingLevel || 'N/A'}</div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="text-xs">
@@ -2173,9 +2181,20 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-1 rounded text-xs border ${STATUS_COLORS[c.status] || 'bg-slate-700 text-slate-200 border-slate-600'}`}>
+                      <span className={`px-2 py-1 rounded text-xs border font-medium ${STATUS_COLORS[c.status] || 'bg-gray-700 text-gray-200 border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600'}`}>
                         {c.status || 'Sem Status'}
                       </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-xs text-gray-600 dark:text-gray-400">
+                        {c.createdAt?.seconds || c.createdAt?._seconds ? (
+                          new Date((c.createdAt.seconds || c.createdAt._seconds) * 1000).toLocaleDateString('pt-BR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric'
+                          })
+                        ) : 'N/A'}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex gap-2 justify-end">
@@ -2191,7 +2210,7 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="11" className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan="12" className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                     Nenhum candidato encontrado
                   </td>
                 </tr>

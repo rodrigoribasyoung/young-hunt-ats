@@ -35,17 +35,17 @@ export const STAGE_REQUIRED_FIELDS = {
 export const JOB_STATUSES = ['Aberta', 'Preenchida', 'Cancelada', 'Fechada'];
 
 export const STATUS_COLORS = {
-  'Inscrito': 'bg-slate-700 text-slate-200 border-slate-600',
-  'Considerado': 'bg-blue-900/40 text-blue-300 border-blue-700',
-  'Entrevista I': 'bg-cyan-900/40 text-cyan-300 border-cyan-700',
-  'Testes': 'bg-purple-900/40 text-purple-300 border-purple-700',
-  'Entrevista II': 'bg-indigo-900/40 text-indigo-300 border-indigo-700',
-  'Seleção': 'bg-yellow-900/40 text-yellow-300 border-yellow-700',
+  'Inscrito': 'bg-gray-600 dark:bg-gray-700 text-white dark:text-gray-100 border-gray-500 dark:border-gray-600 font-medium',
+  'Considerado': 'bg-blue-500 dark:bg-blue-600 text-white border-blue-600 dark:border-blue-700 font-medium',
+  'Entrevista I': 'bg-cyan-500 dark:bg-cyan-600 text-white border-cyan-600 dark:border-cyan-700 font-medium',
+  'Testes': 'bg-purple-500 dark:bg-purple-600 text-white border-purple-600 dark:border-purple-700 font-medium',
+  'Entrevista II': 'bg-indigo-500 dark:bg-indigo-600 text-white border-indigo-600 dark:border-indigo-700 font-medium',
+  'Seleção': 'bg-yellow-500 dark:bg-yellow-600 text-white border-yellow-600 dark:border-yellow-700 font-medium',
   
   // Status de Fechamento
-  'Contratado': 'bg-green-900/40 text-green-300 border-green-700',
-  'Reprovado': 'bg-red-900/40 text-red-300 border-red-700',
-  'Desistiu da vaga': 'bg-slate-800 text-slate-400 border-slate-600'
+  'Contratado': 'bg-green-500 dark:bg-green-600 text-white border-green-600 dark:border-green-700 font-medium',
+  'Reprovado': 'bg-red-500 dark:bg-red-600 text-white border-red-600 dark:border-red-700 font-medium',
+  'Desistiu da vaga': 'bg-gray-500 dark:bg-gray-600 text-white border-gray-600 dark:border-gray-700 font-medium'
 };
 
 // Mapeamento EXATO das colunas do seu CSV para as variáveis do Sistema
