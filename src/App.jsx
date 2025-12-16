@@ -1208,9 +1208,78 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                 </div>
               </div>
            ) : (
-              <div className="h-full overflow-y-auto p-4 custom-scrollbar">
-                 <table className="w-full text-left text-sm text-slate-300"><thead className="bg-brand-card text-white font-bold sticky top-0 z-10 shadow-sm"><tr><th className="p-4 w-10"><input type="checkbox" className="accent-brand-orange" checked={selectedIds.length>0 && selectedIds.length===processedData.length} onChange={handleSelectAll}/></th><th className="p-4">Nome</th><th className="p-4">Status</th><th className="p-4">Vaga</th><th className="p-4">Ações</th></tr></thead><tbody className="divide-y divide-brand-border bg-brand-card/20">{processedData.slice(0, itemsPerPage).map(c => (<tr key={c.id} className="hover:bg-brand-card/50"><td className="p-4"><input type="checkbox" className="accent-brand-orange" checked={selectedIds.includes(c.id)} onChange={() => handleSelect(c.id)}/></td><td className="p-4 font-bold text-white cursor-pointer" onClick={() => onEdit(c)}>{c.fullName}</td><td className="p-4"><span className={`px-2 py-0.5 rounded text-xs border ${STATUS_COLORS[c.status]}`}>{c.status}</span></td><td className="p-4 text-xs">{jobs.find(j=>j.id===c.jobId)?.title}</td><td className="p-4"><button onClick={() => onEdit(c)}><Edit3 size={16}/></button></td></tr>))}</tbody></table>
+              <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                 <table className="w-full text-left text-sm text-slate-300">
+                   <thead className="bg-brand-card text-white font-bold sticky top-0 z-10 shadow-sm">
+                     <tr>
+                       <th className="p-4 w-10"><input type="checkbox" className="accent-brand-orange" checked={selectedIds.length>0 && selectedIds.length===processedData.length} onChange={handleSelectAll}/></th>
+                       <th className="p-4">Nome</th>
+                       <th className="p-4">Status</th>
+                       <th className="p-4">Vaga</th>
+                       <th className="p-4">Empresa</th>
+                       <th className="p-4">Cidade</th>
+                       <th className="p-4">Área</th>
+                       <th className="p-4">Ações</th>
+                     </tr>
+                   </thead>
+                   <tbody className="divide-y divide-brand-border bg-brand-card/20">
+                     {paginatedListData.map(c => {
+                       const candidateJob = jobs.find(j=>j.id===c.jobId);
+                       return (
+                         <tr key={c.id} className="hover:bg-brand-hover/50 dark:hover:bg-brand-hover/50 transition-colors">
+                           <td className="p-4"><input type="checkbox" className="accent-brand-orange" checked={selectedIds.includes(c.id)} onChange={() => handleSelect(c.id)}/></td>
+                           <td className="p-4 font-bold text-white dark:text-white cursor-pointer break-words" onClick={() => onEdit(c)}>{c.fullName}</td>
+                           <td className="p-4"><span className={`px-2 py-0.5 rounded text-xs border break-words ${STATUS_COLORS[c.status] || 'bg-slate-700 text-slate-200 border-slate-600'}`}>{c.status || 'Inscrito'}</span></td>
+                           <td className="p-4 text-xs break-words">{candidateJob?.title || 'N/A'}</td>
+                           <td className="p-4 text-xs break-words">{candidateJob?.company || 'N/A'}</td>
+                           <td className="p-4 text-xs break-words">{c.city || 'N/A'}</td>
+                           <td className="p-4 text-xs break-words">{c.interestAreas || 'N/A'}</td>
+                           <td className="p-4"><button onClick={() => onEdit(c)} className="hover:text-brand-cyan transition-colors"><Edit3 size={16}/></button></td>
+                         </tr>
+                       );
+                     })}
+                   </tbody>
+                 </table>
               </div>
+           )}
+           
+           {/* Paginação */}
+           {processedData.length > 0 && (
+             <div className="border-t border-brand-border px-6 py-4 bg-brand-card flex items-center justify-between">
+               <div className="text-xs text-slate-400">
+                 Mostrando {viewMode === 'list' 
+                   ? `${(currentPage - 1) * itemsPerPage + 1} - ${Math.min(currentPage * itemsPerPage, processedData.length)}`
+                   : `${(currentPage - 1) * kanbanItemsPerPage + 1} - ${Math.min(currentPage * kanbanItemsPerPage, Math.max(...PIPELINE_STAGES.map(s => kanbanDataByStage[s]?.total || 0)))}`
+                 } de {processedData.length} talentos
+               </div>
+               <div className="flex items-center gap-2">
+                 <button
+                   onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                   disabled={currentPage === 1}
+                   className={`px-3 py-1.5 rounded text-sm font-bold transition-colors ${
+                     currentPage === 1
+                       ? 'bg-brand-card text-slate-600 cursor-not-allowed'
+                       : 'bg-brand-dark text-white hover:bg-brand-hover'
+                   }`}
+                 >
+                   <ChevronLeft size={16} className="inline"/>
+                 </button>
+                 <span className="px-4 py-1.5 text-sm text-slate-300">
+                   Página {currentPage} de {viewMode === 'list' ? totalPages : kanbanTotalPages}
+                 </span>
+                 <button
+                   onClick={() => setCurrentPage(Math.min(viewMode === 'list' ? totalPages : kanbanTotalPages, currentPage + 1))}
+                   disabled={currentPage >= (viewMode === 'list' ? totalPages : kanbanTotalPages)}
+                   className={`px-3 py-1.5 rounded text-sm font-bold transition-colors ${
+                     currentPage >= (viewMode === 'list' ? totalPages : kanbanTotalPages)
+                       ? 'bg-brand-card text-slate-600 cursor-not-allowed'
+                       : 'bg-brand-dark text-white hover:bg-brand-hover'
+                   }`}
+                 >
+                   <ChevronRight size={16} className="inline"/>
+                 </button>
+               </div>
+             </div>
            )}
         </div>
      </div>
