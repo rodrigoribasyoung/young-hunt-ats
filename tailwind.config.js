@@ -14,13 +14,15 @@ export default {
         brand: {
           orange: '#fe5009',
           cyan: '#00bcbc',
-          dark: '#0f172a',    // Fundo Principal
-          card: '#1e293b',    // Fundo dos Cards
-          hover: '#334155',   // Hover state
-          border: '#475569',  // Bordas
+          dark: '#0f172a',    // Fundo Principal (dark)
+          card: '#1e293b',    // Fundo dos Cards (dark)
+          hover: '#334155',   // Hover state (dark)
+          border: '#475569',  // Bordas (dark)
         }
       }
     },
   },
+  // Adiciona suporte para light mode nas cores brand
+  // As cores serão sobrescritas via CSS quando não estiver em dark mode
   plugins: [],
 }

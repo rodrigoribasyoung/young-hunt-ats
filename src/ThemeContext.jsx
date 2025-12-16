@@ -9,6 +9,16 @@ export function ThemeProvider({ children }) {
     return true; // Default to dark
   });
 
+  // Aplica tema na inicialização
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, []); // Executa apenas na montagem
+
+  // Atualiza tema quando isDark muda
   useEffect(() => {
     localStorage.setItem('theme-preference', isDark ? 'dark' : 'light');
     if (isDark) {
