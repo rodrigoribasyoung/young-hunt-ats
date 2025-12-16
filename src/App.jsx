@@ -158,7 +158,7 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates }) => {
       </div>
 
       {/* Gráficos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         {/* Distribuição por Status */}
         <div className="bg-brand-card p-6 rounded-xl border border-brand-border">
           <h3 className="font-bold text-lg text-white mb-4">Distribuição por Status</h3>
