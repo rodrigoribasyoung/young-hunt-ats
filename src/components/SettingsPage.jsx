@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users, Mail, History, Database, Layout, UploadCloud, Download, 
-  Plus, Trash2, Edit3, Save, Search, FileText, CheckSquare, X
+  Plus, Trash2, Edit3, Save, Search, FileText, CheckSquare, X, Building2
 } from 'lucide-react';
 import { CSV_FIELD_MAPPING_OPTIONS, PIPELINE_STAGES } from '../constants';
 import { 
-  collection, onSnapshot, query, orderBy, limit, getDocs, addDoc, updateDoc, doc, serverTimestamp
+  collection, onSnapshot, query, orderBy, limit, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp
 } from 'firebase/firestore';
 import { getFirestore } from 'firebase/firestore';
 import { initializeApp } from 'firebase/app';
@@ -77,6 +77,7 @@ export default function SettingsPage({
       <div className="flex-1 p-6 overflow-y-auto custom-scrollbar">
         {activeTab === 'campos' && <FieldsManager />}
         {activeTab === 'pipeline' && <PipelineManager />}
+        {activeTab === 'companies' && <CompaniesManager onShowToast={onShowToast} />}
         {activeTab === 'import' && <ImportExportManager onOpenCsvModal={onOpenCsvModal} onShowToast={onShowToast} />}
         {activeTab === 'users' && <UserManager />}
         {activeTab === 'emails' && <EmailTemplateManager />}

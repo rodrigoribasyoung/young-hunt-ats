@@ -1809,7 +1809,10 @@ const JobsList = ({ jobs, candidates, onAdd, onEdit, onToggleStatus, onViewCandi
       </div>
       <h3 className="font-bold text-lg text-white mb-1 break-words">{j.title}</h3>
       <p className="text-sm text-slate-400 mb-2 break-words">{j.company}</p>
-      {j.city && <p className="text-xs text-slate-500 mb-4 flex items-center gap-1"><MapPin size={12}/> {j.city}</p>}
+      <div className="space-y-1 mb-4">
+        {j.city && <p className="text-xs text-slate-500 flex items-center gap-1"><MapPin size={12}/> {j.city}</p>}
+        {j.interestArea && <p className="text-xs text-brand-cyan flex items-center gap-1"><Briefcase size={12}/> {j.interestArea}</p>}
+      </div>
       <div className="border-t border-brand-border pt-4 flex justify-between items-center">
         <p className="text-xs text-slate-500 cursor-pointer hover:text-brand-cyan transition-colors" onClick={() => onViewCandidates(j)}>
           {candidates.filter(c => c.jobId === j.id).length} candidatos
@@ -2242,9 +2245,277 @@ const InputField = ({ label, field, value, onChange, type="text" }) => (
 );
 
 const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
-  const [d, setD] = useState(job?.id ? {...job} : { title: '', company: '', location: '', status: 'Aberta' });
+  const [d, setD] = useState(() => {
+    if (job?.id) {
+      return {
+        ...job,
+        city: job.city || job.location || '',
+        interestArea: job.interestArea || job.interestAreas || '',
+        company: job.company || ''
+      };
+    }
+    return { 
+      title: '', 
+      company: '', 
+      city: '', 
+      interestArea: '',
+      status: 'Aberta',
+      description: '',
+      requirements: '',
+      salaryRange: '',
+      type: ''
+    };
+  });
+  const [showNewCompany, setShowNewCompany] = useState(false);
+  const [newCompanyName, setNewCompanyName] = useState('');
+  const [newCompanyCity, setNewCompanyCity] = useState('');
+
+  useEffect(() => {
+    if (job?.id) {
+      setD({
+        ...job,
+        city: job.city || job.location || '',
+        interestArea: job.interestArea || job.interestAreas || '',
+        company: job.company || ''
+      });
+    } else {
+      setD({ 
+        title: '', 
+        company: '', 
+        city: '', 
+        interestArea: '',
+        status: 'Aberta',
+        description: '',
+        requirements: '',
+        salaryRange: '',
+        type: ''
+      });
+    }
+    setShowNewCompany(false);
+    setNewCompanyName('');
+    setNewCompanyCity('');
+  }, [job, isOpen]);
+
+  const handleCreateCompany = async () => {
+    if (!newCompanyName.trim()) {
+      alert('Digite o nome da empresa');
+      return;
+    }
+    
+    try {
+      const newCompany = {
+        name: newCompanyName.trim(),
+        city: newCompanyCity || '',
+        createdAt: serverTimestamp(),
+        createdBy: options.user?.email || 'system'
+      };
+      const docRef = await addDoc(collection(db, 'companies'), newCompany);
+      setD({...d, company: newCompanyName.trim()});
+      setShowNewCompany(false);
+      setNewCompanyName('');
+      setNewCompanyCity('');
+      alert('Empresa criada com sucesso!');
+    } catch (error) {
+      console.error('Erro ao criar empresa:', error);
+      alert('Erro ao criar empresa');
+    }
+  };
+
   if (!isOpen) return null;
-  return (<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"><div className="bg-brand-card rounded-xl w-full max-w-md border border-brand-border p-6"><h3 className="font-bold text-lg text-white mb-4">{d.id ? 'Editar' : 'Nova'} Vaga</h3><input className="w-full bg-brand-dark border border-brand-border p-2 rounded mb-3 text-white" placeholder="Título" value={d.title} onChange={e=>setD({...d, title:e.target.value})}/><select className="w-full bg-brand-dark border border-brand-border p-2 rounded mb-3 text-white" value={d.company} onChange={e=>setD({...d, company:e.target.value})}><option value="">Empresa...</option>{options.companies.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}</select><select className="w-full bg-brand-dark border border-brand-border p-2 rounded mb-6 text-white" value={d.location} onChange={e=>setD({...d, location:e.target.value})}><option value="">Local...</option>{options.cities.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}</select><div className="flex justify-end gap-2"><button onClick={onClose} className="text-slate-400 px-4">Cancelar</button><button onClick={()=>onSave(d)} disabled={isSaving} className="bg-brand-orange text-white px-4 py-2 rounded">Salvar</button></div></div></div>);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+      <div className="bg-brand-card rounded-xl w-full max-w-2xl max-h-[90vh] border border-brand-border flex flex-col">
+        <div className="px-6 py-4 border-b border-brand-border flex justify-between items-center">
+          <h3 className="font-bold text-xl text-white">{d.id ? 'Editar' : 'Nova'} Vaga</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-white">
+            <X size={20}/>
+          </button>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+          {/* Título da Vaga */}
+          <div>
+            <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Título da Vaga *</label>
+            <input
+              className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange"
+              placeholder="Ex: Analista de Obras"
+              value={d.title || ''}
+              onChange={e => setD({...d, title: e.target.value})}
+            />
+          </div>
+
+          {/* Empresa */}
+          <div>
+            <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Empresa/Unidade *</label>
+            <div className="flex gap-2">
+              <select
+                className="flex-1 bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange"
+                value={d.company || ''}
+                onChange={e => setD({...d, company: e.target.value})}
+              >
+                <option value="">Selecione uma empresa...</option>
+                {options.companies.map(c => (
+                  <option key={c.id} value={c.name}>{c.name} {c.city ? `- ${c.city}` : ''}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => setShowNewCompany(!showNewCompany)}
+                className="bg-brand-cyan text-brand-dark px-4 py-2 rounded-lg font-bold text-sm hover:bg-cyan-400 whitespace-nowrap"
+                title="Criar nova empresa"
+              >
+                <Plus size={16} className="inline mr-1"/> Nova
+              </button>
+            </div>
+            {showNewCompany && (
+              <div className="mt-2 p-3 bg-brand-dark border border-brand-border rounded-lg space-y-2">
+                <input
+                  type="text"
+                  className="w-full bg-brand-card border border-brand-border p-2 rounded text-sm text-white outline-none focus:border-brand-cyan"
+                  placeholder="Nome da empresa/unidade"
+                  value={newCompanyName}
+                  onChange={e => setNewCompanyName(e.target.value)}
+                />
+                <select
+                  className="w-full bg-brand-card border border-brand-border p-2 rounded text-sm text-white outline-none focus:border-brand-cyan"
+                  value={newCompanyCity}
+                  onChange={e => setNewCompanyCity(e.target.value)}
+                >
+                  <option value="">Cidade (opcional)</option>
+                  {options.cities.map(c => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
+                  ))}
+                </select>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleCreateCompany}
+                    className="flex-1 bg-brand-orange text-white px-3 py-1.5 rounded text-sm font-bold hover:bg-orange-600"
+                  >
+                    Criar
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowNewCompany(false);
+                      setNewCompanyName('');
+                      setNewCompanyCity('');
+                    }}
+                    className="px-3 py-1.5 text-slate-400 hover:text-white text-sm"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Cidade e Área de Interesse */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Cidade *</label>
+              <select
+                className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange"
+                value={d.city || ''}
+                onChange={e => setD({...d, city: e.target.value})}
+              >
+                <option value="">Selecione uma cidade...</option>
+                {options.cities.map(c => (
+                  <option key={c.id} value={c.name}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Área de Interesse *</label>
+              <select
+                className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange"
+                value={d.interestArea || ''}
+                onChange={e => setD({...d, interestArea: e.target.value})}
+              >
+                <option value="">Selecione uma área...</option>
+                {options.interestAreas.map(area => (
+                  <option key={area.id} value={area.name}>{area.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Status e Tipo */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Status *</label>
+              <select
+                className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange"
+                value={d.status || 'Aberta'}
+                onChange={e => setD({...d, status: e.target.value})}
+              >
+                {JOB_STATUSES.map(status => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Tipo de Vaga</label>
+              <input
+                className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange"
+                placeholder="Ex: CLT, PJ, Estágio"
+                value={d.type || ''}
+                onChange={e => setD({...d, type: e.target.value})}
+              />
+            </div>
+          </div>
+
+          {/* Faixa Salarial */}
+          <div>
+            <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Faixa Salarial</label>
+            <input
+              className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange"
+              placeholder="Ex: R$ 3.000 - R$ 5.000"
+              value={d.salaryRange || ''}
+              onChange={e => setD({...d, salaryRange: e.target.value})}
+            />
+          </div>
+
+          {/* Descrição */}
+          <div>
+            <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Descrição da Vaga</label>
+            <textarea
+              className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange h-24 resize-none"
+              placeholder="Descreva a vaga, responsabilidades, etc."
+              value={d.description || ''}
+              onChange={e => setD({...d, description: e.target.value})}
+            />
+          </div>
+
+          {/* Requisitos */}
+          <div>
+            <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Requisitos</label>
+            <textarea
+              className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange h-24 resize-none"
+              placeholder="Requisitos, qualificações necessárias..."
+              value={d.requirements || ''}
+              onChange={e => setD({...d, requirements: e.target.value})}
+            />
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-brand-border flex justify-end gap-2">
+          <button onClick={onClose} className="px-6 py-2 text-slate-400 hover:text-white">Cancelar</button>
+          <button
+            onClick={() => {
+              if (!d.title || !d.company || !d.city || !d.interestArea) {
+                alert('Preencha todos os campos obrigatórios (*)');
+                return;
+              }
+              onSave(d);
+            }}
+            disabled={isSaving}
+            className="bg-brand-orange text-white px-6 py-2 rounded font-bold hover:bg-orange-600 disabled:opacity-50"
+          >
+            {isSaving ? 'Salvando...' : 'Salvar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const CandidateModal = ({ candidate, onClose, onSave, options, isSaving }) => {
@@ -2386,6 +2657,18 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving }) => {
           )}
           {activeSection === 'processo' && (
             <div className="grid grid-cols-2 gap-6">
+              <div className="mb-3">
+                <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Vaga Associada</label>
+                <select className="w-full bg-brand-dark dark:bg-brand-dark border border-brand-border dark:border-brand-border p-2.5 rounded text-white dark:text-white outline-none focus:border-brand-orange" value={d.jobId || ''} onChange={e=>setD({...d, jobId:e.target.value})}>
+                  <option value="">Nenhuma vaga (Banco de Talentos)</option>
+                  {options.jobs && options.jobs.filter(j => j.status === 'Aberta').map(j => (
+                    <option key={j.id} value={j.id}>
+                      {j.title} - {j.company} {j.city ? `(${j.city})` : ''}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-400 mt-1">Associe o candidato a uma vaga específica ou deixe em branco para banco de talentos</p>
+              </div>
               <div className="mb-3">
                 <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Status</label>
                 <select className="w-full bg-brand-dark dark:bg-brand-dark border border-brand-border dark:border-brand-border p-2.5 rounded text-white dark:text-white outline-none focus:border-brand-orange" value={d.status || ''} onChange={e=>setD({...d, status:e.target.value})}>
