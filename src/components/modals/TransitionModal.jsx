@@ -240,27 +240,90 @@ export default function TransitionModal({ transition, onClose, onConfirm, cities
 
           {transition.isConclusion && (
             <div className="space-y-4 pt-4 border-t border-brand-border mt-4">
-               <div>
-                  <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Feedback / Observação *</label>
+              <div className="bg-yellow-500/10 border border-yellow-500/30 p-3 rounded text-xs text-yellow-200">
+                <strong>⚠️ Fechamento do Processo:</strong> Preencha os dados abaixo para concluir o processo seletivo.
+              </div>
+              
+              {/* Campo específico por tipo de fechamento */}
+              {transition.toStage === 'Contratado' && (
+                <div>
+                  <label className="block text-xs font-bold text-green-400 uppercase mb-1.5">
+                    ✅ Motivo da Contratação / Observações *
+                  </label>
                   <textarea 
-                    className="w-full bg-brand-dark border border-brand-border p-2 rounded text-white text-sm h-24 focus:border-brand-orange outline-none"
-                    placeholder="Descreva o motivo..."
+                    className="w-full bg-brand-dark border border-green-500/50 p-2 rounded text-white text-sm h-24 focus:border-green-500 outline-none"
+                    placeholder="Descreva o motivo da contratação, pontos fortes do candidato, salário acordado, data de início, etc..."
                     value={data.feedback}
                     onChange={e => setData({...data, feedback: e.target.value})}
                   />
-               </div>
-               <div className="flex items-start gap-2 bg-brand-dark p-3 rounded border border-brand-border">
-                  <input 
-                    type="checkbox" 
-                    id="returnSent"
-                    className="w-4 h-4 mt-0.5 accent-brand-orange"
-                    checked={data.returnSent}
-                    onChange={e => setData({...data, returnSent: e.target.checked})}
-                  />
-                  <label htmlFor="returnSent" className="text-sm text-white cursor-pointer select-none">
-                    Confirmo que o retorno (positivo ou negativo) foi dado ao candidato.
+                </div>
+              )}
+              
+              {transition.toStage === 'Reprovado' && (
+                <div>
+                  <label className="block text-xs font-bold text-red-400 uppercase mb-1.5">
+                    ❌ Motivo da Reprovação *
                   </label>
-               </div>
+                  <textarea 
+                    className="w-full bg-brand-dark border border-red-500/50 p-2 rounded text-white text-sm h-24 focus:border-red-500 outline-none"
+                    placeholder="Descreva o motivo da reprovação (ex: não atendeu requisitos técnicos, perfil não adequado, etc.)..."
+                    value={data.feedback}
+                    onChange={e => setData({...data, feedback: e.target.value})}
+                  />
+                </div>
+              )}
+              
+              {transition.toStage === 'Desistiu da vaga' && (
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase mb-1.5">
+                    ⏸️ Motivo da Desistência *
+                  </label>
+                  <textarea 
+                    className="w-full bg-brand-dark border border-gray-500/50 p-2 rounded text-white text-sm h-24 focus:border-gray-500 outline-none"
+                    placeholder="Descreva o motivo da desistência (ex: candidato desistiu, não respondeu contatos, etc.)..."
+                    value={data.feedback}
+                    onChange={e => setData({...data, feedback: e.target.value})}
+                  />
+                </div>
+              )}
+              
+              {/* Campo genérico se não for um dos três acima */}
+              {!['Contratado', 'Reprovado', 'Desistiu da vaga'].includes(transition.toStage) && (
+                <div>
+                  <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Feedback / Observação *</label>
+                  <textarea 
+                    className="w-full bg-brand-dark border border-brand-border p-2 rounded text-white text-sm h-24 focus:border-brand-orange outline-none"
+                    placeholder="Descreva o motivo do fechamento..."
+                    value={data.feedback}
+                    onChange={e => setData({...data, feedback: e.target.value})}
+                  />
+                </div>
+              )}
+              
+              {/* Retorno dado */}
+              <div>
+                <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Retorno Dado ao Candidato *</label>
+                {renderInput('returnSent')}
+                <p className="text-xs text-slate-400 mt-1">
+                  Confirme se o candidato foi informado sobre o resultado do processo
+                </p>
+              </div>
+              
+              {/* Data do retorno (se retorno foi dado) */}
+              {data.returnSent === 'Sim' && (
+                <div>
+                  <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Data do Retorno</label>
+                  {renderInput('returnDate')}
+                </div>
+              )}
+              
+              {/* Observações do retorno */}
+              {data.returnSent && (
+                <div>
+                  <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Observações do Retorno</label>
+                  {renderInput('returnNotes')}
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -4291,7 +4291,7 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
           )}
           {activeSection === 'processo' && (
             <div className="grid grid-cols-2 gap-6">
-              <div className="mb-3">
+              <div className="mb-3 col-span-2">
                 <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Vaga Associada</label>
                 <select className="w-full bg-brand-dark dark:bg-brand-dark border border-brand-border dark:border-brand-border p-2.5 rounded text-white dark:text-white outline-none focus:border-brand-orange" value={d.jobId || ''} onChange={e=>setD({...d, jobId:e.target.value})}>
                   <option value="">Nenhuma vaga (Banco de Talentos)</option>
@@ -4302,13 +4302,9 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
                   ))}
                 </select>
                 <p className="text-xs text-slate-400 mt-1">Associe o candidato a uma vaga específica ou deixe em branco para banco de talentos</p>
-              </div>
-              <div className="mb-3">
-                <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Status</label>
-                <select className="w-full bg-brand-dark dark:bg-brand-dark border border-brand-border dark:border-brand-border p-2.5 rounded text-white dark:text-white outline-none focus:border-brand-orange" value={d.status || ''} onChange={e=>setD({...d, status:e.target.value})}>
-                  <option value="">Selecione...</option>
-                  {ALL_STATUSES.map(s=><option key={s} value={s}>{s}</option>)}
-                </select>
+                <p className="text-xs text-yellow-400 mt-2">
+                  💡 <strong>Dica:</strong> Use o menu "Avançar Etapa do Processo" na aba Pessoal para alterar o status do candidato
+                </p>
               </div>
               <div className="mb-3">
                 <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Onde encontrou (Fonte)</label>

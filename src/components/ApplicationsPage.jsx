@@ -32,6 +32,11 @@ export default function ApplicationsPage({
   const [newNote, setNewNote] = useState('');
   const [sortField, setSortField] = useState('appliedAt');
   const [sortDirection, setSortDirection] = useState('desc');
+  const [showNewApplicationModal, setShowNewApplicationModal] = useState(false);
+  const [selectedCandidateId, setSelectedCandidateId] = useState('');
+  const [selectedJobId, setSelectedJobId] = useState('');
+  const [searchCandidateForNew, setSearchCandidateForNew] = useState('');
+  const [searchJobForNew, setSearchJobForNew] = useState('');
   
   // Métricas/Resumo
   const stats = useMemo(() => {
@@ -260,6 +265,12 @@ export default function ApplicationsPage({
               Gerencie todas as candidaturas de candidatos às vagas
             </p>
           </div>
+          <button
+            onClick={() => setShowNewApplicationModal(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg font-medium transition-all shadow-md hover:shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Plus size={18}/> Nova Candidatura
+          </button>
         </div>
         
         {/* Cards de Métricas */}
@@ -694,6 +705,164 @@ export default function ApplicationsPage({
             ))}
         </div>
       </div>
+      
+      {/* Modal Nova Candidatura */}
+      {showNewApplicationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl border border-gray-200 dark:border-gray-700">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50">
+              <h3 className="font-bold text-xl text-gray-900 dark:text-white">Nova Candidatura</h3>
+              <button 
+                onClick={() => {
+                  setShowNewApplicationModal(false);
+                  setSelectedCandidateId('');
+                  setSelectedJobId('');
+                  setSearchCandidateForNew('');
+                  setSearchJobForNew('');
+                }}
+                className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                <X size={20} className="text-gray-500 dark:text-gray-400"/>
+              </button>
+            </div>
+            
+            {/* Conteúdo */}
+            <div className="p-6 space-y-6">
+              {/* Seleção de Candidato */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Candidato <span className="text-red-500">*</span>
+                </label>
+                <div className="relative mb-2">
+                  <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
+                  <input
+                    type="text"
+                    placeholder="Buscar candidato por nome ou email..."
+                    value={searchCandidateForNew}
+                    onChange={e => setSearchCandidateForNew(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <select
+                  value={selectedCandidateId}
+                  onChange={e => setSelectedCandidateId(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white"
+                  required
+                >
+                  <option value="">Selecione um candidato...</option>
+                  {candidates
+                    .filter(c => {
+                      if (!searchCandidateForNew) return true;
+                      const term = searchCandidateForNew.toLowerCase();
+                      return c.fullName?.toLowerCase().includes(term) || 
+                             c.email?.toLowerCase().includes(term);
+                    })
+                    .map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.fullName} - {c.email}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              
+              {/* Seleção de Vaga */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Vaga <span className="text-red-500">*</span>
+                </label>
+                <div className="relative mb-2">
+                  <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
+                  <input
+                    type="text"
+                    placeholder="Buscar vaga por título ou empresa..."
+                    value={searchJobForNew}
+                    onChange={e => setSearchJobForNew(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <select
+                  value={selectedJobId}
+                  onChange={e => setSelectedJobId(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white"
+                  required
+                >
+                  <option value="">Selecione uma vaga...</option>
+                  {jobs
+                    .filter(j => {
+                      if (!searchJobForNew) return true;
+                      const term = searchJobForNew.toLowerCase();
+                      return j.title?.toLowerCase().includes(term) || 
+                             j.company?.toLowerCase().includes(term);
+                    })
+                    .map(j => (
+                      <option key={j.id} value={j.id}>
+                        {j.title} - {j.company} {j.city ? `(${j.city})` : ''}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              
+              {/* Verificação de duplicata */}
+              {selectedCandidateId && selectedJobId && (
+                (() => {
+                  const existing = applications.find(
+                    a => a.candidateId === selectedCandidateId && a.jobId === selectedJobId
+                  );
+                  return existing ? (
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 text-sm text-yellow-800 dark:text-yellow-300">
+                      ⚠️ Este candidato já está vinculado a esta vaga
+                    </div>
+                  ) : null;
+                })()
+              )}
+            </div>
+            
+            {/* Footer */}
+            <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowNewApplicationModal(false);
+                  setSelectedCandidateId('');
+                  setSelectedJobId('');
+                  setSearchCandidateForNew('');
+                  setSearchJobForNew('');
+                }}
+                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  if (!selectedCandidateId || !selectedJobId) return;
+                  
+                  // Verificar duplicata
+                  const existing = applications.find(
+                    a => a.candidateId === selectedCandidateId && a.jobId === selectedJobId
+                  );
+                  if (existing) {
+                    alert('Este candidato já está vinculado a esta vaga');
+                    return;
+                  }
+                  
+                  if (onCreateApplication) {
+                    await onCreateApplication(selectedCandidateId, selectedJobId);
+                    setShowNewApplicationModal(false);
+                    setSelectedCandidateId('');
+                    setSelectedJobId('');
+                    setSearchCandidateForNew('');
+                    setSearchJobForNew('');
+                  }
+                }}
+                disabled={!selectedCandidateId || !selectedJobId}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg active:scale-95"
+              >
+                Criar Candidatura
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
