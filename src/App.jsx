@@ -65,7 +65,7 @@ const db = getFirestore(app);
 // --- COMPONENTES AUXILIARES ---
 
 // Dashboard com Gráficos
-const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates, statusMovements = [] }) => {
+const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates, statusMovements = [], applications = [], onViewJob }) => {
   // Dados para gráficos - ordenados por status do pipeline
   const statusData = useMemo(() => {
     const counts = {};
@@ -294,6 +294,54 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates, statusM
           <div className="text-xs text-gray-500 dark:text-slate-500 mt-1">Candidatos selecionados sem confirmação</div>
         </div>
       </div>
+
+      {/* Vagas com Candidaturas */}
+      {applications.length > 0 && filteredJobs.filter(j => j.status === 'Aberta').length > 0 && (
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg">
+          <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4">Vagas Abertas - Candidaturas</h3>
+          <div className="space-y-3">
+            {filteredJobs.filter(j => j.status === 'Aberta').map(job => {
+              const jobApps = applications.filter(a => a.jobId === job.id);
+              const hired = jobApps.filter(a => a.status === 'Contratado').length;
+              const inProcess = jobApps.filter(a => PIPELINE_STAGES.includes(a.status)).length;
+              const rejected = jobApps.filter(a => a.status === 'Reprovado').length;
+              
+              return (
+                <div 
+                  key={job.id} 
+                  onClick={() => onViewJob && onViewJob(job)}
+                  className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-500 cursor-pointer transition-colors"
+                >
+                  <div>
+                    <h4 className="font-medium text-gray-900 dark:text-white">{job.title}</h4>
+                    <p className="text-xs text-gray-500">{job.company} {job.city && `• ${job.city}`}</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-blue-600">{jobApps.length}</div>
+                      <div className="text-xs text-gray-500">total</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-yellow-600">{inProcess}</div>
+                      <div className="text-xs text-gray-500">em processo</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-green-600">{hired}</div>
+                      <div className="text-xs text-gray-500">contratados</div>
+                    </div>
+                    {rejected > 0 && (
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-red-500">{rejected}</div>
+                        <div className="text-xs text-gray-500">reprovados</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Gráficos */}
       <div className="grid grid-cols-1 gap-6">
@@ -1050,6 +1098,7 @@ export default function App() {
   const [marital, setMarital] = useState([]);
   const [tags, setTags] = useState([]);
   const [statusMovements, setStatusMovements] = useState([]); // Log de movimentações de status
+  const [applications, setApplications] = useState([]); // Candidaturas formais (candidato-vaga)
 
   // Modais - sincronizados com URL
   const isJobModalOpen = route.modal === 'job';
@@ -1135,6 +1184,8 @@ export default function App() {
       onSnapshot(query(collection(db, 'tags')), s => setTags(s.docs.map(d => ({id:d.id, ...d.data()})))),
       // Log de movimentações de status para calcular taxas de conversão
       onSnapshot(query(collection(db, 'statusMovements')), s => setStatusMovements(s.docs.map(d => ({id:d.id, ...d.data()})))),
+      // Candidaturas formais (candidato-vaga)
+      onSnapshot(query(collection(db, 'applications')), s => setApplications(s.docs.map(d => ({id:d.id, ...d.data()})))),
     ];
     return () => unsubs.forEach(u => u());
   }, [user]);
@@ -1253,6 +1304,133 @@ export default function App() {
     } catch (error) {
       console.error('Erro ao registrar movimentação de status:', error);
       // Não interrompe a operação principal se o log falhar
+    }
+  };
+
+  // ======= SISTEMA DE CANDIDATURAS (APPLICATIONS) =======
+  
+  // Criar nova candidatura (candidato se candidata a uma vaga)
+  const createApplication = async (candidateId, jobId) => {
+    if (!user || !user.email) return null;
+    
+    // Verifica se já existe candidatura
+    const existingApp = applications.find(a => a.candidateId === candidateId && a.jobId === jobId);
+    if (existingApp) {
+      showToast('Candidato já está vinculado a esta vaga', 'info');
+      return existingApp;
+    }
+    
+    const candidate = candidates.find(c => c.id === candidateId);
+    const job = jobs.find(j => j.id === jobId);
+    
+    try {
+      const appData = {
+        candidateId,
+        candidateName: candidate?.fullName || 'Candidato',
+        candidateEmail: candidate?.email || '',
+        jobId,
+        jobTitle: job?.title || 'Vaga',
+        jobCompany: job?.company || '',
+        status: 'Inscrito', // Status inicial na vaga
+        appliedAt: serverTimestamp(),
+        createdBy: user.email,
+        createdAt: serverTimestamp(),
+        notes: []
+      };
+      
+      const docRef = await addDoc(collection(db, 'applications'), appData);
+      showToast(`${candidate?.fullName} vinculado à vaga ${job?.title}`, 'success');
+      return { id: docRef.id, ...appData };
+    } catch (error) {
+      console.error('Erro ao criar candidatura:', error);
+      showToast('Erro ao vincular candidato à vaga', 'error');
+      return null;
+    }
+  };
+  
+  // Atualizar status da candidatura
+  const updateApplicationStatus = async (applicationId, newStatus, notes = '') => {
+    if (!user || !user.email) return;
+    
+    const app = applications.find(a => a.id === applicationId);
+    if (!app) return;
+    
+    try {
+      const updateData = {
+        status: newStatus,
+        updatedAt: serverTimestamp(),
+        updatedBy: user.email
+      };
+      
+      // Se for status de fechamento, marca data de fechamento
+      if (CLOSING_STATUSES.includes(newStatus)) {
+        updateData.closedAt = serverTimestamp();
+        updateData.closedReason = newStatus;
+      }
+      
+      await updateDoc(doc(db, 'applications', applicationId), updateData);
+      
+      // Registra movimentação específica da candidatura
+      await addDoc(collection(db, 'statusMovements'), {
+        candidateId: app.candidateId,
+        candidateName: app.candidateName,
+        jobId: app.jobId,
+        jobTitle: app.jobTitle,
+        applicationId,
+        previousStatus: app.status,
+        newStatus,
+        isClosingStatus: CLOSING_STATUSES.includes(newStatus),
+        userEmail: user.email,
+        userName: user.displayName || user.email,
+        timestamp: serverTimestamp(),
+        createdAt: serverTimestamp()
+      });
+      
+      showToast('Status da candidatura atualizado', 'success');
+    } catch (error) {
+      console.error('Erro ao atualizar candidatura:', error);
+      showToast('Erro ao atualizar candidatura', 'error');
+    }
+  };
+  
+  // Remover candidatura
+  const removeApplication = async (applicationId) => {
+    if (!window.confirm('Remover este candidato da vaga?')) return;
+    
+    try {
+      await deleteDoc(doc(db, 'applications', applicationId));
+      showToast('Candidato removido da vaga', 'success');
+    } catch (error) {
+      console.error('Erro ao remover candidatura:', error);
+      showToast('Erro ao remover candidatura', 'error');
+    }
+  };
+  
+  // Adicionar nota à candidatura
+  const addApplicationNote = async (applicationId, noteText) => {
+    if (!user || !user.email || !noteText.trim()) return;
+    
+    const app = applications.find(a => a.id === applicationId);
+    if (!app) return;
+    
+    try {
+      const existingNotes = app.notes || [];
+      const newNote = {
+        text: noteText.trim(),
+        timestamp: new Date().toISOString(),
+        userEmail: user.email,
+        userName: user.displayName || user.email
+      };
+      
+      await updateDoc(doc(db, 'applications', applicationId), {
+        notes: [newNote, ...existingNotes],
+        updatedAt: serverTimestamp()
+      });
+      
+      showToast('Nota adicionada', 'success');
+    } catch (error) {
+      console.error('Erro ao adicionar nota:', error);
+      showToast('Erro ao adicionar nota', 'error');
     }
   };
 
@@ -1469,7 +1647,7 @@ export default function App() {
         </header>
 
         <div className="flex-1 overflow-hidden bg-brand-dark relative">
-           {activeTab === 'dashboard' && <div className="p-6 overflow-y-auto h-full"><Dashboard filteredJobs={jobs} filteredCandidates={filteredCandidates} onOpenCandidates={setDashboardModalCandidates} statusMovements={statusMovements} /></div>}
+           {activeTab === 'dashboard' && <div className="p-6 overflow-y-auto h-full"><Dashboard filteredJobs={jobs} filteredCandidates={filteredCandidates} onOpenCandidates={setDashboardModalCandidates} statusMovements={statusMovements} applications={applications} onViewJob={openJobCandidatesModal} /></div>}
            {activeTab === 'pipeline' && <PipelineView candidates={filteredCandidates} jobs={jobs} companies={companies} onDragEnd={handleDragEnd} onEdit={setEditingCandidate} onCloseStatus={handleCloseStatus} />}
            {activeTab === 'jobs' && <div className="p-6 overflow-y-auto h-full"><JobsList jobs={jobs} candidates={candidates} companies={companies} onAdd={()=>openJobModal({})} onEdit={(j)=>openJobModal(j)} onDelete={(id)=>handleDeleteGeneric('jobs', id)} onToggleStatus={handleSaveGeneric} onFilterPipeline={()=>{setFilters({...filters, jobId: 'mock_id'}); setActiveTab('pipeline')}} onViewCandidates={openJobCandidatesModal}/></div>}
            {activeTab === 'candidates' && <div className="p-6 overflow-y-auto h-full"><CandidatesList candidates={filteredCandidates} jobs={jobs} onAdd={()=>setEditingCandidate({})} onEdit={setEditingCandidate} onDelete={(id)=>handleDeleteGeneric('candidates', id)}/></div>}
@@ -1664,9 +1842,26 @@ export default function App() {
           }
         }} 
       />
-      <JobCandidatesModal isOpen={!!viewingJob} onClose={closeJobCandidatesModal} job={viewingJob} candidates={candidates.filter(c => c.jobId === viewingJob?.id)} />
+      <JobCandidatesModal 
+        isOpen={!!viewingJob} 
+        onClose={closeJobCandidatesModal} 
+        job={viewingJob} 
+        candidates={candidates}
+        applications={applications}
+        onCreateApplication={createApplication}
+        onUpdateApplicationStatus={updateApplicationStatus}
+        onRemoveApplication={removeApplication}
+        onAddApplicationNote={addApplicationNote}
+        onEditCandidate={setEditingCandidate}
+      />
       {dashboardModalCandidates && (
-        <JobCandidatesModal isOpen={true} onClose={() => setDashboardModalCandidates(null)} job={{ title: 'Resultados do Dashboard' }} candidates={dashboardModalCandidates} />
+        <JobCandidatesModal 
+          isOpen={true} 
+          onClose={() => setDashboardModalCandidates(null)} 
+          job={{ title: 'Resultados do Dashboard', id: 'dashboard' }} 
+          candidates={dashboardModalCandidates}
+          applications={[]}
+        />
       )}
       {toast && (
         <div className={`fixed bottom-4 right-4 z-[70] px-4 py-3 rounded-lg shadow-lg border text-sm ${
