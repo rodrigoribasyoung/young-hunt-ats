@@ -31,10 +31,10 @@ export const STAGE_REQUIRED_FIELDS = {
   'Considerado': ['fullName', 'email', 'phone', 'city', 'hasLicense'],
   'Entrevista I': ['fullName', 'email', 'phone', 'city', 'hasLicense', 'interestAreas', 'education', 'experience', 'maritalStatus', 'source', 'interview1Date'],
   'Testes': ['fullName', 'email', 'phone', 'city', 'interestAreas', 'interview1Date', 'testResults'],
-  'Entrevista II': ['fullName', 'email', 'phone', 'city', 'interestAreas', 'interview1Date', 'testResults', 'interview2Date'],
+  'Entrevista II': ['fullName', 'email', 'phone', 'city', 'interestAreas', 'interview1Date', 'testResults', 'interview2Date', 'managerFeedback'],
   'Seleção': ['fullName', 'email', 'phone', 'city', 'interestAreas', 'experience', 'interview1Date', 'interview2Date'],
   'Contratado': ['fullName', 'email', 'phone', 'city', 'interestAreas', 'experience', 'source', 'returnSent'],
-  'Reprovado': ['fullName', 'email', 'phone', 'returnSent'],
+  'Reprovado': ['fullName', 'email', 'phone', 'returnSent', 'rejectionReason'],
   'Desistiu da vaga': ['fullName', 'email', 'phone']
 };
 

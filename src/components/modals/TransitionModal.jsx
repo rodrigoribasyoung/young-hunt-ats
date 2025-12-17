@@ -3,6 +3,7 @@ import { X, Save, AlertTriangle } from 'lucide-react';
 import { normalizeCity, getMainCitiesOptions } from '../../utils/cityNormalizer';
 import { normalizeSource, getMainSourcesOptions } from '../../utils/sourceNormalizer';
 import { normalizeInterestArea, normalizeInterestAreasString, getMainInterestAreasOptions } from '../../utils/interestAreaNormalizer';
+import { REJECTION_REASONS } from '../../constants';
 
 export default function TransitionModal({ transition, onClose, onConfirm, cities, interestAreas, schooling, marital, origins }) {
   // transition contém: { candidate, toStage, missingFields, isConclusion }
@@ -33,9 +34,11 @@ export default function TransitionModal({ transition, onClose, onConfirm, cities
     testNotes: 'Observações dos Testes',
     interview2Date: 'Data 2ª Entrevista',
     interview2Notes: 'Observações 2ª Entrevista',
+    managerFeedback: 'Feedback do Gestor',
     returnSent: 'Retorno Dado ao Candidato',
     returnDate: 'Data do Retorno',
-    returnNotes: 'Observações do Retorno'
+    returnNotes: 'Observações do Retorno',
+    rejectionReason: 'Motivo da Rejeição'
   };
 
   const handleSave = () => {
@@ -195,6 +198,47 @@ export default function TransitionModal({ transition, onClose, onConfirm, cities
                     <option value="Pendente">⏳ Pendente</option>
                 </select>
             );
+        case 'managerFeedback':
+            // Campo obrigatório para Entrevista II
+            return (
+                <div>
+                    <label className="block text-xs font-bold text-blue-600 dark:text-blue-400 uppercase mb-1.5">
+                        Feedback do Gestor *
+                    </label>
+                    <textarea 
+                        required
+                        className="w-full bg-white dark:bg-gray-900 border-2 border-blue-300 dark:border-blue-700 rounded p-3 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-32" 
+                        placeholder="Digite o feedback do gestor sobre a primeira entrevista..."
+                        value={data.managerFeedback || ''} 
+                        onChange={e => setData({...data, managerFeedback: e.target.value})}
+                    />
+                    <p className="text-xs text-blue-500 dark:text-blue-400 mt-1">Campo obrigatório para avançar para Entrevista II</p>
+                </div>
+            );
+        case 'rejectionReason':
+            // Campo obrigatório para Reprovado
+            if (transition.toStage === 'Reprovado') {
+                return (
+                    <div>
+                        <label className="block text-xs font-bold text-red-600 dark:text-red-400 uppercase mb-1.5">
+                            Motivo da Rejeição *
+                        </label>
+                        <select
+                            required
+                            className="w-full bg-white dark:bg-gray-900 border-2 border-red-300 dark:border-red-700 rounded p-3 text-sm text-gray-900 dark:text-white outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                            value={data.rejectionReason || ''}
+                            onChange={e => setData({...data, rejectionReason: e.target.value})}
+                        >
+                            <option value="">Selecione o motivo...</option>
+                            {REJECTION_REASONS.map(reason => (
+                                <option key={reason} value={reason}>{reason}</option>
+                            ))}
+                        </select>
+                        <p className="text-xs text-red-500 dark:text-red-400 mt-1">Campo obrigatório para reprovar candidato</p>
+                    </div>
+                );
+            }
+            return null;
         default:
             return (
                 <input className={commonClass} value={data[field] || ''} onChange={e => setData({...data, [field]: e.target.value})} />

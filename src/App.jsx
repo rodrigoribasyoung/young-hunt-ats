@@ -30,7 +30,7 @@ import JobCandidatesModal from './components/modals/JobsCandidateModal';
 import ApplicationsPage from './components/ApplicationsPage';
 import { useTheme } from './ThemeContext';
 
-import { PIPELINE_STAGES, STATUS_COLORS, JOB_STATUSES, CSV_FIELD_MAPPING_OPTIONS, ALL_STATUSES, CLOSING_STATUSES, STAGE_REQUIRED_FIELDS, CANDIDATE_FIELDS, getFieldDisplayName } from './constants';
+import { PIPELINE_STAGES, STATUS_COLORS, JOB_STATUSES, CSV_FIELD_MAPPING_OPTIONS, ALL_STATUSES, CLOSING_STATUSES, STAGE_REQUIRED_FIELDS, CANDIDATE_FIELDS, getFieldDisplayName, REJECTION_REASONS } from './constants';
 import { validateCandidate, validateEmail, validatePhone, checkDuplicateEmail, formatValidationErrors } from './utils/validation';
 import { normalizeCity, getMainCitiesOptions } from './utils/cityNormalizer';
 import { normalizeSource, getMainSourcesOptions } from './utils/sourceNormalizer';
@@ -69,6 +69,27 @@ const db = getFirestore(app);
 
 // Dashboard com Gráficos
 const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates, statusMovements = [], applications = [], onViewJob, interviews = [], onScheduleInterview }) => {
+  const [periodFilter, setPeriodFilter] = useState('7d'); // Filtro de período para gráficos
+  
+  // Filtrar statusMovements por período
+  const filteredMovements = useMemo(() => {
+    if (!periodFilter || periodFilter === 'all') return statusMovements;
+    
+    const now = Date.now();
+    const periods = {
+      'today': 24 * 60 * 60 * 1000,
+      '7d': 7 * 24 * 60 * 60 * 1000,
+      '30d': 30 * 24 * 60 * 60 * 1000,
+      '90d': 90 * 24 * 60 * 60 * 1000
+    };
+    
+    const cutoff = now - (periods[periodFilter] || 0);
+    
+    return statusMovements.filter(m => {
+      const ts = m.timestamp?.seconds || m.timestamp?._seconds || 0;
+      return ts * 1000 >= cutoff;
+    });
+  }, [statusMovements, periodFilter]);
   
   // Próximas entrevistas (apenas futuras e não canceladas)
   const upcomingInterviews = useMemo(() => {
@@ -105,16 +126,16 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates, statusM
     const stages = [...PIPELINE_STAGES, 'Contratado'];
     const rates = [];
     
-    // Se temos movimentações registradas, usa elas para calcular
-    if (statusMovements.length > 0) {
+    // Se temos movimentações registradas, usa elas para calcular (com filtro de período)
+    if (filteredMovements.length > 0) {
       for (let i = 0; i < stages.length - 1; i++) {
         const fromStage = stages[i];
         const toStage = stages[i + 1];
         
-        // Conta movimentações que SAÍRAM desta etapa
-        const movedFrom = statusMovements.filter(m => m.previousStatus === fromStage).length;
-        // Conta movimentações que foram PARA a próxima etapa
-        const movedTo = statusMovements.filter(m => m.previousStatus === fromStage && m.newStatus === toStage).length;
+        // Conta movimentações que SAÍRAM desta etapa (filtradas por período)
+        const movedFrom = filteredMovements.filter(m => m.previousStatus === fromStage).length;
+        // Conta movimentações que foram PARA a próxima etapa (filtradas por período)
+        const movedTo = filteredMovements.filter(m => m.previousStatus === fromStage && m.newStatus === toStage).length;
         
         // Também considera os que estão atualmente nesta etapa
         const currentInStage = filteredCandidates.filter(c => (c.status || 'Inscrito') === fromStage).length;
@@ -148,10 +169,10 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates, statusM
       }
     }
     return rates;
-  }, [filteredCandidates, statusMovements]);
+  }, [filteredCandidates, filteredMovements]);
 
   // Total de movimentações registradas (para mostrar indicador)
-  const totalMovements = statusMovements.length;
+  const totalMovements = filteredMovements.length;
 
   // Dados com taxas de conversão para o gráfico de status
   const statusDataWithConversion = useMemo(() => {
@@ -259,7 +280,23 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates, statusM
 
   return (
     <div className="text-gray-900 dark:text-white space-y-6 overflow-y-auto h-full pb-6">
-      <h2 className="text-2xl font-bold mb-2">Dashboard</h2>
+      <div className="flex justify-between items-center mb-2">
+        <h2 className="text-2xl font-bold">Dashboard</h2>
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-gray-600 dark:text-gray-400">Período:</label>
+          <select
+            value={periodFilter}
+            onChange={e => setPeriodFilter(e.target.value)}
+            className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          >
+            <option value="all">Todo o período</option>
+            <option value="today">Hoje</option>
+            <option value="7d">Últimos 7 dias</option>
+            <option value="30d">Últimos 30 dias</option>
+            <option value="90d">Últimos 90 dias</option>
+          </select>
+        </div>
+      </div>
       
       {/* KPIs Principais - Material Design Colors */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -821,6 +858,62 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
             )}
           </div>
 
+          {/* SEPARAÇÃO: FILTROS DE VAGA (DEMANDA) */}
+          <div className="pt-4 border-t-2 border-orange-500/30 dark:border-orange-400/30">
+            <h4 className="text-sm font-bold text-orange-600 dark:text-orange-400 mb-4 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+              Filtros de Vaga (Demanda)
+            </h4>
+            
+            {/* Vaga */}
+            <div className="space-y-2 mb-4">
+              <div className="flex justify-between items-center">
+                <label className="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase">Vaga</label>
+                <button
+                  onClick={() => toggleExpanded('jobId')}
+                  className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                >
+                  {expandedFilters.jobId ? 'Recolher' : 'Expandir'}
+                </button>
+              </div>
+              {expandedFilters.jobId ? (
+                <div className="max-h-48 overflow-y-auto bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-2 space-y-1">
+                  <label className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={filters.jobId === 'all' || !filters.jobId || (Array.isArray(filters.jobId) && filters.jobId.length === 0)}
+                      onChange={() => setFilters({...filters, jobId: 'all'})}
+                      className="accent-blue-600 dark:accent-blue-500"
+                    />
+                    <span className="text-sm text-gray-900 dark:text-white">Todas as Vagas</span>
+                  </label>
+                  {options.jobs.map(j => (
+                    <label key={j.id} className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={isSelected('jobId', j.id)}
+                        onChange={() => handleMultiSelect('jobId', j.id)}
+                        className="accent-blue-600 dark:accent-blue-500"
+                      />
+                      <span className="text-sm text-white">{j.title}</span>
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <select className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-3 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={Array.isArray(filters.jobId) ? filters.jobId[0] || 'all' : (filters.jobId || 'all')} onChange={e => setFilters({...filters, jobId: e.target.value === 'all' ? 'all' : [e.target.value]})}>
+                 <option value="all">Todas as Vagas</option>{options.jobs.map(j=><option key={j.id} value={j.id}>{j.title}</option>)}
+            </select>
+              )}
+            </div>
+          </div>
+
+          {/* SEPARAÇÃO: FILTROS DE CANDIDATO (PERFIL) */}
+          <div className="pt-4 border-t-2 border-blue-500/30 dark:border-blue-400/30">
+            <h4 className="text-sm font-bold text-blue-600 dark:text-blue-400 mb-4 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+              Filtros de Candidato (Perfil)
+            </h4>
+
           {/* Status (Etapa da Pipeline) - Seleção Múltipla */}
           <div className="space-y-2">
             <div className="flex justify-between items-center">
@@ -1147,6 +1240,7 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
               </div>
             );
           })()}
+          </div>
         </div>
 
         <div className="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700 flex flex-col gap-3">
@@ -1596,6 +1690,10 @@ export default function App() {
         jobCompany: job?.company || '',
         status: 'Inscrito', // Status inicial na vaga
         appliedAt: serverTimestamp(),
+        lastActivity: serverTimestamp(), // Atualizado automaticamente
+        rating: 0, // Qualificação 1-5 estrelas
+        closedAt: null,
+        closedReason: null,
         createdBy: user.email,
         createdAt: serverTimestamp(),
         notes: []
@@ -1621,6 +1719,7 @@ export default function App() {
     try {
       const updateData = {
         status: newStatus,
+        lastActivity: serverTimestamp(), // Atualiza atividade automaticamente
         updatedAt: serverTimestamp(),
         updatedBy: user.email
       };
@@ -2081,7 +2180,7 @@ export default function App() {
 
         <div className="flex-1 overflow-hidden bg-white dark:bg-gray-900 relative">
            {activeTab === 'dashboard' && <div className="p-6 overflow-y-auto h-full"><Dashboard filteredJobs={jobs} filteredCandidates={filteredCandidates} onOpenCandidates={setDashboardModalCandidates} statusMovements={statusMovements} applications={applications} onViewJob={openJobCandidatesModal} interviews={interviews} onScheduleInterview={(candidate) => setInterviewModalData({ candidate })} /></div>}
-           {activeTab === 'pipeline' && <PipelineView candidates={filteredCandidates} jobs={jobs} companies={companies} onDragEnd={handleDragEnd} onEdit={setEditingCandidate} onCloseStatus={handleCloseStatus} />}
+           {activeTab === 'pipeline' && <PipelineView candidates={filteredCandidates} jobs={jobs} companies={companies} onDragEnd={handleDragEnd} onEdit={setEditingCandidate} onCloseStatus={handleCloseStatus} applications={applications} interviews={interviews} />}
            {activeTab === 'jobs' && <div className="p-6 overflow-y-auto h-full"><JobsList jobs={jobs} candidates={candidates} companies={companies} onAdd={()=>openJobModal({})} onEdit={(j)=>openJobModal(j)} onDelete={(id)=>handleDeleteGeneric('jobs', id)} onToggleStatus={handleSaveGeneric} onFilterPipeline={()=>{setFilters({...filters, jobId: 'mock_id'}); setActiveTab('pipeline')}} onViewCandidates={openJobCandidatesModal}/></div>}
            {activeTab === 'applications' && <ApplicationsPage applications={applications} candidates={candidates} jobs={jobs} companies={companies} onUpdateApplicationStatus={updateApplicationStatus} onRemoveApplication={removeApplication} onAddApplicationNote={addApplicationNote} onEditCandidate={setEditingCandidate} onViewJob={openJobCandidatesModal} onCreateApplication={createApplication} />}
            {activeTab === 'settings' && <div className="p-0 h-full"><SettingsPage {...optionsProps} onOpenCsvModal={openCsvModal} activeSettingsTab={route.settingsTab} onSettingsTabChange={(tab) => { updateURL({ settingsTab: tab }); setRoute(prev => ({ ...prev, settingsTab: tab })); }} onShowToast={showToast} userRoles={userRoles} currentUserRole={currentUserRole} onSetUserRole={setUserRole} onRemoveUserRole={removeUserRole} currentUserEmail={user?.email} currentUserName={user?.displayName} currentUserPhoto={user?.photoURL} activityLog={activityLog} candidateFields={CANDIDATE_FIELDS} /></div>}
@@ -2366,7 +2465,7 @@ export default function App() {
 }
 
 // --- PIPELINE VIEW ---
-const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, companies }) => {
+const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, companies, applications = [], interviews = [] }) => {
   const [viewMode, setViewMode] = useState('kanban'); 
   const [itemsPerPage, setItemsPerPage] = useState(50);
   const [currentPage, setCurrentPage] = useState(1);
@@ -2436,7 +2535,7 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
          return 0;
      });
      return data;
-  }, [candidates, statusFilter, localSearch, localSort, pipelineStatusFilter, jobFilter, companyFilter, cityFilter, jobs]);
+  }, [candidates, statusFilter, localSearch, localSort, pipelineStatusFilter, jobFilter, companyFilter, cityFilter, jobs, applications, interviews]);
   
   // Dados paginados para modo lista
   const paginatedListData = useMemo(() => {
@@ -2497,7 +2596,14 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                 </>
               )}
               <select className="bg-brand-card border border-gray-200 dark:border-gray-700 rounded px-3 py-1.5 text-sm text-white outline-none" value={localSort} onChange={e=>setLocalSort(e.target.value)}>
-                 <option value="recent">Mais Recentes</option><option value="oldest">Mais Antigos</option><option value="az">A-Z</option><option value="za">Z-A</option>
+                 <option value="recent">Mais Recentes</option>
+                 <option value="oldest">Mais Antigos</option>
+                 <option value="az">A-Z</option>
+                 <option value="za">Z-A</option>
+                 <option value="rating">⭐ Mais Qualificados</option>
+                 <option value="applied">📅 Inscritos Primeiro</option>
+                 <option value="appliedLast">📅 Inscritos Último</option>
+                 <option value="nextTask">📋 Próxima Tarefa</option>
               </select>
            </div>
            <div className="flex items-center gap-4">
@@ -4947,21 +5053,27 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
                           
                           {/* Conteúdo */}
                           <div className="flex-1 pb-4">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="bg-gray-700 text-gray-300 px-2 py-0.5 rounded text-xs">
-                                {movement.previousStatus || 'Inscrito'}
-                              </span>
-                              <ArrowRight size={14} className="text-gray-500"/>
-                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                                movement.newStatus === 'Contratado' ? 'bg-green-600 text-white' :
-                                movement.newStatus === 'Reprovado' ? 'bg-red-600 text-white' :
-                                'bg-blue-600 text-white'
+                            <p className="text-sm text-gray-200 mb-1">
+                              <span className="font-semibold text-white">{movement.userName || movement.userEmail || 'Usuário'}</span>
+                              {' moveu de '}
+                              <span className="font-medium text-blue-400">{movement.previousStatus || 'Inscrito'}</span>
+                              {' para '}
+                              <span className={`font-medium ${
+                                movement.newStatus === 'Contratado' ? 'text-green-400' :
+                                movement.newStatus === 'Reprovado' ? 'text-red-400' :
+                                'text-cyan-400'
                               }`}>
                                 {movement.newStatus}
                               </span>
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              {movement.userName || movement.userEmail} • {formatTimestamp(movement.timestamp)}
+                              {movement.jobTitle && (
+                                <>
+                                  {' na vaga '}
+                                  <span className="font-medium text-purple-400">{movement.jobTitle}</span>
+                                </>
+                              )}
+                            </p>
+                            <div className="mt-1 text-xs text-gray-500">
+                              {formatTimestamp(movement.timestamp)}
                             </div>
                           </div>
                         </div>
