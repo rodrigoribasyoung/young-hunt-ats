@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, Briefcase, Settings, Plus, Search, 
   FileText, MapPin, Filter, Trophy, Menu, X, LogOut, Loader2, Edit3, Trash2,
   Building2, Mail, Check, Ban, UserMinus, CheckSquare, Square, Kanban, List,
-  CalendarCheck, AlertCircle, UserPlus, Moon, Sun, ChevronLeft, ChevronRight, ExternalLink,
+  CalendarCheck, AlertCircle, UserPlus, Moon, Sun, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, ExternalLink,
   MessageSquare, History, ArrowRight, Palette, Copy, Info
 } from 'lucide-react';
 import { 
@@ -169,7 +169,11 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates, statusM
     const areas = {};
     filteredCandidates.forEach(c => {
       if (c.interestAreas) {
-        areas[c.interestAreas] = (areas[c.interestAreas] || 0) + 1;
+        // Dividir áreas por vírgula e contar individualmente
+        const areasList = c.interestAreas.split(',').map(a => a.trim()).filter(a => a);
+        areasList.forEach(area => {
+          areas[area] = (areas[area] || 0) + 1;
+        });
       }
     });
     const total = filteredCandidates.length;
@@ -726,6 +730,51 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
           <button onClick={onClose}><X className="text-slate-400 hover:text-white" /></button>
         </div>
         
+        {/* Filtros Ativos - Badges */}
+        {(() => {
+          const activeFilters = [];
+          Object.keys(filters).forEach(key => {
+            if (key === 'createdAtPreset' && filters[key] !== 'all' && filters[key] !== '7d') {
+              activeFilters.push({ key, label: `Período: ${filters[key] === 'today' ? 'Hoje' : filters[key] === 'yesterday' ? 'Ontem' : filters[key] === '7d' ? '7 dias' : filters[key] === '30d' ? '30 dias' : filters[key] === '90d' ? '90 dias' : filters[key] === 'custom' ? 'Personalizado' : filters[key]}` });
+            } else if (key === 'customDateStart' || key === 'customDateEnd') {
+              // Já tratado no createdAtPreset
+            } else if (filters[key] && filters[key] !== 'all' && key !== 'createdAtPreset') {
+              if (Array.isArray(filters[key]) && filters[key].length > 0) {
+                activeFilters.push({ key, label: `${key === 'status' ? 'Status' : key === 'jobId' ? 'Vaga' : key === 'interestAreas' ? 'Áreas' : key === 'city' ? 'Cidade' : key === 'source' ? 'Fonte' : key === 'schoolingLevel' ? 'Escolaridade' : key === 'maritalStatus' ? 'Estado Civil' : key === 'hasLicense' ? 'CNH' : key === 'tags' ? 'Tags' : key}: ${filters[key].length} selecionado(s)` });
+              } else if (!Array.isArray(filters[key])) {
+                activeFilters.push({ key, label: `${key === 'status' ? 'Status' : key === 'jobId' ? 'Vaga' : key === 'interestAreas' ? 'Áreas' : key === 'city' ? 'Cidade' : key === 'source' ? 'Fonte' : key === 'schoolingLevel' ? 'Escolaridade' : key === 'maritalStatus' ? 'Estado Civil' : key === 'hasLicense' ? 'CNH' : key === 'tags' ? 'Tags' : key}: ${filters[key]}` });
+              }
+            }
+          });
+          
+          if (activeFilters.length === 0) return null;
+          
+          return (
+            <div className="mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">Filtros Ativos:</div>
+              <div className="flex flex-wrap gap-2">
+                {activeFilters.map((filter, idx) => (
+                  <div key={idx} className="flex items-center gap-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full text-xs">
+                    <span>{filter.label}</span>
+                    <button
+                      onClick={() => {
+                        if (filter.key === 'createdAtPreset') {
+                          setFilters({...filters, [filter.key]: 'all', customDateStart: '', customDateEnd: ''});
+                        } else {
+                          setFilters({...filters, [filter.key]: 'all'});
+                        }
+                      }}
+                      className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
+                    >
+                      <X size={12}/>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+        
         <div className="space-y-6 flex-1 custom-scrollbar overflow-y-auto pr-2">
           {/* Período - Data de Cadastro Original */}
           <div className="space-y-2">
@@ -1132,7 +1181,7 @@ export default function App() {
   // Sistema de Rotas usando URL
   const getRouteFromURL = () => {
     const params = new URLSearchParams(window.location.search);
-    const page = params.get('page') || 'pipeline';
+    const page = params.get('page') || 'dashboard';
     return {
       page,
       modal: params.get('modal') || null,
@@ -1269,7 +1318,7 @@ export default function App() {
   const initialFilters = { 
     jobId: 'all', company: 'all', city: 'all', interestArea: 'all',
     cnh: 'all', marital: 'all', origin: 'all', schooling: 'all',
-    createdAtPreset: 'all', tags: 'all'
+    createdAtPreset: '7d', tags: 'all'
   };
   const [filters, setFilters] = useState(() => {
     try {
@@ -1960,7 +2009,7 @@ export default function App() {
     return data;
   }, [candidates, filters]);
 
-  const optionsProps = { jobs, companies, cities, interestAreas, roles, origins, schooling, marital, tags };
+  const optionsProps = { jobs, companies, cities, interestAreas, roles, origins, schooling, marital, tags, userRoles, user };
 
   if (authLoading) return <div className="flex h-screen items-center justify-center bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400"><Loader2 className="animate-spin mr-2"/> Carregando...</div>;
   if (!user) return <LoginScreen onLogin={handleGoogleLogin} />;
@@ -1985,7 +2034,7 @@ export default function App() {
            <button onClick={()=>setIsSidebarOpen(false)} className="lg:hidden text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white"><X/></button>
         </div>
         <nav className="flex-1 p-4 space-y-1">
-           {[{ id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard }, { id: 'pipeline', label: 'Pipeline de Talentos', icon: Filter }, { id: 'jobs', label: 'Gestão de Vagas', icon: Briefcase }, { id: 'applications', label: 'Candidaturas', icon: FileText }, { id: 'candidates', label: 'Banco de Talentos', icon: Users }, { id: 'settings', label: 'Configurações', icon: Settings }].map(i => (
+           {[{ id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard }, { id: 'pipeline', label: 'Pipeline de Talentos', icon: Filter }, { id: 'jobs', label: 'Gestão de Vagas', icon: Briefcase }, { id: 'applications', label: 'Candidaturas', icon: FileText }, { id: 'settings', label: 'Configurações', icon: Settings }].map(i => (
              <button key={i.id} onClick={() => { setActiveTab(i.id); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === i.id ? 'bg-blue-600 text-white shadow-lg dark:bg-blue-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'}`}>
                <i.icon size={18}/> {i.label}
              </button>
@@ -2017,7 +2066,7 @@ export default function App() {
                {isSidebarCollapsed ? <Menu size={20} className="text-gray-600 dark:text-gray-400"/> : <ChevronLeft size={20} className="text-gray-600 dark:text-gray-400"/>}
              </button>
            <h2 className="text-lg font-bold text-gray-900 dark:text-white ml-2">
-              {activeTab === 'pipeline' ? 'Pipeline de Talentos' : activeTab === 'jobs' ? 'Gestão de Vagas' : activeTab === 'applications' ? 'Candidaturas' : activeTab === 'candidates' ? 'Banco de Talentos' : activeTab === 'settings' ? 'Configurações' : 'Dashboard'}
+              {activeTab === 'pipeline' ? 'Pipeline de Talentos' : activeTab === 'jobs' ? 'Gestão de Vagas' : activeTab === 'applications' ? 'Candidaturas' : activeTab === 'settings' ? 'Configurações' : 'Dashboard'}
            </h2>
            </div>
            <div className="flex items-center gap-3">
@@ -2035,7 +2084,6 @@ export default function App() {
            {activeTab === 'pipeline' && <PipelineView candidates={filteredCandidates} jobs={jobs} companies={companies} onDragEnd={handleDragEnd} onEdit={setEditingCandidate} onCloseStatus={handleCloseStatus} />}
            {activeTab === 'jobs' && <div className="p-6 overflow-y-auto h-full"><JobsList jobs={jobs} candidates={candidates} companies={companies} onAdd={()=>openJobModal({})} onEdit={(j)=>openJobModal(j)} onDelete={(id)=>handleDeleteGeneric('jobs', id)} onToggleStatus={handleSaveGeneric} onFilterPipeline={()=>{setFilters({...filters, jobId: 'mock_id'}); setActiveTab('pipeline')}} onViewCandidates={openJobCandidatesModal}/></div>}
            {activeTab === 'applications' && <ApplicationsPage applications={applications} candidates={candidates} jobs={jobs} companies={companies} onUpdateApplicationStatus={updateApplicationStatus} onRemoveApplication={removeApplication} onAddApplicationNote={addApplicationNote} onEditCandidate={setEditingCandidate} onViewJob={openJobCandidatesModal} onCreateApplication={createApplication} />}
-           {activeTab === 'candidates' && <div className="p-6 overflow-y-auto h-full"><CandidatesList candidates={filteredCandidates} jobs={jobs} onAdd={()=>setEditingCandidate({})} onEdit={setEditingCandidate} onDelete={(id)=>handleDeleteGeneric('candidates', id)}/></div>}
            {activeTab === 'settings' && <div className="p-0 h-full"><SettingsPage {...optionsProps} onOpenCsvModal={openCsvModal} activeSettingsTab={route.settingsTab} onSettingsTabChange={(tab) => { updateURL({ settingsTab: tab }); setRoute(prev => ({ ...prev, settingsTab: tab })); }} onShowToast={showToast} userRoles={userRoles} currentUserRole={currentUserRole} onSetUserRole={setUserRole} onRemoveUserRole={removeUserRole} currentUserEmail={user?.email} currentUserName={user?.displayName} currentUserPhoto={user?.photoURL} activityLog={activityLog} candidateFields={CANDIDATE_FIELDS} /></div>}
         </div>
       </div>
@@ -2426,7 +2474,7 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
               </div>
               <input className="bg-brand-card border border-gray-200 dark:border-gray-700 rounded px-3 py-1.5 text-sm text-white outline-none focus:border-brand-cyan w-48" placeholder="Buscar..." value={localSearch} onChange={e=>setLocalSearch(e.target.value)}/>
               <select className="bg-brand-card border border-gray-200 dark:border-gray-700 rounded px-3 py-1.5 text-sm text-white outline-none" value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}>
-                 <option value="active">Em Andamento</option><option value="hired">Contratados</option><option value="rejected">Reprovados</option><option value="all">Todos</option>
+                 <option value="active">Em Andamento</option><option value="hired">Contratados</option><option value="rejected">Reprovados</option><option value="withdrawn">Desistências</option><option value="all">Todos</option>
               </select>
               {viewMode === 'list' && (
                 <>
@@ -2827,7 +2875,13 @@ const JobsList = ({ jobs, candidates, onAdd, onEdit, onToggleStatus, onViewCandi
         {j.interestArea && <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1"><Briefcase size={12}/> {j.interestArea}</p>}
       </div>
       <div className="border-t border-gray-200 dark:border-gray-700 pt-4 flex justify-between items-center">
-        <p className="text-xs text-slate-500 cursor-pointer hover:text-gray-600 dark:text-gray-400 transition-colors" onClick={() => onViewCandidates(j)}>
+        <p 
+          className="text-xs text-slate-500 cursor-pointer hover:text-gray-600 dark:text-gray-400 transition-colors" 
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onViewCandidates) onViewCandidates(j);
+          }}
+        >
           {candidates.filter(c => c.jobId === j.id).length} candidatos
         </p>
       </div>
@@ -3021,7 +3075,7 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
 
   // Todas as colunas disponíveis - usando nomes visuais do CANDIDATE_FIELDS
   const ALL_COLUMNS = useMemo(() => {
-    const defaultColumns = ['fullName', 'email', 'phone', 'city', 'source', 'interestAreas', 'schoolingLevel', 'hasLicense', 'status', 'original_timestamp'];
+    const defaultColumns = ['fullName', 'email', 'phone', 'city', 'hasLicense', 'interestAreas', 'source', 'original_timestamp', 'status', 'maritalStatus'];
     return CANDIDATE_FIELDS.map(f => ({
       key: f.key,
       label: f.displayName,
@@ -3631,7 +3685,14 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
   const [showNewCompany, setShowNewCompany] = useState(false);
   const [newCompanyName, setNewCompanyName] = useState('');
   const [newCompanyCity, setNewCompanyCity] = useState('');
-  const [activeTab, setActiveTab] = useState('geral');
+  const [showNewCity, setShowNewCity] = useState(false);
+  const [newCityName, setNewCityName] = useState('');
+  const [showNewSector, setShowNewSector] = useState(false);
+  const [newSectorName, setNewSectorName] = useState('');
+  const [showNewPosition, setShowNewPosition] = useState(false);
+  const [newPositionName, setNewPositionName] = useState('');
+  const [newPositionLevel, setNewPositionLevel] = useState('');
+  const [showOptionalFields, setShowOptionalFields] = useState(false);
 
   // Estados para dados relacionados (setores, cargos, funções)
   const [sectors, setSectors] = useState([]);
@@ -3652,8 +3713,18 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
       });
     }
     setShowNewCompany(false);
-    setActiveTab('geral');
-  }, [job, isOpen]);
+    setShowNewCity(false);
+    setShowNewSector(false);
+    setShowNewPosition(false);
+    setShowOptionalFields(false);
+    // Auto-preenche cidade quando empresa é selecionada
+    if (!job?.id && d.company) {
+      const selectedCompany = options.companies.find(c => c.name === d.company);
+      if (selectedCompany?.city && !d.city) {
+        setD(prev => ({...prev, city: selectedCompany.city}));
+      }
+    }
+  }, [job, isOpen, d.company, options.companies]);
 
   // Carregar setores, cargos e funções
   useEffect(() => {
@@ -3679,7 +3750,7 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
         createdBy: options.user?.email || 'system'
       };
       await addDoc(collection(db, 'companies'), newCompany);
-      setD({...d, company: newCompanyName.trim()});
+      setD({...d, company: newCompanyName.trim(), city: newCompanyCity || d.city});
       setShowNewCompany(false);
       setNewCompanyName('');
       setNewCompanyCity('');
@@ -3690,362 +3761,489 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
     }
   };
 
+  const handleCreateCity = async () => {
+    if (!newCityName.trim()) {
+      alert('Digite o nome da cidade');
+      return;
+    }
+    try {
+      const newCity = {
+        name: newCityName.trim(),
+        createdAt: serverTimestamp(),
+        createdBy: options.user?.email || 'system'
+      };
+      await addDoc(collection(db, 'cities'), newCity);
+      setD({...d, city: newCityName.trim()});
+      setShowNewCity(false);
+      setNewCityName('');
+      alert('Cidade criada com sucesso!');
+    } catch (error) {
+      console.error('Erro ao criar cidade:', error);
+      alert('Erro ao criar cidade');
+    }
+  };
+
+  const handleCreateSector = async () => {
+    if (!newSectorName.trim()) {
+      alert('Digite o nome do setor');
+      return;
+    }
+    try {
+      const newSector = {
+        name: newSectorName.trim(),
+        createdAt: serverTimestamp(),
+        createdBy: options.user?.email || 'system'
+      };
+      await addDoc(collection(db, 'sectors'), newSector);
+      setD({...d, sector: newSectorName.trim()});
+      setShowNewSector(false);
+      setNewSectorName('');
+      alert('Setor criado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao criar setor:', error);
+      alert('Erro ao criar setor');
+    }
+  };
+
+  const handleCreatePosition = async () => {
+    if (!newPositionName.trim()) {
+      alert('Digite o nome do cargo');
+      return;
+    }
+    try {
+      const newPosition = {
+        name: newPositionName.trim(),
+        level: newPositionLevel || '',
+        createdAt: serverTimestamp(),
+        createdBy: options.user?.email || 'system'
+      };
+      await addDoc(collection(db, 'positions'), newPosition);
+      setD({...d, position: newPositionName.trim()});
+      setShowNewPosition(false);
+      setNewPositionName('');
+      setNewPositionLevel('');
+      alert('Cargo criado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao criar cargo:', error);
+      alert('Erro ao criar cargo');
+    }
+  };
+
+  // Auto-preenche cidade quando empresa muda
+  useEffect(() => {
+    if (d.company && !d.city) {
+      const selectedCompany = options.companies.find(c => c.name === d.company);
+      if (selectedCompany?.city) {
+        setD(prev => ({...prev, city: selectedCompany.city}));
+      }
+    }
+  }, [d.company, options.companies]);
+
   if (!isOpen) return null;
 
-  const tabs = [
-    { id: 'geral', label: 'Dados Gerais' },
-    { id: 'estrutura', label: 'Estrutura' },
-    { id: 'detalhes', label: 'Detalhes' },
-    { id: 'gestao', label: 'Gestão' }
-  ];
+  // Lista de usuários para seleção de recrutador
+  const availableRecruiters = options.userRoles || [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-      <div className="bg-brand-card rounded-xl w-full max-w-3xl max-h-[90vh] border border-gray-200 dark:border-gray-700 flex flex-col">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-          <h3 className="font-bold text-xl text-white">{d.id ? 'Editar' : 'Nova'} Vaga</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-white">
+      <div className="bg-white dark:bg-gray-800 rounded-xl w-full max-w-2xl max-h-[90vh] border border-gray-200 dark:border-gray-700 flex flex-col shadow-2xl">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50">
+          <h3 className="font-bold text-xl text-gray-900 dark:text-white">{d.id ? 'Editar' : 'Nova'} Vaga</h3>
+          <button onClick={onClose} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white">
             <X size={20}/>
           </button>
         </div>
         
-        {/* Tabs */}
-        <div className="flex border-b border-gray-200 dark:border-gray-700">
-          {tabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 py-3 px-4 text-sm font-medium ${
-                activeTab === tab.id 
-                  ? 'text-gray-600 dark:text-gray-400 border-b-2 border-brand-cyan' 
-                  : 'text-slate-500 hover:text-white'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-        
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
-          {/* Tab: Dados Gerais */}
-          {activeTab === 'geral' && (
-            <>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Título da Vaga *</label>
-                  <input
-                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    placeholder="Ex: Analista de Obras"
-                    value={d.title || ''}
-                    onChange={e => setD({...d, title: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Código da Vaga</label>
-                  <input
-                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    placeholder="Ex: VAG-2024-001"
-                    value={d.code || ''}
-                    onChange={e => setD({...d, code: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Status *</label>
-                  <select
-                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    value={d.status || 'Aberta'}
-                    onChange={e => setD({...d, status: e.target.value})}
-                  >
-                    {JOB_STATUSES.map(status => (
-                      <option key={status} value={status}>{status}</option>
-                    ))}
-                  </select>
-                </div>
+        <div className="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar">
+          {/* Campos Principais em Destaque */}
+          <div className="space-y-4">
+            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-2">Informações Principais</h4>
+            
+            {/* Empresa */}
+            <div>
+              <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Empresa *</label>
+              <div className="flex gap-2">
+                <select
+                  className="flex-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  value={d.company || ''}
+                  onChange={e => setD({...d, company: e.target.value})}
+                >
+                  <option value="">Selecione uma empresa...</option>
+                  {options.companies.map(c => (
+                    <option key={c.id} value={c.name}>{c.name} {c.city ? `- ${c.city}` : ''}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => setShowNewCompany(!showNewCompany)}
+                  className="px-3 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
+                >
+                  <Plus size={16} className="inline mr-1"/> Nova
+                </button>
               </div>
-
-              {/* Empresa */}
-              <div>
-                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Empresa/Unidade *</label>
-                <div className="flex gap-2">
+              {showNewCompany && (
+                <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg space-y-2">
+                  <input
+                    type="text"
+                    className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-2 rounded text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500"
+                    placeholder="Nome da empresa/unidade"
+                    value={newCompanyName}
+                    onChange={e => setNewCompanyName(e.target.value)}
+                  />
                   <select
-                    className="flex-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    value={d.company || ''}
-                    onChange={e => setD({...d, company: e.target.value})}
+                    className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-2 rounded text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500"
+                    value={newCompanyCity}
+                    onChange={e => setNewCompanyCity(e.target.value)}
                   >
-                    <option value="">Selecione uma empresa...</option>
-                    {options.companies.map(c => (
-                      <option key={c.id} value={c.name}>{c.name} {c.city ? `- ${c.city}` : ''}</option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={() => setShowNewCompany(!showNewCompany)}
-                    className="bg-brand-cyan text-brand-dark px-4 py-2 rounded-lg font-bold text-sm hover:bg-cyan-400 whitespace-nowrap"
-                  >
-                    <Plus size={16} className="inline mr-1"/> Nova
-                  </button>
-                </div>
-                {showNewCompany && (
-                  <div className="mt-2 p-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg space-y-2">
-                    <input
-                      type="text"
-                      className="w-full bg-brand-card border border-gray-200 dark:border-gray-700 p-2 rounded text-sm text-white outline-none"
-                      placeholder="Nome da empresa/unidade"
-                      value={newCompanyName}
-                      onChange={e => setNewCompanyName(e.target.value)}
-                    />
-                    <select
-                      className="w-full bg-brand-card border border-gray-200 dark:border-gray-700 p-2 rounded text-sm text-white outline-none"
-                      value={newCompanyCity}
-                      onChange={e => setNewCompanyCity(e.target.value)}
-                    >
-                      <option value="">Cidade (opcional)</option>
-                      {options.cities.map(c => (
-                        <option key={c.id} value={c.name}>{c.name}</option>
-                      ))}
-                    </select>
-                    <div className="flex gap-2">
-                      <button onClick={handleCreateCompany} className="flex-1 bg-brand-orange text-white px-3 py-1.5 rounded text-sm font-bold">Criar</button>
-                      <button onClick={() => setShowNewCompany(false)} className="px-3 py-1.5 text-slate-400 text-sm">Cancelar</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Cidade *</label>
-                  <select
-                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    value={d.city || ''}
-                    onChange={e => setD({...d, city: e.target.value})}
-                  >
-                    <option value="">Selecione...</option>
+                    <option value="">Cidade (opcional)</option>
                     {options.cities.map(c => (
                       <option key={c.id} value={c.name}>{c.name}</option>
                     ))}
                   </select>
+                  <div className="flex gap-2">
+                    <button onClick={handleCreateCompany} className="flex-1 bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-blue-700">Criar</button>
+                    <button onClick={() => setShowNewCompany(false)} className="px-3 py-1.5 text-gray-500 dark:text-gray-400 text-sm hover:text-gray-700 dark:hover:text-gray-200">Cancelar</button>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Área *</label>
-                  <select
-                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    value={d.interestArea || ''}
-                    onChange={e => setD({...d, interestArea: e.target.value})}
-                  >
-                    <option value="">Selecione...</option>
-                    {options.interestAreas.map(area => (
-                      <option key={area.id} value={area.name}>{area.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </>
-          )}
+              )}
+            </div>
 
-          {/* Tab: Estrutura */}
-          {activeTab === 'estrutura' && (
-            <>
-              <div className="bg-blue-900/20 border border-blue-800 rounded-lg p-3 text-sm text-blue-300 mb-4">
-                💡 Cadastre Setores, Cargos e Funções em <strong>Configurações → Dados Base</strong>
+            {/* Cidade (auto-preenchida da empresa) */}
+            <div>
+              <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Cidade *</label>
+              <div className="flex gap-2">
+                <select
+                  className="flex-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  value={d.city || ''}
+                  onChange={e => setD({...d, city: e.target.value})}
+                >
+                  <option value="">Selecione...</option>
+                  {options.cities.map(c => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => setShowNewCity(!showNewCity)}
+                  className="px-3 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
+                >
+                  <Plus size={16} className="inline mr-1"/> Nova
+                </button>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Setor</label>
-                  <select
-                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    value={d.sector || ''}
-                    onChange={e => setD({...d, sector: e.target.value})}
-                  >
-                    <option value="">Selecione...</option>
-                    {sectors.map(s => (
-                      <option key={s.id} value={s.name}>{s.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Cargo</label>
-                  <select
-                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    value={d.position || ''}
-                    onChange={e => setD({...d, position: e.target.value})}
-                  >
-                    <option value="">Selecione...</option>
-                    {positions.map(p => (
-                      <option key={p.id} value={p.name}>{p.name} {p.level ? `(${p.level})` : ''}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Função</label>
-                  <select
-                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    value={d.function || ''}
-                    onChange={e => setD({...d, function: e.target.value})}
-                  >
-                    <option value="">Selecione...</option>
-                    {functions.map(f => (
-                      <option key={f.id} value={f.name}>{f.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Nº de Vagas</label>
+              {showNewCity && (
+                <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg space-y-2">
                   <input
-                    type="number"
-                    min="1"
-                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    value={d.vacancies || 1}
-                    onChange={e => setD({...d, vacancies: parseInt(e.target.value) || 1})}
+                    type="text"
+                    className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-2 rounded text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500"
+                    placeholder="Nome da cidade"
+                    value={newCityName}
+                    onChange={e => setNewCityName(e.target.value)}
+                  />
+                  <div className="flex gap-2">
+                    <button onClick={handleCreateCity} className="flex-1 bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-blue-700">Criar</button>
+                    <button onClick={() => setShowNewCity(false)} className="px-3 py-1.5 text-gray-500 dark:text-gray-400 text-sm hover:text-gray-700 dark:hover:text-gray-200">Cancelar</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Setor */}
+            <div>
+              <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Setor</label>
+              <div className="flex gap-2">
+                <select
+                  className="flex-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  value={d.sector || ''}
+                  onChange={e => setD({...d, sector: e.target.value})}
+                >
+                  <option value="">Selecione...</option>
+                  {sectors.map(s => (
+                    <option key={s.id} value={s.name}>{s.name}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => setShowNewSector(!showNewSector)}
+                  className="px-3 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
+                >
+                  <Plus size={16} className="inline mr-1"/> Novo
+                </button>
+              </div>
+              {showNewSector && (
+                <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg space-y-2">
+                  <input
+                    type="text"
+                    className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-2 rounded text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500"
+                    placeholder="Nome do setor"
+                    value={newSectorName}
+                    onChange={e => setNewSectorName(e.target.value)}
+                  />
+                  <div className="flex gap-2">
+                    <button onClick={handleCreateSector} className="flex-1 bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-blue-700">Criar</button>
+                    <button onClick={() => setShowNewSector(false)} className="px-3 py-1.5 text-gray-500 dark:text-gray-400 text-sm hover:text-gray-700 dark:hover:text-gray-200">Cancelar</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Cargo */}
+            <div>
+              <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Cargo</label>
+              <div className="flex gap-2">
+                <select
+                  className="flex-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  value={d.position || ''}
+                  onChange={e => setD({...d, position: e.target.value})}
+                >
+                  <option value="">Selecione...</option>
+                  {positions.map(p => (
+                    <option key={p.id} value={p.name}>{p.name} {p.level ? `(${p.level})` : ''}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => setShowNewPosition(!showNewPosition)}
+                  className="px-3 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
+                >
+                  <Plus size={16} className="inline mr-1"/> Novo
+                </button>
+              </div>
+              {showNewPosition && (
+                <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg space-y-2">
+                  <input
+                    type="text"
+                    className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-2 rounded text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500"
+                    placeholder="Nome do cargo"
+                    value={newPositionName}
+                    onChange={e => setNewPositionName(e.target.value)}
+                  />
+                  <input
+                    type="text"
+                    className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-2 rounded text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500"
+                    placeholder="Nível (opcional, ex: Júnior, Pleno, Sênior)"
+                    value={newPositionLevel}
+                    onChange={e => setNewPositionLevel(e.target.value)}
+                  />
+                  <div className="flex gap-2">
+                    <button onClick={handleCreatePosition} className="flex-1 bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-blue-700">Criar</button>
+                    <button onClick={() => setShowNewPosition(false)} className="px-3 py-1.5 text-gray-500 dark:text-gray-400 text-sm hover:text-gray-700 dark:hover:text-gray-200">Cancelar</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Prazo */}
+            <div>
+              <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Prazo para Preenchimento</label>
+              <input
+                type="date"
+                className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                value={d.deadline || ''}
+                onChange={e => setD({...d, deadline: e.target.value})}
+              />
+            </div>
+
+            {/* Observações */}
+            <div>
+              <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Observações</label>
+              <textarea
+                className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-24 resize-none"
+                placeholder="Informações adicionais sobre a vaga..."
+                value={d.description || ''}
+                onChange={e => setD({...d, description: e.target.value})}
+              />
+            </div>
+
+            {/* Recrutador Responsável */}
+            <div>
+              <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Recrutador Responsável</label>
+              <select
+                className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                value={d.recruiter || ''}
+                onChange={e => setD({...d, recruiter: e.target.value})}
+              >
+                <option value="">Selecione um recrutador...</option>
+                {availableRecruiters.map(u => (
+                  <option key={u.email} value={u.name || u.email}>{u.name || u.email}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Campos Opcionais Colapsados */}
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <button
+              onClick={() => setShowOptionalFields(!showOptionalFields)}
+              className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+            >
+              {showOptionalFields ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
+              Campos Opcionais
+            </button>
+            
+            {showOptionalFields && (
+              <div className="mt-4 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Código da Vaga</label>
+                    <input
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      placeholder="Ex: VAG-2024-001"
+                      value={d.code || ''}
+                      onChange={e => setD({...d, code: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Status</label>
+                    <select
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      value={d.status || 'Aberta'}
+                      onChange={e => setD({...d, status: e.target.value})}
+                    >
+                      {JOB_STATUSES.map(status => (
+                        <option key={status} value={status}>{status}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Área de Interesse</label>
+                    <select
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      value={d.interestArea || ''}
+                      onChange={e => setD({...d, interestArea: e.target.value})}
+                    >
+                      <option value="">Selecione...</option>
+                      {options.interestAreas.map(area => (
+                        <option key={area.id} value={area.name}>{area.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Função</label>
+                    <select
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      value={d.function || ''}
+                      onChange={e => setD({...d, function: e.target.value})}
+                    >
+                      <option value="">Selecione...</option>
+                      {functions.map(f => (
+                        <option key={f.id} value={f.name}>{f.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Nº de Vagas</label>
+                    <input
+                      type="number"
+                      min="1"
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      value={d.vacancies || 1}
+                      onChange={e => setD({...d, vacancies: parseInt(e.target.value) || 1})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Prioridade</label>
+                    <select
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      value={d.priority || 'Média'}
+                      onChange={e => setD({...d, priority: e.target.value})}
+                    >
+                      <option value="Alta">🔴 Alta</option>
+                      <option value="Média">🟡 Média</option>
+                      <option value="Baixa">🟢 Baixa</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Tipo de Contrato</label>
+                    <select
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      value={d.contractType || 'CLT'}
+                      onChange={e => setD({...d, contractType: e.target.value})}
+                    >
+                      <option value="CLT">CLT</option>
+                      <option value="PJ">PJ</option>
+                      <option value="Estágio">Estágio</option>
+                      <option value="Temporário">Temporário</option>
+                      <option value="Trainee">Trainee</option>
+                      <option value="Freelancer">Freelancer</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Modelo de Trabalho</label>
+                    <select
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      value={d.workModel || 'Presencial'}
+                      onChange={e => setD({...d, workModel: e.target.value})}
+                    >
+                      <option value="Presencial">Presencial</option>
+                      <option value="Híbrido">Híbrido</option>
+                      <option value="Remoto">Remoto</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Carga Horária</label>
+                    <input
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      placeholder="Ex: 44h semanais"
+                      value={d.workload || ''}
+                      onChange={e => setD({...d, workload: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Faixa Salarial</label>
+                    <input
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      placeholder="Ex: R$ 3.000 - R$ 5.000"
+                      value={d.salaryRange || ''}
+                      onChange={e => setD({...d, salaryRange: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Gestor Contratante</label>
+                    <input
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      placeholder="Nome do gestor"
+                      value={d.hiringManager || ''}
+                      onChange={e => setD({...d, hiringManager: e.target.value})}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Requisitos</label>
+                  <textarea
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-24 resize-none"
+                    placeholder="Requisitos e qualificações..."
+                    value={d.requirements || ''}
+                    onChange={e => setD({...d, requirements: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Benefícios</label>
+                  <textarea
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-20 resize-none"
+                    placeholder="VT, VR, Plano de Saúde..."
+                    value={d.benefits || ''}
+                    onChange={e => setD({...d, benefits: e.target.value})}
                   />
                 </div>
               </div>
-            </>
-          )}
-
-          {/* Tab: Detalhes */}
-          {activeTab === 'detalhes' && (
-            <>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Tipo de Contrato</label>
-                  <select
-                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    value={d.contractType || 'CLT'}
-                    onChange={e => setD({...d, contractType: e.target.value})}
-                  >
-                    <option value="CLT">CLT</option>
-                    <option value="PJ">PJ</option>
-                    <option value="Estágio">Estágio</option>
-                    <option value="Temporário">Temporário</option>
-                    <option value="Trainee">Trainee</option>
-                    <option value="Freelancer">Freelancer</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Modelo de Trabalho</label>
-                  <select
-                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    value={d.workModel || 'Presencial'}
-                    onChange={e => setD({...d, workModel: e.target.value})}
-                  >
-                    <option value="Presencial">Presencial</option>
-                    <option value="Híbrido">Híbrido</option>
-                    <option value="Remoto">Remoto</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Carga Horária</label>
-                  <input
-                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    placeholder="Ex: 44h semanais"
-                    value={d.workload || ''}
-                    onChange={e => setD({...d, workload: e.target.value})}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Faixa Salarial</label>
-                <input
-                  className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                  placeholder="Ex: R$ 3.000 - R$ 5.000"
-                  value={d.salaryRange || ''}
-                  onChange={e => setD({...d, salaryRange: e.target.value})}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Descrição da Vaga</label>
-                <textarea
-                  className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-24 resize-none"
-                  placeholder="Descreva a vaga, responsabilidades..."
-                  value={d.description || ''}
-                  onChange={e => setD({...d, description: e.target.value})}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Requisitos</label>
-                <textarea
-                  className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-24 resize-none"
-                  placeholder="Requisitos e qualificações..."
-                  value={d.requirements || ''}
-                  onChange={e => setD({...d, requirements: e.target.value})}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Benefícios</label>
-                <textarea
-                  className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-20 resize-none"
-                  placeholder="VT, VR, Plano de Saúde..."
-                  value={d.benefits || ''}
-                  onChange={e => setD({...d, benefits: e.target.value})}
-                />
-              </div>
-            </>
-          )}
-
-          {/* Tab: Gestão */}
-          {activeTab === 'gestao' && (
-            <>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Prioridade</label>
-                  <select
-                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    value={d.priority || 'Média'}
-                    onChange={e => setD({...d, priority: e.target.value})}
-                  >
-                    <option value="Alta">🔴 Alta</option>
-                    <option value="Média">🟡 Média</option>
-                    <option value="Baixa">🟢 Baixa</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Prazo para Preenchimento</label>
-                  <input
-                    type="date"
-                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    value={d.deadline || ''}
-                    onChange={e => setD({...d, deadline: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Recrutador Responsável</label>
-                  <input
-                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    placeholder="Nome do recrutador"
-                    value={d.recruiter || ''}
-                    onChange={e => setD({...d, recruiter: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Gestor Contratante</label>
-                  <input
-                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    placeholder="Nome do gestor"
-                    value={d.hiringManager || ''}
-                    onChange={e => setD({...d, hiringManager: e.target.value})}
-                  />
-                </div>
-              </div>
-            </>
-          )}
+            )}
+          </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
-          <button onClick={onClose} className="px-6 py-2 text-slate-400 hover:text-white">Cancelar</button>
+        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2 bg-gray-50 dark:bg-gray-900/50">
+          <button onClick={onClose} className="px-6 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">Cancelar</button>
           <button
             onClick={() => {
-              if (!d.title || !d.company || !d.city) {
-                alert('Preencha os campos obrigatórios: Título, Empresa e Cidade');
+              if (!d.company || !d.city) {
+                alert('Preencha os campos obrigatórios: Empresa e Cidade');
                 return;
+              }
+              // Gera título automaticamente se não houver
+              if (!d.title && d.position && d.company) {
+                d.title = `${d.position} - ${d.company}`;
+              } else if (!d.title) {
+                d.title = `Vaga - ${d.company}`;
               }
               onSave(d);
             }}
             disabled={isSaving}
-            className="bg-brand-orange text-white px-6 py-2 rounded font-bold hover:bg-orange-600 disabled:opacity-50"
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
             {isSaving ? 'Salvando...' : 'Salvar'}
           </button>
