@@ -26,7 +26,16 @@ export default function TransitionModal({ transition, onClose, onConfirm, cities
     education: 'Formação',
     experience: 'Experiência Anterior',
     maritalStatus: 'Estado Civil',
-    source: 'Onde encontrou'
+    source: 'Onde encontrou',
+    interview1Date: 'Data 1ª Entrevista',
+    interview1Notes: 'Observações 1ª Entrevista',
+    testResults: 'Resultado dos Testes',
+    testNotes: 'Observações dos Testes',
+    interview2Date: 'Data 2ª Entrevista',
+    interview2Notes: 'Observações 2ª Entrevista',
+    returnSent: 'Retorno Dado ao Candidato',
+    returnDate: 'Data do Retorno',
+    returnNotes: 'Observações do Retorno'
   };
 
   const handleSave = () => {
@@ -136,12 +145,59 @@ export default function TransitionModal({ transition, onClose, onConfirm, cities
                 </select>
             );
         case 'experience':
+        case 'interview1Notes':
+        case 'interview2Notes':
+        case 'testNotes':
+        case 'returnNotes':
             return (
-                <textarea className={commonClass + " h-20"} value={data.experience} onChange={e => setData({...data, experience: e.target.value})} />
+                <textarea 
+                  className={commonClass + " h-20"} 
+                  value={data[field] || ''} 
+                  onChange={e => setData({...data, [field]: e.target.value})}
+                  placeholder={field.includes('Notes') ? 'Descreva observações importantes...' : ''}
+                />
+            );
+        case 'interview1Date':
+        case 'interview2Date':
+            return (
+                <input 
+                  type="datetime-local" 
+                  className={commonClass} 
+                  value={data[field] || ''} 
+                  onChange={e => setData({...data, [field]: e.target.value})}
+                />
+            );
+        case 'returnDate':
+            return (
+                <input 
+                  type="date" 
+                  className={commonClass} 
+                  value={data[field] || ''} 
+                  onChange={e => setData({...data, [field]: e.target.value})}
+                />
+            );
+        case 'testResults':
+            return (
+                <select className={commonClass} value={data.testResults || ''} onChange={e => setData({...data, testResults: e.target.value})}>
+                    <option value="">Selecione o resultado...</option>
+                    <option value="Aprovado">✅ Aprovado</option>
+                    <option value="Aprovado com ressalvas">⚠️ Aprovado com ressalvas</option>
+                    <option value="Reprovado">❌ Reprovado</option>
+                    <option value="Não aplicável">➖ Não aplicável</option>
+                </select>
+            );
+        case 'returnSent':
+            return (
+                <select className={commonClass} value={data.returnSent || ''} onChange={e => setData({...data, returnSent: e.target.value})}>
+                    <option value="">Selecione...</option>
+                    <option value="Sim">✅ Sim, retorno dado</option>
+                    <option value="Não">❌ Não, ainda não dado</option>
+                    <option value="Pendente">⏳ Pendente</option>
+                </select>
             );
         default:
             return (
-                <input className={commonClass} value={data[field]} onChange={e => setData({...data, [field]: e.target.value})} />
+                <input className={commonClass} value={data[field] || ''} onChange={e => setData({...data, [field]: e.target.value})} />
             );
     }
   }

@@ -3976,9 +3976,9 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
         )}
         
         <div className="flex border-b border-brand-border dark:border-brand-border">
-          {['pessoal', 'profissional', 'processo', 'histórico', 'adicional'].map(tab => (
+          {['pessoal', 'profissional', 'processo', 'etapas', 'histórico', 'adicional'].map(tab => (
             <button key={tab} onClick={() => setActiveSection(tab)} className={`flex-1 py-3 px-4 text-sm font-bold uppercase ${activeSection === tab ? 'text-brand-orange border-b-2 border-brand-orange' : 'text-slate-500 dark:text-slate-500'}`}>
-              {tab === 'histórico' ? `📋 ${tab}` : tab}
+              {tab === 'histórico' ? `📋 ${tab}` : tab === 'etapas' ? `🎯 ${tab}` : tab}
             </button>
           ))}
         </div>
@@ -4220,6 +4220,203 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
                     Nenhuma entrevista agendada
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+          {activeSection === 'etapas' && (
+            <div className="space-y-6">
+              {/* Status atual */}
+              <div className="bg-gradient-to-r from-blue-600/20 to-cyan-600/20 border border-blue-500/50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-xs text-gray-400 uppercase">Status Atual</label>
+                    <div className="text-xl font-bold text-white">{d.status || 'Inscrito'}</div>
+                  </div>
+                  {d.id && onAdvanceStage && (
+                    <select
+                      className="bg-gray-800 border border-gray-600 px-4 py-2 rounded-lg text-white text-sm font-medium"
+                      value=""
+                      onChange={(e) => {
+                        if (e.target.value && onAdvanceStage) {
+                          onAdvanceStage(d, e.target.value);
+                        }
+                        e.target.value = '';
+                      }}
+                    >
+                      <option value="">Avançar para...</option>
+                      {getNextStages().map(stage => (
+                        <option key={stage} value={stage}>{stage}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              </div>
+
+              {/* 1ª Entrevista */}
+              <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
+                <h4 className="font-bold text-white mb-4 flex items-center gap-2">
+                  <span className="w-6 h-6 bg-cyan-600 rounded-full flex items-center justify-center text-xs">1</span>
+                  1ª Entrevista (RH)
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Data e Hora</label>
+                    <input 
+                      type="datetime-local" 
+                      className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white outline-none focus:border-brand-orange"
+                      value={d.interview1Date || ''}
+                      onChange={e => setD({...d, interview1Date: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Status</label>
+                    <select 
+                      className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white outline-none focus:border-brand-orange"
+                      value={d.interview1Status || ''}
+                      onChange={e => setD({...d, interview1Status: e.target.value})}
+                    >
+                      <option value="">Não realizada</option>
+                      <option value="Agendada">📅 Agendada</option>
+                      <option value="Realizada">✅ Realizada</option>
+                      <option value="Cancelada">❌ Cancelada</option>
+                      <option value="NoShow">⚠️ No-show</option>
+                    </select>
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Observações</label>
+                    <textarea 
+                      className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white outline-none focus:border-brand-orange h-20"
+                      value={d.interview1Notes || ''}
+                      onChange={e => setD({...d, interview1Notes: e.target.value})}
+                      placeholder="Anotações sobre a entrevista..."
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Testes */}
+              <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
+                <h4 className="font-bold text-white mb-4 flex items-center gap-2">
+                  <span className="w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center text-xs">T</span>
+                  Testes
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Resultado</label>
+                    <select 
+                      className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white outline-none focus:border-brand-orange"
+                      value={d.testResults || ''}
+                      onChange={e => setD({...d, testResults: e.target.value})}
+                    >
+                      <option value="">Não realizado</option>
+                      <option value="Aprovado">✅ Aprovado</option>
+                      <option value="Aprovado com ressalvas">⚠️ Aprovado com ressalvas</option>
+                      <option value="Reprovado">❌ Reprovado</option>
+                      <option value="Não aplicável">➖ Não aplicável</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Data do Teste</label>
+                    <input 
+                      type="date" 
+                      className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white outline-none focus:border-brand-orange"
+                      value={d.testDate || ''}
+                      onChange={e => setD({...d, testDate: e.target.value})}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Observações dos Testes</label>
+                    <textarea 
+                      className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white outline-none focus:border-brand-orange h-20"
+                      value={d.testNotes || ''}
+                      onChange={e => setD({...d, testNotes: e.target.value})}
+                      placeholder="Detalhes sobre os testes realizados..."
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 2ª Entrevista */}
+              <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
+                <h4 className="font-bold text-white mb-4 flex items-center gap-2">
+                  <span className="w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center text-xs">2</span>
+                  2ª Entrevista (Gestor)
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Data e Hora</label>
+                    <input 
+                      type="datetime-local" 
+                      className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white outline-none focus:border-brand-orange"
+                      value={d.interview2Date || ''}
+                      onChange={e => setD({...d, interview2Date: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Status</label>
+                    <select 
+                      className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white outline-none focus:border-brand-orange"
+                      value={d.interview2Status || ''}
+                      onChange={e => setD({...d, interview2Status: e.target.value})}
+                    >
+                      <option value="">Não realizada</option>
+                      <option value="Agendada">📅 Agendada</option>
+                      <option value="Realizada">✅ Realizada</option>
+                      <option value="Cancelada">❌ Cancelada</option>
+                      <option value="NoShow">⚠️ No-show</option>
+                    </select>
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Observações</label>
+                    <textarea 
+                      className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white outline-none focus:border-brand-orange h-20"
+                      value={d.interview2Notes || ''}
+                      onChange={e => setD({...d, interview2Notes: e.target.value})}
+                      placeholder="Anotações sobre a entrevista com gestor..."
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Retorno */}
+              <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
+                <h4 className="font-bold text-white mb-4 flex items-center gap-2">
+                  <span className="w-6 h-6 bg-green-600 rounded-full flex items-center justify-center text-xs">✓</span>
+                  Retorno ao Candidato
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Retorno Dado?</label>
+                    <select 
+                      className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white outline-none focus:border-brand-orange"
+                      value={d.returnSent || ''}
+                      onChange={e => setD({...d, returnSent: e.target.value})}
+                    >
+                      <option value="">Não informado</option>
+                      <option value="Sim">✅ Sim, retorno dado</option>
+                      <option value="Não">❌ Não, ainda não dado</option>
+                      <option value="Pendente">⏳ Pendente</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Data do Retorno</label>
+                    <input 
+                      type="date" 
+                      className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white outline-none focus:border-brand-orange"
+                      value={d.returnDate || ''}
+                      onChange={e => setD({...d, returnDate: e.target.value})}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Observações do Retorno</label>
+                    <textarea 
+                      className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white outline-none focus:border-brand-orange h-20"
+                      value={d.returnNotes || ''}
+                      onChange={e => setD({...d, returnNotes: e.target.value})}
+                      placeholder="Detalhes sobre o retorno dado ao candidato..."
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           )}

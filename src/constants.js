@@ -21,14 +21,20 @@ export const CLOSING_STATUSES = [
 export const ALL_STATUSES = [...PIPELINE_STAGES, ...CLOSING_STATUSES];
 
 // Campos obrigatórios por etapa/fechamento do funil
+// Baseado no processo:
+// Considerado → verificar Cidade, CNH
+// Entrevista I → Áreas interesse, Formação, Exp. Ant., Estado civil, Onde encontrou + Data entrevista
+// Testes → Dados dos testes
+// Entrevista II → Data 2ª entrevista
+// Seleção/Contratado → Retorno dado
 export const STAGE_REQUIRED_FIELDS = {
-  'Considerado': ['fullName', 'email', 'phone'],
-  'Entrevista I': ['fullName', 'email', 'phone', 'city'],
-  'Testes': ['fullName', 'email', 'phone', 'city', 'interestAreas'],
-  'Entrevista II': ['fullName', 'email', 'phone', 'city', 'interestAreas'],
-  'Seleção': ['fullName', 'email', 'phone', 'city', 'interestAreas', 'experience'],
-  'Contratado': ['fullName', 'email', 'phone', 'city', 'interestAreas', 'experience', 'source'],
-  'Reprovado': ['fullName', 'email', 'phone', 'city'],
+  'Considerado': ['fullName', 'email', 'phone', 'city', 'hasLicense'],
+  'Entrevista I': ['fullName', 'email', 'phone', 'city', 'hasLicense', 'interestAreas', 'education', 'experience', 'maritalStatus', 'source', 'interview1Date'],
+  'Testes': ['fullName', 'email', 'phone', 'city', 'interestAreas', 'interview1Date', 'testResults'],
+  'Entrevista II': ['fullName', 'email', 'phone', 'city', 'interestAreas', 'interview1Date', 'testResults', 'interview2Date'],
+  'Seleção': ['fullName', 'email', 'phone', 'city', 'interestAreas', 'experience', 'interview1Date', 'interview2Date'],
+  'Contratado': ['fullName', 'email', 'phone', 'city', 'interestAreas', 'experience', 'source', 'returnSent'],
+  'Reprovado': ['fullName', 'email', 'phone', 'returnSent'],
   'Desistiu da vaga': ['fullName', 'email', 'phone']
 };
 
@@ -85,14 +91,26 @@ export const CANDIDATE_FIELDS = [
   { key: 'cvUrl', csvLabel: 'Anexar currículo:', displayName: 'CV', type: 'url', category: 'links' },
   { key: 'portfolioUrl', csvLabel: 'Portfólio de trabalho:', displayName: 'Portfólio', type: 'url', category: 'links' },
   
-  // Processo Seletivo
+  // Processo Seletivo - Dados Iniciais
   { key: 'source', csvLabel: 'Onde você nos encontrou?', displayName: 'Fonte', type: 'select', category: 'processo' },
   { key: 'referral', csvLabel: 'Você foi indicado por algum colaborador da Young? Se sim, quem?', displayName: 'Indicação', type: 'text', category: 'processo' },
   { key: 'salaryExpectation', csvLabel: 'Qual seria sua expectativa salarial?', displayName: 'Pretensão Salarial', type: 'text', category: 'processo' },
   { key: 'canRelocate', csvLabel: 'Teria disponibilidade para mudança de cidade?', displayName: 'Disponível p/ Mudança', type: 'boolean', category: 'processo' },
   { key: 'references', csvLabel: 'Referências profissionais:', displayName: 'Referências', type: 'textarea', category: 'processo' },
   { key: 'typeOfApp', csvLabel: 'Você está se candidatando a uma vaga específica...?', displayName: 'Tipo de Candidatura', type: 'text', category: 'processo' },
-  { key: 'freeField', csvLabel: 'Campo Livre, SEJA VOCÊ!', displayName: 'Observações', type: 'textarea', category: 'adicional' },
+  
+  // Processo Seletivo - Acompanhamento das Etapas
+  { key: 'interview1Date', csvLabel: 'Data 1ª Entrevista', displayName: 'Data 1ª Entrevista', type: 'datetime', category: 'etapas' },
+  { key: 'interview1Notes', csvLabel: 'Observações 1ª Entrevista', displayName: 'Obs. 1ª Entrevista', type: 'textarea', category: 'etapas' },
+  { key: 'testResults', csvLabel: 'Resultados dos Testes', displayName: 'Resultado Testes', type: 'text', category: 'etapas' },
+  { key: 'testNotes', csvLabel: 'Observações dos Testes', displayName: 'Obs. Testes', type: 'textarea', category: 'etapas' },
+  { key: 'interview2Date', csvLabel: 'Data 2ª Entrevista', displayName: 'Data 2ª Entrevista', type: 'datetime', category: 'etapas' },
+  { key: 'interview2Notes', csvLabel: 'Observações 2ª Entrevista', displayName: 'Obs. 2ª Entrevista', type: 'textarea', category: 'etapas' },
+  { key: 'returnSent', csvLabel: 'Retorno Dado', displayName: 'Retorno Dado', type: 'boolean', category: 'etapas' },
+  { key: 'returnDate', csvLabel: 'Data do Retorno', displayName: 'Data Retorno', type: 'date', category: 'etapas' },
+  { key: 'returnNotes', csvLabel: 'Observações do Retorno', displayName: 'Obs. Retorno', type: 'textarea', category: 'etapas' },
+  
+  { key: 'freeField', csvLabel: 'Campo Livre, SEJA VOCÊ!', displayName: 'Observações Gerais', type: 'textarea', category: 'adicional' },
   
   // Metadados
   { key: 'original_timestamp', csvLabel: 'Carimbo de data/hora', displayName: 'Data Cadastro', type: 'datetime', category: 'sistema' },
