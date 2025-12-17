@@ -226,6 +226,51 @@ export default function CsvImportModal({ isOpen, onClose, onImportData }) {
                 else if(lowerH.includes('cod') || lowerH.includes('id externo') || lowerH.includes('external_id')) {
                     initialMap[h] = 'external_id';
                 }
+                else if(lowerH.includes('carimbo de data') || lowerH.includes('carimbo') || lowerH.includes('timestamp') || lowerH.includes('data/hora') || lowerH.includes('data e hora')) {
+                    initialMap[h] = 'original_timestamp';
+                }
+                else if(lowerH.includes('filhos') || lowerH.includes('quantidade de filhos')) {
+                    initialMap[h] = 'childrenCount';
+                }
+                else if(lowerH.includes('instituição') || lowerH.includes('instituicao') || lowerH.includes('instituição de ensino')) {
+                    initialMap[h] = 'institution';
+                }
+                else if(lowerH.includes('data de formatura') || lowerH.includes('formatura')) {
+                    initialMap[h] = 'graduationDate';
+                }
+                else if(lowerH.includes('está cursando') || lowerH.includes('cursando')) {
+                    initialMap[h] = 'isStudying';
+                }
+                else if(lowerH.includes('experiências anteriores') || lowerH.includes('experiencia') || lowerH.includes('experiências')) {
+                    initialMap[h] = 'experience';
+                }
+                else if(lowerH.includes('cursos') && !lowerH.includes('cursando')) {
+                    initialMap[h] = 'courses';
+                }
+                else if(lowerH.includes('certificações') || lowerH.includes('certificacoes')) {
+                    initialMap[h] = 'certifications';
+                }
+                else if(lowerH.includes('indicado') || lowerH.includes('indicação')) {
+                    initialMap[h] = 'referral';
+                }
+                else if(lowerH.includes('expectativa salarial') || lowerH.includes('salário') || lowerH.includes('salario')) {
+                    initialMap[h] = 'salaryExpectation';
+                }
+                else if(lowerH.includes('disponibilidade para mudança') || lowerH.includes('mudança de cidade') || lowerH.includes('disponibilidade mudança')) {
+                    initialMap[h] = 'canRelocate';
+                }
+                else if(lowerH.includes('referências profissionais') || lowerH.includes('referencias') || lowerH.includes('referência')) {
+                    initialMap[h] = 'references';
+                }
+                else if(lowerH.includes('candidatando a uma vaga') || lowerH.includes('vaga específica') || lowerH.includes('tipo de candidatura') || lowerH.includes('tipo candidatura')) {
+                    initialMap[h] = 'typeOfApp';
+                }
+                else if(lowerH.includes('campo livre') || lowerH.includes('seja você')) {
+                    initialMap[h] = 'freeField';
+                }
+                else if(lowerH.includes('foto') || lowerH.includes('imagem') || lowerH.includes('envie uma foto')) {
+                    initialMap[h] = 'photoUrl';
+                }
             }
       });
       setMapping(initialMap);
