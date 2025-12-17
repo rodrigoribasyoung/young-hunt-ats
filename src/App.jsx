@@ -4,7 +4,7 @@ import {
   FileText, MapPin, Filter, Trophy, Menu, X, LogOut, Loader2, Edit3, Trash2,
   Building2, Mail, Check, Ban, UserMinus, CheckSquare, Square, Kanban, List,
   CalendarCheck, AlertCircle, UserPlus, Moon, Sun, ChevronLeft, ChevronRight, ExternalLink,
-  MessageSquare, History, ArrowRight, Palette, Copy
+  MessageSquare, History, ArrowRight, Palette, Copy, Info
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -30,6 +30,7 @@ import JobCandidatesModal from './components/modals/JobsCandidateModal';
 import { useTheme } from './ThemeContext';
 
 import { PIPELINE_STAGES, STATUS_COLORS, JOB_STATUSES, CSV_FIELD_MAPPING_OPTIONS, ALL_STATUSES, CLOSING_STATUSES, STAGE_REQUIRED_FIELDS, CANDIDATE_FIELDS, getFieldDisplayName } from './constants';
+import { validateCandidate, validateEmail, validatePhone, checkDuplicateEmail, formatValidationErrors } from './utils/validation';
 import { normalizeCity, getMainCitiesOptions } from './utils/cityNormalizer';
 import { normalizeSource, getMainSourcesOptions } from './utils/sourceNormalizer';
 import { normalizeInterestArea, normalizeInterestAreasString, getMainInterestAreasOptions } from './utils/interestAreaNormalizer';
@@ -2009,6 +2010,7 @@ export default function App() {
         statusMovements={statusMovements}
         interviews={interviews}
         onScheduleInterview={(candidate) => setInterviewModalData({ candidate })}
+        allCandidates={candidates}
         onAddNote={async (candidateId, noteText) => {
           const candidateRef = doc(db, 'candidates', candidateId);
           const candidateDoc = candidates.find(c => c.id === candidateId);
@@ -2076,7 +2078,8 @@ export default function App() {
       
       <CsvImportModal 
         isOpen={isCsvModalOpen} 
-        onClose={closeCsvModal} 
+        onClose={closeCsvModal}
+        existingCandidates={candidates}
         onImportData={async (candidatesData, importMode) => {
           setIsSaving(true);
           try {
@@ -3788,13 +3791,16 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
   );
 };
 
-const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvanceStage, statusMovements = [], onAddNote, interviews = [], onScheduleInterview }) => {
+const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvanceStage, statusMovements = [], onAddNote, interviews = [], onScheduleInterview, allCandidates = [] }) => {
   // Normaliza cidade ao carregar candidato
   const normalizedCandidate = candidate?.city ? { ...candidate, city: normalizeCity(candidate.city) } : candidate;
   const [d, setD] = useState({ ...normalizedCandidate });
   const [activeSection, setActiveSection] = useState('pessoal');
   const [newNote, setNewNote] = useState('');
   const [savingNote, setSavingNote] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({});
+  const [validationWarnings, setValidationWarnings] = useState({});
+  const [showValidationSummary, setShowValidationSummary] = useState(false);
   
   // Filtrar movimentações deste candidato
   const candidateMovements = useMemo(() => {
@@ -3852,6 +3858,31 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
   };
   
   const handleSave = () => {
+    // Validação antes de salvar
+    const validation = validateCandidate(d, { 
+      checkRequired: true,
+      strictMode: false,
+      stage: d.status 
+    });
+    
+    // Verificar duplicata de email (apenas para novos candidatos ou se email mudou)
+    if (d.email) {
+      const duplicateCheck = checkDuplicateEmail(d.email, allCandidates, d.id);
+      if (duplicateCheck.isDuplicate) {
+        validation.valid = false;
+        validation.errors.email = duplicateCheck.message;
+      }
+    }
+    
+    setValidationErrors(validation.errors);
+    setValidationWarnings(validation.warnings);
+    
+    if (!validation.valid) {
+      setShowValidationSummary(true);
+      // Rolar para o topo do modal para mostrar erros
+      return;
+    }
+    
     // Garante que os campos estão normalizados antes de salvar
     const dataToSave = { ...d };
     if (dataToSave.city) {
@@ -3863,6 +3894,9 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
     if (dataToSave.interestAreas) {
       dataToSave.interestAreas = normalizeInterestAreasString(dataToSave.interestAreas);
     }
+    
+    // Limpar erros e salvar
+    setShowValidationSummary(false);
     onSave(dataToSave);
   };
   
@@ -3914,6 +3948,33 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
           <div><h3 className="font-bold text-xl">{d.id?'Editar':'Novo'} Candidato</h3></div>
           <button onClick={onClose}><X/></button>
         </div>
+        
+        {/* Resumo de Validação */}
+        {showValidationSummary && Object.keys(validationErrors).length > 0 && (
+          <div className="mx-6 mt-4 bg-red-900/30 border border-red-700 rounded-lg p-4">
+            <div className="flex items-center gap-2 text-red-300 font-bold mb-2">
+              <AlertCircle size={18}/> {Object.keys(validationErrors).length} erro(s) encontrado(s)
+            </div>
+            <ul className="text-sm text-red-400 space-y-1 ml-6">
+              {Object.entries(validationErrors).map(([field, message]) => (
+                <li key={field}>• {message}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {showValidationSummary && Object.keys(validationWarnings).length > 0 && Object.keys(validationErrors).length === 0 && (
+          <div className="mx-6 mt-4 bg-yellow-900/30 border border-yellow-700 rounded-lg p-4">
+            <div className="flex items-center gap-2 text-yellow-300 font-bold mb-2">
+              <Info size={18}/> {Object.keys(validationWarnings).length} aviso(s)
+            </div>
+            <ul className="text-sm text-yellow-400 space-y-1 ml-6">
+              {Object.entries(validationWarnings).map(([field, message]) => (
+                <li key={field}>• {message}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        
         <div className="flex border-b border-brand-border dark:border-brand-border">
           {['pessoal', 'profissional', 'processo', 'histórico', 'adicional'].map(tab => (
             <button key={tab} onClick={() => setActiveSection(tab)} className={`flex-1 py-3 px-4 text-sm font-bold uppercase ${activeSection === tab ? 'text-brand-orange border-b-2 border-brand-orange' : 'text-slate-500 dark:text-slate-500'}`}>

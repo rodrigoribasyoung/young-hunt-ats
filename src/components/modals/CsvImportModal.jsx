@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { UploadCloud, X, ArrowRight, CheckCircle, AlertCircle, Download, FileSpreadsheet } from 'lucide-react';
+import { UploadCloud, X, ArrowRight, CheckCircle, AlertCircle, Download, FileSpreadsheet, Info, AlertTriangle } from 'lucide-react';
 import { CSV_FIELD_MAPPING_OPTIONS } from '../../constants';
 import { normalizeCity } from '../../utils/cityNormalizer';
 import { normalizeSource } from '../../utils/sourceNormalizer';
 import { normalizeInterestArea, normalizeInterestAreasString } from '../../utils/interestAreaNormalizer';
+import { validateEmail, validatePhone, validateImportBatch, checkBatchDuplicates } from '../../utils/validation';
 import * as XLSX from 'xlsx';
 
-export default function CsvImportModal({ isOpen, onClose, onImportData }) {
-  const [step, setStep] = useState(1); // 1: Upload, 2: Map, 3: Options
+export default function CsvImportModal({ isOpen, onClose, onImportData, existingCandidates = [] }) {
+  const [step, setStep] = useState(1); // 1: Upload, 2: Map, 3: Options, 4: Validation
   const [file, setFile] = useState(null);
   const [headers, setHeaders] = useState([]);
   const [parsedData, setParsedData] = useState([]);
@@ -16,6 +17,8 @@ export default function CsvImportModal({ isOpen, onClose, onImportData }) {
   const [customTag, setCustomTag] = useState('');
   const [useCustomTag, setUseCustomTag] = useState(false);
   const [templateFormat, setTemplateFormat] = useState('csv'); // 'csv' ou 'xlsx'
+  const [validationResult, setValidationResult] = useState(null);
+  const [finalCandidates, setFinalCandidates] = useState([]);
 
   if (!isOpen) return null;
 
@@ -435,7 +438,7 @@ export default function CsvImportModal({ isOpen, onClose, onImportData }) {
     setMapping(prev => ({...prev, [header]: systemField}));
   };
 
-  const finishImport = () => {
+  const validateAndPreview = () => {
     // Validação: Verifica se campos essenciais estão mapeados
     const essentialFields = ['fullName', 'email'];
     const mappedFields = Object.values(mapping).filter(Boolean);
@@ -452,14 +455,13 @@ export default function CsvImportModal({ isOpen, onClose, onImportData }) {
     const defaultTag = `${fileName}_${dateTime}`;
     const importTag = useCustomTag && customTag.trim() ? customTag.trim() : defaultTag;
 
-    const finalCandidates = parsedData.map(row => {
-        const candidate = {};
+    // Mapeia os dados
+    const mappedCandidates = parsedData.map((row, index) => {
+        const candidate = { _rowIndex: index + 1 };
         Object.keys(mapping).forEach(header => {
             if(mapping[header] && row[header] !== undefined) {
-                // Limpa valores vazios e espaços
                 let value = String(row[header] || '').trim();
                 if (value) {
-                  // Normaliza campos específicos
                   if (mapping[header] === 'city') {
                     value = normalizeCity(value);
                   } else if (mapping[header] === 'source') {
@@ -471,17 +473,81 @@ export default function CsvImportModal({ isOpen, onClose, onImportData }) {
                 }
             }
         });
-        // Default fields
         candidate.status = 'Inscrito';
         candidate.createdAt = new Date().toISOString();
         candidate.imported = true;
         candidate.importTag = importTag;
         candidate.importDate = new Date().toISOString();
         return candidate;
-    }).filter(c => c.fullName && c.email); // Remove candidatos sem nome ou email
+    });
 
+    // Valida cada linha
+    const validationErrors = [];
+    const validationWarnings = [];
+    const validCandidates = [];
+    const invalidCandidates = [];
+
+    mappedCandidates.forEach((candidate, index) => {
+      const rowNum = candidate._rowIndex || index + 1;
+      const rowErrors = [];
+      const rowWarnings = [];
+
+      // Validar campos obrigatórios
+      if (!candidate.fullName || !candidate.fullName.trim()) {
+        rowErrors.push('Nome é obrigatório');
+      }
+      
+      if (!candidate.email) {
+        rowErrors.push('Email é obrigatório');
+      } else {
+        const emailValidation = validateEmail(candidate.email);
+        if (!emailValidation.valid) {
+          rowErrors.push(emailValidation.message);
+        }
+      }
+
+      // Validar telefone (warning)
+      if (candidate.phone) {
+        const phoneValidation = validatePhone(candidate.phone);
+        if (!phoneValidation.valid) {
+          rowWarnings.push(`Telefone: ${phoneValidation.message}`);
+        }
+      }
+
+      if (rowErrors.length > 0) {
+        validationErrors.push({ row: rowNum, errors: rowErrors, candidate });
+        invalidCandidates.push(candidate);
+      } else {
+        validCandidates.push(candidate);
+      }
+
+      if (rowWarnings.length > 0) {
+        validationWarnings.push({ row: rowNum, warnings: rowWarnings });
+      }
+    });
+
+    // Verificar duplicatas
+    const duplicateCheck = checkBatchDuplicates(validCandidates, existingCandidates);
+    
+    // Preparar resultado
+    const result = {
+      total: mappedCandidates.length,
+      valid: duplicateCheck.unique.length,
+      invalid: invalidCandidates.length,
+      duplicates: duplicateCheck.duplicates.length,
+      errors: validationErrors,
+      warnings: validationWarnings,
+      duplicateDetails: duplicateCheck.duplicates
+    };
+
+    setValidationResult(result);
+    setFinalCandidates(duplicateCheck.unique);
+    setStep(4); // Vai para tela de validação
+  };
+
+  const finishImport = () => {
     if (finalCandidates.length === 0) {
-      alert('⚠️ Nenhum candidato válido encontrado. Verifique se os campos Nome completo e E-mail estão preenchidos no CSV.');
+      alert('⚠️ Nenhum candidato válido para importar.');
       return;
     }
 
@@ -767,8 +833,112 @@ export default function CsvImportModal({ isOpen, onClose, onImportData }) {
            )}
         </div>
 
+        {/* Step 4: Validação e Preview */}
+        {step === 4 && validationResult && (
+          <div className="p-6 space-y-4 overflow-y-auto max-h-[50vh]">
+            <h4 className="text-lg font-bold text-white">Resultado da Validação</h4>
+            
+            {/* Resumo */}
+            <div className="grid grid-cols-4 gap-4">
+              <div className="bg-gray-800 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-white">{validationResult.total}</div>
+                <div className="text-xs text-gray-400">Total de linhas</div>
+              </div>
+              <div className="bg-green-900/30 border border-green-700 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-green-400">{validationResult.valid}</div>
+                <div className="text-xs text-green-400">Válidos</div>
+              </div>
+              <div className="bg-red-900/30 border border-red-700 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-red-400">{validationResult.invalid}</div>
+                <div className="text-xs text-red-400">Com erros</div>
+              </div>
+              <div className="bg-yellow-900/30 border border-yellow-700 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-yellow-400">{validationResult.duplicates}</div>
+                <div className="text-xs text-yellow-400">Duplicados</div>
+              </div>
+            </div>
+
+            {/* Erros */}
+            {validationResult.errors.length > 0 && (
+              <div className="bg-red-900/20 border border-red-700 rounded-lg p-4">
+                <div className="flex items-center gap-2 text-red-300 font-bold mb-2">
+                  <AlertCircle size={18}/> Linhas com erros ({validationResult.errors.length})
+                </div>
+                <div className="max-h-32 overflow-y-auto space-y-1">
+                  {validationResult.errors.slice(0, 10).map((err, i) => (
+                    <div key={i} className="text-sm text-red-400">
+                      <span className="font-mono">Linha {err.row}:</span> {err.errors.join(', ')}
+                    </div>
+                  ))}
+                  {validationResult.errors.length > 10 && (
+                    <div className="text-sm text-red-400 italic">... e mais {validationResult.errors.length - 10} erros</div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Duplicados */}
+            {validationResult.duplicates > 0 && (
+              <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-4">
+                <div className="flex items-center gap-2 text-yellow-300 font-bold mb-2">
+                  <AlertTriangle size={18}/> Candidatos duplicados ({validationResult.duplicates})
+                </div>
+                <div className="max-h-32 overflow-y-auto space-y-1">
+                  {validationResult.duplicateDetails.slice(0, 5).map((dup, i) => (
+                    <div key={i} className="text-sm text-yellow-400">
+                      <span className="font-medium">{dup.row.fullName}</span> ({dup.row.email}) - {dup.message}
+                    </div>
+                  ))}
+                  {validationResult.duplicateDetails.length > 5 && (
+                    <div className="text-sm text-yellow-400 italic">... e mais {validationResult.duplicateDetails.length - 5} duplicados</div>
+                  )}
+                </div>
+                <p className="text-xs text-yellow-500 mt-2">Duplicados serão ignorados na importação</p>
+              </div>
+            )}
+
+            {/* Avisos */}
+            {validationResult.warnings.length > 0 && (
+              <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4">
+                <div className="flex items-center gap-2 text-blue-300 font-bold mb-2">
+                  <Info size={18}/> Avisos ({validationResult.warnings.length})
+                </div>
+                <div className="max-h-24 overflow-y-auto space-y-1">
+                  {validationResult.warnings.slice(0, 5).map((warn, i) => (
+                    <div key={i} className="text-sm text-blue-400">
+                      <span className="font-mono">Linha {warn.row}:</span> {warn.warnings.join(', ')}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Preview dos válidos */}
+            {finalCandidates.length > 0 && (
+              <div className="bg-green-900/20 border border-green-700 rounded-lg p-4">
+                <div className="flex items-center gap-2 text-green-300 font-bold mb-2">
+                  <CheckCircle size={18}/> Pronto para importar ({finalCandidates.length} candidatos)
+                </div>
+                <div className="max-h-32 overflow-y-auto space-y-1">
+                  {finalCandidates.slice(0, 5).map((c, i) => (
+                    <div key={i} className="text-sm text-green-400 flex justify-between">
+                      <span>{c.fullName}</span>
+                      <span className="text-gray-400">{c.email}</span>
+                    </div>
+                  ))}
+                  {finalCandidates.length > 5 && (
+                    <div className="text-sm text-green-400 italic">... e mais {finalCandidates.length - 5} candidatos</div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="p-6 border-t border-brand-border flex justify-between bg-brand-dark/30">
-           {step > 1 && <button onClick={() => setStep(s => s-1)} className="text-slate-400 hover:text-white px-4">Voltar</button>}
+           {step > 1 && step < 4 && <button onClick={() => setStep(s => s-1)} className="text-slate-400 hover:text-white px-4">Voltar</button>}
+           {step === 4 && <button onClick={() => setStep(3)} className="text-slate-400 hover:text-white px-4">Voltar</button>}
+           
            {step < 3 ? (
              <button 
                 onClick={() => setStep(s => s+1)} 
@@ -777,12 +947,20 @@ export default function CsvImportModal({ isOpen, onClose, onImportData }) {
              >
                 Próximo
              </button>
+           ) : step === 3 ? (
+             <button 
+                onClick={validateAndPreview} 
+                className="ml-auto bg-blue-600 text-white font-bold px-6 py-2 rounded hover:bg-blue-700"
+             >
+                Validar Dados
+             </button>
            ) : (
              <button 
-                onClick={finishImport} 
-                className="ml-auto bg-brand-orange text-white font-bold px-6 py-2 rounded hover:bg-orange-600"
+                onClick={finishImport}
+                disabled={finalCandidates.length === 0}
+                className="ml-auto bg-brand-orange text-white font-bold px-6 py-2 rounded hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
              >
-                Confirmar Importação
+                Importar {finalCandidates.length} Candidatos
              </button>
            )}
         </div>

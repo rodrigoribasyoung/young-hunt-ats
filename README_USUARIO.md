@@ -1,4 +1,5 @@
 # 📖 Guia do Usuário - Young Talents ATS
+<<// https://github.com/rodrigoribasyoung/young-hunt-ats/blob/main/README_USUARIO.md //>>
 
 Bem-vindo ao sistema de gerenciamento de recrutamento Young Talents ATS! Este guia irá ajudá-lo a utilizar todas as funcionalidades do sistema.
 
