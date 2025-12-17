@@ -33,6 +33,11 @@ export default function SettingsPage({
   activeSettingsTab,
   onSettingsTabChange,
   onShowToast,
+  userRoles = [],
+  currentUserRole = 'admin',
+  onSetUserRole,
+  onRemoveUserRole,
+  currentUserEmail
 }) {
   // Usar toast do App se disponível
   if (onShowToast) showToast = onShowToast;
@@ -79,7 +84,7 @@ export default function SettingsPage({
         {activeTab === 'pipeline' && <PipelineManager />}
         {activeTab === 'companies' && <CompaniesManager onShowToast={onShowToast} />}
         {activeTab === 'import' && <ImportExportManager onOpenCsvModal={onOpenCsvModal} onShowToast={onShowToast} />}
-        {activeTab === 'users' && <UserManager />}
+        {activeTab === 'users' && <UserManager userRoles={userRoles} currentUserRole={currentUserRole} onSetUserRole={onSetUserRole} onRemoveUserRole={onRemoveUserRole} currentUserEmail={currentUserEmail} onShowToast={onShowToast} />}
         {activeTab === 'emails' && <EmailTemplateManager />}
         {activeTab === 'history' && <MassActionHistory />}
       </div>
@@ -619,46 +624,184 @@ const ImportExportManager = ({ onOpenCsvModal, onShowToast }) => {
   );
 };
 
-const UserManager = () => (
-  <div className="max-w-4xl mx-auto animate-in fade-in space-y-6">
-     <div className="flex justify-between items-center">
-        <h3 className="text-lg font-bold text-white">Usuários do Sistema</h3>
-        <div className="flex items-center gap-2">
+const UserManager = ({ userRoles = [], currentUserRole, onSetUserRole, onRemoveUserRole, currentUserEmail, onShowToast }) => {
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserRole, setNewUserRole] = useState('recruiter');
+
+  const ROLES = [
+    { value: 'admin', label: 'Administrador', color: 'bg-purple-900/30 text-purple-300 border-purple-800', desc: 'Acesso total ao sistema' },
+    { value: 'recruiter', label: 'Recrutador', color: 'bg-blue-900/30 text-blue-300 border-blue-800', desc: 'Pode editar candidatos, mover no funil, agendar entrevistas' },
+    { value: 'viewer', label: 'Visualizador', color: 'bg-gray-900/30 text-gray-300 border-gray-700', desc: 'Apenas visualização, sem edição' }
+  ];
+
+  const handleAddUser = async () => {
+    if (!newUserEmail.trim() || !newUserEmail.includes('@')) {
+      if (onShowToast) onShowToast('Digite um email válido', 'error');
+      return;
+    }
+    
+    if (onSetUserRole) {
+      await onSetUserRole(newUserEmail.trim().toLowerCase(), newUserRole);
+      setNewUserEmail('');
+      setShowAddUser(false);
+    }
+  };
+
+  const getRoleInfo = (role) => ROLES.find(r => r.value === role) || ROLES[2];
+  
+  const isAdmin = currentUserRole === 'admin';
+
+  return (
+    <div className="max-w-4xl mx-auto animate-in fade-in space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white">Usuários do Sistema</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Seu perfil: <span className={`px-2 py-0.5 rounded text-xs border ${getRoleInfo(currentUserRole).color}`}>{getRoleInfo(currentUserRole).label}</span>
+          </p>
+        </div>
+        {isAdmin && (
           <button 
-            onClick={() => showToast('Funcionalidade de convidar usuário em desenvolvimento', 'info')}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 dark:bg-blue-500 dark:hover:bg-blue-600"
+            onClick={() => setShowAddUser(!showAddUser)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
           >
-            <Plus size={16}/> Convidar Usuário
+            <Plus size={16}/> Adicionar Usuário
           </button>
-          <div className="px-3 py-1.5 bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-700 rounded-lg text-xs text-yellow-800 dark:text-yellow-300 font-medium">
-            ⚠️ Em desenvolvimento
+        )}
+      </div>
+
+      {/* Formulário de adicionar usuário */}
+      {showAddUser && isAdmin && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 space-y-4">
+          <h4 className="font-medium text-blue-800 dark:text-blue-300">Novo Usuário</h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-2">
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
+              <input
+                type="email"
+                placeholder="usuario@empresa.com"
+                value={newUserEmail}
+                onChange={e => setNewUserEmail(e.target.value)}
+                className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Perfil</label>
+              <select
+                value={newUserRole}
+                onChange={e => setNewUserRole(e.target.value)}
+                className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {ROLES.map(r => (
+                  <option key={r.value} value={r.value}>{r.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setShowAddUser(false)} className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+              Cancelar
+            </button>
+            <button onClick={handleAddUser} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700">
+              Adicionar
+            </button>
           </div>
         </div>
-     </div>
-     <div className="bg-brand-card border border-brand-border rounded-xl overflow-hidden">
+      )}
+
+      {/* Descrição dos perfis */}
+      <div className="grid grid-cols-3 gap-4">
+        {ROLES.map(role => (
+          <div key={role.value} className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+            <span className={`inline-block px-2 py-0.5 rounded text-xs border ${role.color} mb-2`}>{role.label}</span>
+            <p className="text-xs text-gray-600 dark:text-gray-400">{role.desc}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Lista de usuários */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden shadow">
         <table className="w-full text-left text-sm">
-           <thead className="bg-brand-dark/50 text-slate-400 uppercase text-xs font-bold">
-              <tr><th className="p-4">Nome</th><th className="p-4">Email</th><th className="p-4">Perfil</th><th className="p-4 text-right">Status</th></tr>
-           </thead>
-           <tbody className="divide-y divide-brand-border">
-              <tr className="hover:bg-brand-dark/30">
-                 <td className="p-4 font-bold text-white">Admin Principal</td>
-                 <td className="p-4 text-slate-400">admin@youngtalents.com</td>
-                 <td className="p-4"><span className="bg-purple-900/30 text-purple-300 px-2 py-1 rounded text-xs border border-purple-800">Administrador</span></td>
-                 <td className="p-4 text-right"><span className="text-green-400 text-xs font-bold">Ativo</span></td>
+          <thead className="bg-gray-100 dark:bg-gray-900/50 text-gray-700 dark:text-gray-300 uppercase text-xs font-bold">
+            <tr>
+              <th className="p-4">Email</th>
+              <th className="p-4">Perfil</th>
+              <th className="p-4">Desde</th>
+              {isAdmin && <th className="p-4 text-right">Ações</th>}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            {/* Usuário atual (sempre aparece mesmo sem registro) */}
+            {currentUserEmail && !userRoles.find(r => r.email === currentUserEmail) && (
+              <tr className="bg-blue-50/50 dark:bg-blue-900/10">
+                <td className="p-4 font-medium text-gray-900 dark:text-white">
+                  {currentUserEmail}
+                  <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">(você)</span>
+                </td>
+                <td className="p-4">
+                  <span className={`px-2 py-1 rounded text-xs border ${getRoleInfo('admin').color}`}>
+                    Administrador
+                  </span>
+                </td>
+                <td className="p-4 text-gray-500 dark:text-gray-400 text-xs">Primeiro acesso</td>
+                {isAdmin && <td className="p-4 text-right text-gray-400 text-xs">-</td>}
               </tr>
-              {/* Mock users */}
-              <tr className="hover:bg-brand-dark/30">
-                 <td className="p-4 font-bold text-white">Recrutador 01</td>
-                 <td className="p-4 text-slate-400">recruiter@youngtalents.com</td>
-                 <td className="p-4"><span className="bg-blue-900/30 text-blue-300 px-2 py-1 rounded text-xs border border-blue-800">Recrutador</span></td>
-                 <td className="p-4 text-right"><span className="text-green-400 text-xs font-bold">Ativo</span></td>
+            )}
+            {userRoles.map(userRole => (
+              <tr key={userRole.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 ${userRole.email === currentUserEmail ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
+                <td className="p-4 font-medium text-gray-900 dark:text-white">
+                  {userRole.email}
+                  {userRole.email === currentUserEmail && <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">(você)</span>}
+                </td>
+                <td className="p-4">
+                  {isAdmin && userRole.email !== currentUserEmail ? (
+                    <select
+                      value={userRole.role}
+                      onChange={e => onSetUserRole && onSetUserRole(userRole.email, e.target.value)}
+                      className={`px-2 py-1 rounded text-xs border cursor-pointer ${getRoleInfo(userRole.role).color}`}
+                    >
+                      {ROLES.map(r => (
+                        <option key={r.value} value={r.value}>{r.label}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className={`px-2 py-1 rounded text-xs border ${getRoleInfo(userRole.role).color}`}>
+                      {getRoleInfo(userRole.role).label}
+                    </span>
+                  )}
+                </td>
+                <td className="p-4 text-gray-500 dark:text-gray-400 text-xs">
+                  {userRole.createdAt?.toDate ? userRole.createdAt.toDate().toLocaleDateString('pt-BR') : 'N/A'}
+                </td>
+                {isAdmin && (
+                  <td className="p-4 text-right">
+                    {userRole.email !== currentUserEmail && (
+                      <button
+                        onClick={() => onRemoveUserRole && onRemoveUserRole(userRole.id)}
+                        className="text-red-500 hover:text-red-700 p-1"
+                        title="Remover acesso"
+                      >
+                        <Trash2 size={16}/>
+                      </button>
+                    )}
+                  </td>
+                )}
               </tr>
-           </tbody>
+            ))}
+            {userRoles.length === 0 && !currentUserEmail && (
+              <tr>
+                <td colSpan={isAdmin ? 4 : 3} className="p-8 text-center text-gray-500 dark:text-gray-400">
+                  Nenhum usuário cadastrado
+                </td>
+              </tr>
+            )}
+          </tbody>
         </table>
-     </div>
-  </div>
-);
+      </div>
+    </div>
+  );
+};
 
 const EmailTemplateManager = () => (
    <div className="max-w-5xl mx-auto animate-in fade-in space-y-6">

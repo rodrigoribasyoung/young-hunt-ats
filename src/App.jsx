@@ -24,6 +24,7 @@ import {
 // Component Imports
 import TransitionModal from './components/modals/TransitionModal';
 import SettingsPage from './components/SettingsPage';
+import InterviewModal from './components/modals/InterviewModal';
 import CsvImportModal from './components/modals/CsvImportModal';
 import JobCandidatesModal from './components/modals/JobsCandidateModal';
 import { useTheme } from './ThemeContext';
@@ -65,7 +66,26 @@ const db = getFirestore(app);
 // --- COMPONENTES AUXILIARES ---
 
 // Dashboard com Gráficos
-const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates, statusMovements = [], applications = [], onViewJob }) => {
+const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates, statusMovements = [], applications = [], onViewJob, interviews = [], onScheduleInterview }) => {
+  
+  // Próximas entrevistas (apenas futuras e não canceladas)
+  const upcomingInterviews = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    return interviews
+      .filter(i => {
+        if (i.status === 'Cancelada' || i.status === 'Realizada') return false;
+        const interviewDate = new Date(i.date);
+        return interviewDate >= today;
+      })
+      .sort((a, b) => {
+        const dateA = new Date(`${a.date}T${a.time}`);
+        const dateB = new Date(`${b.date}T${b.time}`);
+        return dateA - dateB;
+      })
+      .slice(0, 5); // Mostrar apenas as 5 próximas
+  }, [interviews]);
   // Dados para gráficos - ordenados por status do pipeline
   const statusData = useMemo(() => {
     const counts = {};
@@ -294,6 +314,60 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates, statusM
           <div className="text-xs text-gray-500 dark:text-slate-500 mt-1">Candidatos selecionados sem confirmação</div>
         </div>
       </div>
+
+      {/* Próximas Entrevistas */}
+      {upcomingInterviews.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg">
+          <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <CalendarCheck className="text-purple-500" size={20}/> Próximas Entrevistas
+          </h3>
+          <div className="space-y-3">
+            {upcomingInterviews.map(interview => {
+              const interviewDate = new Date(interview.date);
+              const isToday = interviewDate.toDateString() === new Date().toDateString();
+              const isTomorrow = interviewDate.toDateString() === new Date(Date.now() + 86400000).toDateString();
+              
+              return (
+                <div 
+                  key={interview.id}
+                  className={`flex items-center justify-between p-4 rounded-lg border transition-colors ${
+                    isToday 
+                      ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-300 dark:border-purple-700' 
+                      : 'bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-lg flex flex-col items-center justify-center ${
+                      isToday ? 'bg-purple-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                    }`}>
+                      <span className="text-xs font-medium">
+                        {interviewDate.toLocaleDateString('pt-BR', { weekday: 'short' }).toUpperCase()}
+                      </span>
+                      <span className="text-lg font-bold">{interviewDate.getDate()}</span>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-900 dark:text-white">
+                        {interview.candidateName}
+                        {isToday && <span className="ml-2 text-xs bg-purple-500 text-white px-2 py-0.5 rounded">HOJE</span>}
+                        {isTomorrow && <span className="ml-2 text-xs bg-yellow-500 text-white px-2 py-0.5 rounded">AMANHÃ</span>}
+                      </h4>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {interview.type} {interview.jobTitle && `• ${interview.jobTitle}`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-bold text-gray-900 dark:text-white">{interview.time}</div>
+                    <div className="text-xs text-gray-500">
+                      {interview.isOnline ? '🎥 Online' : `📍 ${interview.location || 'Presencial'}`}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Vagas com Candidaturas */}
       {applications.length > 0 && filteredJobs.filter(j => j.status === 'Aberta').length > 0 && (
@@ -1099,6 +1173,26 @@ export default function App() {
   const [tags, setTags] = useState([]);
   const [statusMovements, setStatusMovements] = useState([]); // Log de movimentações de status
   const [applications, setApplications] = useState([]); // Candidaturas formais (candidato-vaga)
+  const [interviews, setInterviews] = useState([]); // Agendamentos de entrevistas
+  const [userRoles, setUserRoles] = useState([]); // Roles de usuários do sistema
+  
+  // Role do usuário atual (admin, recruiter, viewer)
+  const currentUserRole = useMemo(() => {
+    if (!user?.email) return 'viewer';
+    const userRoleDoc = userRoles.find(r => r.email === user.email);
+    return userRoleDoc?.role || 'admin'; // Primeiro usuário é admin por padrão
+  }, [user, userRoles]);
+  
+  // Verificar permissões
+  const hasPermission = (action) => {
+    const permissions = {
+      admin: ['all'],
+      recruiter: ['view', 'edit_candidates', 'move_pipeline', 'schedule_interviews', 'add_notes'],
+      viewer: ['view']
+    };
+    const userPerms = permissions[currentUserRole] || [];
+    return userPerms.includes('all') || userPerms.includes(action);
+  };
 
   // Modais - sincronizados com URL
   const isJobModalOpen = route.modal === 'job';
@@ -1110,6 +1204,7 @@ export default function App() {
   const [isSaving, setIsSaving] = useState(false);
   const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(false);
   const [dashboardModalCandidates, setDashboardModalCandidates] = useState(null);
+  const [interviewModalData, setInterviewModalData] = useState(null); // { candidate, job, application }
 
   // Helpers para abrir modais com URL
   const openJobModal = (job = null) => {
@@ -1186,6 +1281,10 @@ export default function App() {
       onSnapshot(query(collection(db, 'statusMovements')), s => setStatusMovements(s.docs.map(d => ({id:d.id, ...d.data()})))),
       // Candidaturas formais (candidato-vaga)
       onSnapshot(query(collection(db, 'applications')), s => setApplications(s.docs.map(d => ({id:d.id, ...d.data()})))),
+      // Agendamentos de entrevistas
+      onSnapshot(query(collection(db, 'interviews')), s => setInterviews(s.docs.map(d => ({id:d.id, ...d.data()})))),
+      // Roles de usuários
+      onSnapshot(query(collection(db, 'userRoles')), s => setUserRoles(s.docs.map(d => ({id:d.id, ...d.data()})))),
     ];
     return () => unsubs.forEach(u => u());
   }, [user]);
@@ -1434,6 +1533,146 @@ export default function App() {
     }
   };
 
+  // ======= SISTEMA DE AGENDAMENTO DE ENTREVISTAS =======
+  
+  // Criar agendamento de entrevista
+  const scheduleInterview = async (data) => {
+    if (!user || !user.email) return null;
+    if (!hasPermission('schedule_interviews') && !hasPermission('all')) {
+      showToast('Sem permissão para agendar entrevistas', 'error');
+      return null;
+    }
+    
+    try {
+      const interviewData = {
+        candidateId: data.candidateId,
+        candidateName: data.candidateName || '',
+        candidateEmail: data.candidateEmail || '',
+        jobId: data.jobId || null,
+        jobTitle: data.jobTitle || '',
+        applicationId: data.applicationId || null,
+        type: data.type || 'Entrevista', // Entrevista, Teste, Dinâmica
+        date: data.date, // YYYY-MM-DD
+        time: data.time, // HH:MM
+        duration: data.duration || 60, // minutos
+        location: data.location || '', // Local físico ou link
+        isOnline: data.isOnline || false,
+        meetingLink: data.meetingLink || '',
+        interviewers: data.interviewers || [], // emails dos entrevistadores
+        notes: data.notes || '',
+        status: 'Agendada', // Agendada, Confirmada, Realizada, Cancelada, NoShow
+        createdBy: user.email,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+      
+      const docRef = await addDoc(collection(db, 'interviews'), interviewData);
+      showToast('Entrevista agendada com sucesso!', 'success');
+      return { id: docRef.id, ...interviewData };
+    } catch (error) {
+      console.error('Erro ao agendar entrevista:', error);
+      showToast('Erro ao agendar entrevista', 'error');
+      return null;
+    }
+  };
+  
+  // Atualizar status da entrevista
+  const updateInterviewStatus = async (interviewId, newStatus, feedback = '') => {
+    if (!user || !user.email) return;
+    
+    try {
+      const updateData = {
+        status: newStatus,
+        updatedAt: serverTimestamp(),
+        updatedBy: user.email
+      };
+      
+      if (feedback) {
+        updateData.feedback = feedback;
+      }
+      
+      if (newStatus === 'Realizada') {
+        updateData.completedAt = serverTimestamp();
+      }
+      
+      await updateDoc(doc(db, 'interviews', interviewId), updateData);
+      showToast('Status da entrevista atualizado', 'success');
+    } catch (error) {
+      console.error('Erro ao atualizar entrevista:', error);
+      showToast('Erro ao atualizar entrevista', 'error');
+    }
+  };
+  
+  // Cancelar entrevista
+  const cancelInterview = async (interviewId, reason = '') => {
+    if (!window.confirm('Cancelar esta entrevista?')) return;
+    
+    try {
+      await updateDoc(doc(db, 'interviews', interviewId), {
+        status: 'Cancelada',
+        cancelReason: reason,
+        cancelledAt: serverTimestamp(),
+        cancelledBy: user?.email
+      });
+      showToast('Entrevista cancelada', 'success');
+    } catch (error) {
+      console.error('Erro ao cancelar entrevista:', error);
+      showToast('Erro ao cancelar entrevista', 'error');
+    }
+  };
+  
+  // ======= GERENCIAMENTO DE USUÁRIOS E ROLES =======
+  
+  // Adicionar/atualizar role de usuário
+  const setUserRole = async (email, role) => {
+    if (!hasPermission('all')) {
+      showToast('Apenas administradores podem gerenciar usuários', 'error');
+      return;
+    }
+    
+    try {
+      const existingRole = userRoles.find(r => r.email === email);
+      
+      if (existingRole) {
+        await updateDoc(doc(db, 'userRoles', existingRole.id), {
+          role,
+          updatedAt: serverTimestamp(),
+          updatedBy: user?.email
+        });
+      } else {
+        await addDoc(collection(db, 'userRoles'), {
+          email,
+          role,
+          createdAt: serverTimestamp(),
+          createdBy: user?.email
+        });
+      }
+      
+      showToast(`Permissão de ${email} atualizada para ${role}`, 'success');
+    } catch (error) {
+      console.error('Erro ao definir role:', error);
+      showToast('Erro ao atualizar permissão', 'error');
+    }
+  };
+  
+  // Remover usuário
+  const removeUserRole = async (roleId) => {
+    if (!hasPermission('all')) {
+      showToast('Apenas administradores podem gerenciar usuários', 'error');
+      return;
+    }
+    
+    if (!window.confirm('Remover acesso deste usuário?')) return;
+    
+    try {
+      await deleteDoc(doc(db, 'userRoles', roleId));
+      showToast('Acesso removido', 'success');
+    } catch (error) {
+      console.error('Erro ao remover usuário:', error);
+      showToast('Erro ao remover acesso', 'error');
+    }
+  };
+
   const computeMissingFields = (candidate, nextStatus) => {
     const required = STAGE_REQUIRED_FIELDS[nextStatus] || [];
     return required.filter((field) => {
@@ -1647,11 +1886,11 @@ export default function App() {
         </header>
 
         <div className="flex-1 overflow-hidden bg-brand-dark relative">
-           {activeTab === 'dashboard' && <div className="p-6 overflow-y-auto h-full"><Dashboard filteredJobs={jobs} filteredCandidates={filteredCandidates} onOpenCandidates={setDashboardModalCandidates} statusMovements={statusMovements} applications={applications} onViewJob={openJobCandidatesModal} /></div>}
+           {activeTab === 'dashboard' && <div className="p-6 overflow-y-auto h-full"><Dashboard filteredJobs={jobs} filteredCandidates={filteredCandidates} onOpenCandidates={setDashboardModalCandidates} statusMovements={statusMovements} applications={applications} onViewJob={openJobCandidatesModal} interviews={interviews} onScheduleInterview={(candidate) => setInterviewModalData({ candidate })} /></div>}
            {activeTab === 'pipeline' && <PipelineView candidates={filteredCandidates} jobs={jobs} companies={companies} onDragEnd={handleDragEnd} onEdit={setEditingCandidate} onCloseStatus={handleCloseStatus} />}
            {activeTab === 'jobs' && <div className="p-6 overflow-y-auto h-full"><JobsList jobs={jobs} candidates={candidates} companies={companies} onAdd={()=>openJobModal({})} onEdit={(j)=>openJobModal(j)} onDelete={(id)=>handleDeleteGeneric('jobs', id)} onToggleStatus={handleSaveGeneric} onFilterPipeline={()=>{setFilters({...filters, jobId: 'mock_id'}); setActiveTab('pipeline')}} onViewCandidates={openJobCandidatesModal}/></div>}
            {activeTab === 'candidates' && <div className="p-6 overflow-y-auto h-full"><CandidatesList candidates={filteredCandidates} jobs={jobs} onAdd={()=>setEditingCandidate({})} onEdit={setEditingCandidate} onDelete={(id)=>handleDeleteGeneric('candidates', id)}/></div>}
-           {activeTab === 'settings' && <div className="p-0 h-full"><SettingsPage {...optionsProps} onOpenCsvModal={openCsvModal} activeSettingsTab={route.settingsTab} onSettingsTabChange={(tab) => { updateURL({ settingsTab: tab }); setRoute(prev => ({ ...prev, settingsTab: tab })); }} onShowToast={showToast} /></div>}
+           {activeTab === 'settings' && <div className="p-0 h-full"><SettingsPage {...optionsProps} onOpenCsvModal={openCsvModal} activeSettingsTab={route.settingsTab} onSettingsTabChange={(tab) => { updateURL({ settingsTab: tab }); setRoute(prev => ({ ...prev, settingsTab: tab })); }} onShowToast={showToast} userRoles={userRoles} currentUserRole={currentUserRole} onSetUserRole={setUserRole} onRemoveUserRole={removeUserRole} currentUserEmail={user?.email} /></div>}
         </div>
       </div>
 
@@ -1666,6 +1905,8 @@ export default function App() {
         options={optionsProps} 
         isSaving={isSaving} 
         statusMovements={statusMovements}
+        interviews={interviews}
+        onScheduleInterview={(candidate) => setInterviewModalData({ candidate })}
         onAddNote={async (candidateId, noteText) => {
           const candidateRef = doc(db, 'candidates', candidateId);
           const candidateDoc = candidates.find(c => c.id === candidateId);
@@ -1863,6 +2104,19 @@ export default function App() {
           applications={[]}
         />
       )}
+      
+      {/* Modal de Agendamento de Entrevista */}
+      {interviewModalData && (
+        <InterviewModal
+          isOpen={true}
+          onClose={() => setInterviewModalData(null)}
+          onSchedule={scheduleInterview}
+          candidate={interviewModalData.candidate}
+          job={interviewModalData.job}
+          application={interviewModalData.application}
+        />
+      )}
+      
       {toast && (
         <div className={`fixed bottom-4 right-4 z-[70] px-4 py-3 rounded-lg shadow-lg border text-sm ${
           toast.type === 'success' ? 'bg-emerald-500/20 text-emerald-200 border-emerald-500/40' :
@@ -3457,7 +3711,7 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
   );
 };
 
-const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvanceStage, statusMovements = [], onAddNote }) => {
+const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvanceStage, statusMovements = [], onAddNote, interviews = [], onScheduleInterview }) => {
   // Normaliza cidade ao carregar candidato
   const normalizedCandidate = candidate?.city ? { ...candidate, city: normalizeCity(candidate.city) } : candidate;
   const [d, setD] = useState({ ...normalizedCandidate });
@@ -3485,6 +3739,14 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
       return timeB - timeA;
     });
   }, [d.notes]);
+  
+  // Entrevistas do candidato
+  const candidateInterviews = useMemo(() => {
+    if (!candidate?.id) return [];
+    return interviews
+      .filter(i => i.candidateId === candidate.id)
+      .sort((a, b) => new Date(`${b.date}T${b.time}`) - new Date(`${a.date}T${a.time}`));
+  }, [interviews, candidate?.id]);
   
   // Determina próxima etapa disponível
   const getCurrentStageIndex = () => {
@@ -3754,6 +4016,72 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
               <div className="mb-3 col-span-2">
                 <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Referências Profissionais</label>
                 <textarea className="w-full bg-brand-dark dark:bg-brand-dark border border-brand-border dark:border-brand-border p-2.5 rounded text-white dark:text-white outline-none focus:border-brand-orange h-20" value={d.references || ''} onChange={e=>setD({...d, references:e.target.value})} placeholder="Liste referências profissionais..."/>
+              </div>
+              
+              {/* Entrevistas Agendadas */}
+              <div className="col-span-2 bg-gray-800/50 rounded-xl p-4 border border-gray-700">
+                <div className="flex justify-between items-center mb-3">
+                  <h4 className="font-bold text-white flex items-center gap-2">
+                    <CalendarCheck size={18} className="text-purple-400"/> Entrevistas Agendadas
+                  </h4>
+                  {onScheduleInterview && d.id && (
+                    <button
+                      type="button"
+                      onClick={() => onScheduleInterview(d)}
+                      className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors"
+                    >
+                      <Plus size={14}/> Agendar
+                    </button>
+                  )}
+                </div>
+                {candidateInterviews.length > 0 ? (
+                  <div className="space-y-2">
+                    {candidateInterviews.map(interview => {
+                      const interviewDate = new Date(interview.date);
+                      const isPast = interviewDate < new Date();
+                      return (
+                        <div key={interview.id} className={`p-3 rounded-lg border ${
+                          interview.status === 'Cancelada' ? 'bg-red-900/20 border-red-800' :
+                          interview.status === 'Realizada' ? 'bg-green-900/20 border-green-800' :
+                          isPast ? 'bg-yellow-900/20 border-yellow-800' :
+                          'bg-gray-900/50 border-gray-600'
+                        }`}>
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <div className="font-medium text-white text-sm">{interview.type}</div>
+                              <div className="text-xs text-gray-400">
+                                {interviewDate.toLocaleDateString('pt-BR')} às {interview.time}
+                                {interview.duration && ` (${interview.duration}min)`}
+                              </div>
+                              {interview.jobTitle && <div className="text-xs text-gray-500">Vaga: {interview.jobTitle}</div>}
+                            </div>
+                            <span className={`text-xs px-2 py-0.5 rounded ${
+                              interview.status === 'Agendada' ? 'bg-blue-600 text-white' :
+                              interview.status === 'Confirmada' ? 'bg-green-600 text-white' :
+                              interview.status === 'Realizada' ? 'bg-gray-600 text-white' :
+                              interview.status === 'Cancelada' ? 'bg-red-600 text-white' :
+                              'bg-yellow-600 text-white'
+                            }`}>
+                              {interview.status}
+                            </span>
+                          </div>
+                          {interview.isOnline && interview.meetingLink && (
+                            <a href={interview.meetingLink} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:underline mt-1 inline-block">
+                              🎥 Link da reunião
+                            </a>
+                          )}
+                          {!interview.isOnline && interview.location && (
+                            <div className="text-xs text-gray-400 mt-1">📍 {interview.location}</div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center text-gray-500 py-4 text-sm">
+                    Nenhuma entrevista agendada
+                  </div>
+                )}
               </div>
             </div>
           )}
