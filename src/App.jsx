@@ -214,7 +214,11 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates, statusM
   }, [filteredCandidates]);
 
   const missingReturnCount = useMemo(() => {
-    return filteredCandidates.filter(c => (c.status === 'Seleção' || c.status === 'Selecionado') && !c.returnSent).length;
+    return filteredCandidates.filter(c => {
+      const isSelectionStage = c.status === 'Seleção' || c.status === 'Selecionado';
+      const needsReturn = !c.returnSent || c.returnSent === 'Pendente' || c.returnSent === 'Não';
+      return isSelectionStage && needsReturn;
+    }).length;
   }, [filteredCandidates]);
 
   const jobStats = {
@@ -310,7 +314,11 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates, statusM
 
       {/* Card rápido: falta dar retorno */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div onClick={() => onOpenCandidates && onOpenCandidates(filteredCandidates.filter(c => (c.status === 'Seleção' || c.status === 'Selecionado') && !c.returnSent))} className="cursor-pointer bg-gradient-to-br from-[#9C27B0]/20 to-[#9C27B0]/10 p-4 rounded-xl border border-[#9C27B0]/30 hover:scale-[1.01] transition-transform shadow-lg hover:shadow-[#9C27B0]/20">
+        <div onClick={() => onOpenCandidates && onOpenCandidates(filteredCandidates.filter(c => {
+          const isSelectionStage = c.status === 'Seleção' || c.status === 'Selecionado';
+          const needsReturn = !c.returnSent || c.returnSent === 'Pendente' || c.returnSent === 'Não';
+          return isSelectionStage && needsReturn;
+        }))} className="cursor-pointer bg-gradient-to-br from-[#9C27B0]/20 to-[#9C27B0]/10 p-4 rounded-xl border border-[#9C27B0]/30 hover:scale-[1.01] transition-transform shadow-lg hover:shadow-[#9C27B0]/20">
           <div className="text-gray-600 dark:text-slate-400 text-sm">Faltam dar retorno</div>
           <div className="text-2xl font-bold text-[#9C27B0] mt-2">{missingReturnCount}</div>
           <div className="text-xs text-gray-500 dark:text-slate-500 mt-1">Candidatos selecionados sem confirmação</div>
@@ -712,18 +720,18 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
   return (
     <>
       <div className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 w-96 bg-brand-card border-l border-brand-border z-50 p-6 shadow-2xl transform transition-transform duration-300 overflow-y-auto flex flex-col">
+      <div className="fixed inset-y-0 right-0 w-96 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 z-50 p-6 shadow-2xl transform transition-transform duration-300 overflow-y-auto flex flex-col">
         <div className="flex justify-between items-center mb-6">
-          <h3 className="font-bold text-white text-lg flex items-center gap-2"><Filter size={20}/> Filtros Avançados</h3>
+          <h3 className="font-bold text-gray-900 dark:text-white text-lg flex items-center gap-2"><Filter size={20}/> Filtros Avançados</h3>
           <button onClick={onClose}><X className="text-slate-400 hover:text-white" /></button>
         </div>
         
         <div className="space-y-6 flex-1 custom-scrollbar overflow-y-auto pr-2">
           {/* Período - Data de Cadastro Original */}
           <div className="space-y-2">
-            <label className="text-xs font-bold text-brand-orange uppercase">Período (Data Cadastro Original)</label>
+            <label className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase">Período (Data Cadastro Original)</label>
             <select
-              className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange"
+              className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-3 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               value={filters.createdAtPreset || 'all'}
               onChange={e => {
                 const value = e.target.value;
@@ -745,7 +753,7 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
                   <label className="text-xs text-slate-400 mb-1 block">Data inicial</label>
                   <input
                     type="date"
-                    className="w-full bg-brand-dark border border-brand-border rounded p-2 text-sm text-white outline-none focus:border-brand-orange"
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-2 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     value={filters.customDateStart || ''}
                     onChange={e => setFilters({...filters, customDateStart: e.target.value})}
                   />
@@ -754,7 +762,7 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
                   <label className="text-xs text-slate-400 mb-1 block">Data final</label>
                   <input
                     type="date"
-                    className="w-full bg-brand-dark border border-brand-border rounded p-2 text-sm text-white outline-none focus:border-brand-orange"
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-2 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     value={filters.customDateEnd || ''}
                     onChange={e => setFilters({...filters, customDateEnd: e.target.value})}
                   />
@@ -767,43 +775,43 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
           {/* Status (Etapa da Pipeline) - Seleção Múltipla */}
           <div className="space-y-2">
             <div className="flex justify-between items-center">
-              <label className="text-xs font-bold text-brand-orange uppercase">Status (Etapa)</label>
+              <label className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase">Status (Etapa)</label>
               <button
                 onClick={() => toggleExpanded('status')}
-                className="text-xs text-brand-cyan hover:text-white"
+                className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
               >
                 {expandedFilters.status ? 'Recolher' : 'Expandir'}
               </button>
             </div>
             {expandedFilters.status ? (
-              <div className="max-h-48 overflow-y-auto bg-brand-dark border border-brand-border rounded p-2 space-y-1">
-                <label className="flex items-center gap-2 p-2 hover:bg-brand-hover rounded cursor-pointer">
+              <div className="max-h-48 overflow-y-auto bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-2 space-y-1">
+                <label className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer transition-colors">
                   <input
                     type="checkbox"
                     checked={filters.status === 'all' || !filters.status || (Array.isArray(filters.status) && filters.status.length === 0)}
                     onChange={() => setFilters({...filters, status: 'all'})}
-                    className="accent-brand-orange"
+                    className="accent-blue-600 dark:accent-blue-500"
                   />
-                  <span className="text-sm text-white">Todas as etapas</span>
+                  <span className="text-sm text-gray-900 dark:text-white">Todas as etapas</span>
                 </label>
                 {PIPELINE_STAGES.map(stage => (
-                  <label key={stage} className="flex items-center gap-2 p-2 hover:bg-brand-hover rounded cursor-pointer">
+                  <label key={stage} className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer transition-colors">
                     <input
                       type="checkbox"
                       checked={isSelected('status', stage)}
                       onChange={() => handleMultiSelect('status', stage)}
-                      className="accent-brand-orange"
+                      className="accent-blue-600 dark:accent-blue-500"
                     />
                     <span className="text-sm text-white">{stage}</span>
                   </label>
                 ))}
                 {CLOSING_STATUSES.map(status => (
-                  <label key={status} className="flex items-center gap-2 p-2 hover:bg-brand-hover rounded cursor-pointer">
+                  <label key={status} className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
                     <input
                       type="checkbox"
                       checked={isSelected('status', status)}
                       onChange={() => handleMultiSelect('status', status)}
-                      className="accent-brand-orange"
+                      className="accent-blue-600 dark:accent-blue-500"
                     />
                     <span className="text-sm text-white">{status}</span>
                   </label>
@@ -811,7 +819,7 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
               </div>
             ) : (
               <select
-                className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange"
+                className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-3 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 value={Array.isArray(filters.status) ? filters.status[0] || 'all' : (filters.status || 'all')}
                 onChange={e => setFilters({...filters, status: e.target.value === 'all' ? 'all' : [e.target.value]})}
               >
@@ -827,39 +835,39 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
           </div>
           <div className="space-y-2">
             <div className="flex justify-between items-center">
-            <label className="text-xs font-bold text-brand-orange uppercase">Vaga Vinculada</label>
+            <label className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase">Vaga Vinculada</label>
               <button
                 onClick={() => toggleExpanded('jobId')}
-                className="text-xs text-brand-cyan hover:text-white"
+                className="text-xs text-gray-600 dark:text-gray-400 hover:text-white"
               >
                 {expandedFilters.jobId ? 'Recolher' : 'Expandir'}
               </button>
             </div>
             {expandedFilters.jobId ? (
-              <div className="max-h-48 overflow-y-auto bg-brand-dark border border-brand-border rounded p-2 space-y-1">
-                <label className="flex items-center gap-2 p-2 hover:bg-brand-hover rounded cursor-pointer">
+              <div className="max-h-48 overflow-y-auto bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-2 space-y-1">
+                <label className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
                   <input
                     type="checkbox"
                     checked={filters.jobId === 'all' || !filters.jobId || (Array.isArray(filters.jobId) && filters.jobId.length === 0)}
                     onChange={() => setFilters({...filters, jobId: 'all'})}
-                    className="accent-brand-orange"
+                    className="accent-blue-600 dark:accent-blue-500"
                   />
                   <span className="text-sm text-white">Todas as Vagas</span>
                 </label>
                 {options.jobs.map(j => (
-                  <label key={j.id} className="flex items-center gap-2 p-2 hover:bg-brand-hover rounded cursor-pointer">
+                  <label key={j.id} className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
                     <input
                       type="checkbox"
                       checked={isSelected('jobId', j.id)}
                       onChange={() => handleMultiSelect('jobId', j.id)}
-                      className="accent-brand-orange"
+                      className="accent-blue-600 dark:accent-blue-500"
                     />
                     <span className="text-sm text-white">{j.title}</span>
                   </label>
                 ))}
               </div>
             ) : (
-              <select className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange" value={Array.isArray(filters.jobId) ? filters.jobId[0] || 'all' : (filters.jobId || 'all')} onChange={e => setFilters({...filters, jobId: e.target.value === 'all' ? 'all' : [e.target.value]})}>
+              <select className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-3 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={Array.isArray(filters.jobId) ? filters.jobId[0] || 'all' : (filters.jobId || 'all')} onChange={e => setFilters({...filters, jobId: e.target.value === 'all' ? 'all' : [e.target.value]})}>
                <option value="all">Todas as Vagas</option>{options.jobs.map(j=><option key={j.id} value={j.id}>{j.title}</option>)}
             </select>
             )}
@@ -914,40 +922,55 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
                    {hasOptions && (
                      <button
                        onClick={() => toggleExpanded(field.value)}
-                       className="text-xs text-brand-cyan hover:text-white"
+                       className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
                      >
                        {expandedFilters[field.value] ? 'Recolher' : 'Expandir'}
                      </button>
                    )}
                  </div>
                  {needsSearch && (
-                   <input
-                     type="text"
-                     className="w-full bg-brand-dark border border-brand-border rounded p-2 text-sm text-white outline-none focus:border-brand-cyan mb-2"
-                     placeholder={`Buscar ${field.label.replace(':', '').toLowerCase()}...`}
-                     value={searchTexts[field.value] || ''}
-                     onChange={e => setSearchTexts({...searchTexts, [field.value]: e.target.value})}
-                   />
+                   <div className="mb-2">
+                     <input
+                       type="text"
+                       className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-2 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                       placeholder={`Buscar ${field.label.replace(':', '').toLowerCase()}...`}
+                       value={searchTexts[field.value] || ''}
+                       onChange={e => setSearchTexts({...searchTexts, [field.value]: e.target.value})}
+                     />
+                     {field.value === 'interestAreas' && searchTexts.interestAreas && optionsList.length > 0 && (
+                       <button
+                         onClick={() => {
+                           const matchingNames = optionsList.map(o => o.name);
+                           const currentValues = Array.isArray(filters.interestAreas) ? filters.interestAreas : (filters.interestAreas && filters.interestAreas !== 'all' ? [filters.interestAreas] : []);
+                           const newValues = [...new Set([...currentValues, ...matchingNames])];
+                           setFilters({...filters, interestAreas: newValues.length > 0 ? newValues : 'all'});
+                         }}
+                         className="mt-2 w-full px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded transition-colors"
+                       >
+                         Selecionar Todos ({optionsList.length}) que contêm "{searchTexts.interestAreas}"
+                       </button>
+                     )}
+                   </div>
                  )}
                  {hasOptions ? (
                    expandedFilters[field.value] ? (
-                     <div className="max-h-48 overflow-y-auto bg-brand-dark border border-brand-border rounded p-2 space-y-1">
-                       <label className="flex items-center gap-2 p-2 hover:bg-brand-hover rounded cursor-pointer">
+                     <div className="max-h-48 overflow-y-auto bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-2 space-y-1">
+                       <label className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
                          <input
                            type="checkbox"
                            checked={filters[field.value] === 'all' || !filters[field.value] || (Array.isArray(filters[field.value]) && filters[field.value].length === 0)}
                            onChange={() => setFilters({...filters, [field.value]: 'all'})}
-                           className="accent-brand-orange"
+                           className="accent-blue-600 dark:accent-blue-500"
                          />
                          <span className="text-sm text-white">Todos</span>
                        </label>
                        {optionsList.map(o => (
-                         <label key={o.id || o.name} className="flex items-center gap-2 p-2 hover:bg-brand-hover rounded cursor-pointer">
+                         <label key={o.id || o.name} className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
                            <input
                              type="checkbox"
                              checked={isSelected(field.value, o.name)}
                              onChange={() => handleMultiSelect(field.value, o.name)}
-                             className="accent-brand-orange"
+                             className="accent-blue-600 dark:accent-blue-500"
                            />
                            <span className="text-sm text-white">{o.name}</span>
                          </label>
@@ -955,7 +978,7 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
                      </div>
                    ) : (
                      <select 
-                       className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange" 
+                       className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-3 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
                        value={Array.isArray(filters[field.value]) ? filters[field.value][0] || 'all' : (filters[field.value] || 'all')} 
                        onChange={e => setFilters({...filters, [field.value]: e.target.value === 'all' ? 'all' : [e.target.value]})}
                      >
@@ -965,42 +988,42 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
                    )
                  ) : isBoolean ? (
                    expandedFilters[field.value] ? (
-                     <div className="max-h-32 overflow-y-auto bg-brand-dark border border-brand-border rounded p-2 space-y-1">
-                       <label className="flex items-center gap-2 p-2 hover:bg-brand-hover rounded cursor-pointer">
+                     <div className="max-h-32 overflow-y-auto bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-2 space-y-1">
+                       <label className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
                          <input
                            type="checkbox"
                            checked={filters[field.value] === 'all' || !filters[field.value] || (Array.isArray(filters[field.value]) && filters[field.value].length === 0)}
                            onChange={() => setFilters({...filters, [field.value]: 'all'})}
-                           className="accent-brand-orange"
+                           className="accent-blue-600 dark:accent-blue-500"
                          />
                          <span className="text-sm text-white">Todos</span>
                        </label>
-                       <label className="flex items-center gap-2 p-2 hover:bg-brand-hover rounded cursor-pointer">
+                       <label className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
                          <input
                            type="checkbox"
                            checked={isSelected(field.value, 'Sim')}
                            onChange={() => handleMultiSelect(field.value, 'Sim')}
-                           className="accent-brand-orange"
+                           className="accent-blue-600 dark:accent-blue-500"
                          />
                          <span className="text-sm text-white">Sim</span>
                        </label>
-                       <label className="flex items-center gap-2 p-2 hover:bg-brand-hover rounded cursor-pointer">
+                       <label className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
                          <input
                            type="checkbox"
                            checked={isSelected(field.value, 'Não')}
                            onChange={() => handleMultiSelect(field.value, 'Não')}
-                           className="accent-brand-orange"
+                           className="accent-blue-600 dark:accent-blue-500"
                          />
                          <span className="text-sm text-white">Não</span>
                        </label>
                      </div>
                    ) : (
-                     <select className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange" value={Array.isArray(filters[field.value]) ? filters[field.value][0] || 'all' : (filters[field.value] || 'all')} onChange={e => setFilters({...filters, [field.value]: e.target.value === 'all' ? 'all' : [e.target.value]})}>
+                     <select className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-3 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={Array.isArray(filters[field.value]) ? filters[field.value][0] || 'all' : (filters[field.value] || 'all')} onChange={e => setFilters({...filters, [field.value]: e.target.value === 'all' ? 'all' : [e.target.value]})}>
                      <option value="all">Todos</option><option value="Sim">Sim</option><option value="Não">Não</option>
                    </select>
                    )
                  ) : (
-                   <input type="text" className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange" placeholder={`Filtrar...`} value={filters[field.value] || ''} onChange={e => setFilters({...filters, [field.value]: e.target.value})}/>
+                   <input type="text" className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-3 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder={`Filtrar...`} value={filters[field.value] || ''} onChange={e => setFilters({...filters, [field.value]: e.target.value})}/>
                  )}
                </div>
              );
@@ -1024,39 +1047,39 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
             return (
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <label className="text-xs font-bold text-brand-orange uppercase">Tags</label>
+                  <label className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase">Tags</label>
                   <button
                     onClick={() => toggleExpanded('tags')}
-                    className="text-xs text-brand-cyan hover:text-white"
+                    className="text-xs text-gray-600 dark:text-gray-400 hover:text-white"
                   >
                     {expandedFilters.tags ? 'Recolher' : 'Expandir'}
                   </button>
                 </div>
                 <input
                   type="text"
-                  className="w-full bg-brand-dark border border-brand-border rounded p-2 text-sm text-white outline-none focus:border-brand-cyan mb-2"
+                  className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-2 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 mb-2"
                   placeholder="Buscar tags..."
                   value={searchTexts.tags || ''}
                   onChange={e => setSearchTexts({...searchTexts, tags: e.target.value})}
                 />
                 {expandedFilters.tags ? (
-                  <div className="max-h-48 overflow-y-auto bg-brand-dark border border-brand-border rounded p-2 space-y-1">
-                    <label className="flex items-center gap-2 p-2 hover:bg-brand-hover rounded cursor-pointer">
+                  <div className="max-h-48 overflow-y-auto bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-2 space-y-1">
+                    <label className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
                       <input
                         type="checkbox"
                         checked={filters.tags === 'all' || !filters.tags || (Array.isArray(filters.tags) && filters.tags.length === 0)}
                         onChange={() => setFilters({...filters, tags: 'all'})}
-                        className="accent-brand-orange"
+                        className="accent-blue-600 dark:accent-blue-500"
                       />
                       <span className="text-sm text-white">Todas as tags</span>
                     </label>
                     {filteredTags.map(tag => (
-                      <label key={tag.id} className="flex items-center gap-2 p-2 hover:bg-brand-hover rounded cursor-pointer">
+                      <label key={tag.id} className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
                         <input
                           type="checkbox"
                           checked={isSelected('tags', tag.name)}
                           onChange={() => handleMultiSelect('tags', tag.name)}
-                          className="accent-brand-orange"
+                          className="accent-blue-600 dark:accent-blue-500"
                         />
                         <span className="text-sm text-white truncate">{tag.name}</span>
                       </label>
@@ -1064,7 +1087,7 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
                   </div>
                 ) : (
                   <select 
-                    className="w-full bg-brand-dark border border-brand-border rounded p-3 text-sm text-white outline-none focus:border-brand-orange" 
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-3 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
                     value={Array.isArray(filters.tags) ? filters.tags[0] || 'all' : (filters.tags || 'all')} 
                     onChange={e => setFilters({...filters, tags: e.target.value === 'all' ? 'all' : [e.target.value]})}
                   >
@@ -1077,7 +1100,7 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
           })()}
         </div>
 
-        <div className="mt-8 pt-4 border-t border-brand-border flex flex-col gap-3">
+        <div className="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700 flex flex-col gap-3">
           <button onClick={onClose} className="w-full bg-blue-600 text-white py-3 rounded font-medium hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition-colors">Aplicar Filtros</button>
         <div className="flex gap-2">
           <button onClick={clearFilters} className="flex-1 text-slate-400 hover:text-white py-2 text-sm">Limpar Tudo</button>
@@ -1089,7 +1112,7 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
                 console.warn('Erro ao salvar filtros', e);
               }
             }}
-            className="flex-1 text-brand-cyan hover:text-white py-2 text-sm"
+            className="flex-1 text-gray-600 dark:text-gray-400 hover:text-white py-2 text-sm"
           >
             Salvar Filtros
           </button>
@@ -1811,6 +1834,24 @@ export default function App() {
     // Registra log de movimentação
     await recordStatusMovement(cId, candidate.fullName, previousStatus, newStage);
     
+    // Sincroniza status nas aplicações se for status de fechamento
+    if (CLOSING_STATUSES.includes(newStage)) {
+      const candidateApplications = applications.filter(app => app.candidateId === cId);
+      if (candidateApplications.length > 0) {
+        const batch = writeBatch(db);
+        candidateApplications.forEach(app => {
+          const appRef = doc(db, 'applications', app.id);
+          batch.update(appRef, {
+            status: newStage,
+            updatedAt: serverTimestamp(),
+            closedAt: serverTimestamp(),
+            closedReason: newStage
+          });
+        });
+        await batch.commit();
+      }
+    }
+    
     showToast('Status atualizado', 'success');
   };
 
@@ -1921,11 +1962,11 @@ export default function App() {
 
   const optionsProps = { jobs, companies, cities, interestAreas, roles, origins, schooling, marital, tags };
 
-  if (authLoading) return <div className="flex h-screen items-center justify-center bg-brand-dark text-brand-cyan"><Loader2 className="animate-spin mr-2"/> Carregando...</div>;
+  if (authLoading) return <div className="flex h-screen items-center justify-center bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400"><Loader2 className="animate-spin mr-2"/> Carregando...</div>;
   if (!user) return <LoginScreen onLogin={handleGoogleLogin} />;
 
   return (
-    <div className="flex min-h-screen bg-brand-dark font-sans text-slate-200 overflow-hidden">
+    <div className="flex min-h-screen bg-white dark:bg-gray-900 font-sans text-slate-200 overflow-hidden">
       
       {/* SIDEBAR PRINCIPAL */}
       <div className={`fixed inset-y-0 left-0 z-30 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} ${!isSidebarCollapsed ? 'lg:translate-x-0' : 'lg:-translate-x-full'}`}>
@@ -1950,7 +1991,7 @@ export default function App() {
              </button>
            ))}
         </nav>
-        <div className="p-4 border-t border-brand-border bg-brand-dark/30 flex items-center justify-between">
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/30 flex items-center justify-between">
            <div className="text-xs text-slate-400 truncate w-32">{user.email}</div>
            <button onClick={()=>signOut(auth)}><LogOut size={16} className="text-red-400 hover:text-red-300"/></button>
         </div>
@@ -1989,7 +2030,7 @@ export default function App() {
            </div>
         </header>
 
-        <div className="flex-1 overflow-hidden bg-brand-dark relative">
+        <div className="flex-1 overflow-hidden bg-white dark:bg-gray-900 relative">
            {activeTab === 'dashboard' && <div className="p-6 overflow-y-auto h-full"><Dashboard filteredJobs={jobs} filteredCandidates={filteredCandidates} onOpenCandidates={setDashboardModalCandidates} statusMovements={statusMovements} applications={applications} onViewJob={openJobCandidatesModal} interviews={interviews} onScheduleInterview={(candidate) => setInterviewModalData({ candidate })} /></div>}
            {activeTab === 'pipeline' && <PipelineView candidates={filteredCandidates} jobs={jobs} companies={companies} onDragEnd={handleDragEnd} onEdit={setEditingCandidate} onCloseStatus={handleCloseStatus} />}
            {activeTab === 'jobs' && <div className="p-6 overflow-y-auto h-full"><JobsList jobs={jobs} candidates={candidates} companies={companies} onAdd={()=>openJobModal({})} onEdit={(j)=>openJobModal(j)} onDelete={(id)=>handleDeleteGeneric('jobs', id)} onToggleStatus={handleSaveGeneric} onFilterPipeline={()=>{setFilters({...filters, jobId: 'mock_id'}); setActiveTab('pipeline')}} onViewCandidates={openJobCandidatesModal}/></div>}
@@ -2038,6 +2079,25 @@ export default function App() {
             const previousStatus = candidate.status || 'Inscrito';
             await updateDoc(doc(db, 'candidates', candidate.id), { status: newStage, updatedAt: serverTimestamp() });
             await recordStatusMovement(candidate.id, candidate.fullName, previousStatus, newStage);
+            
+            // Sincroniza status nas aplicações se for status de fechamento
+            if (CLOSING_STATUSES.includes(newStage)) {
+              const candidateApplications = applications.filter(app => app.candidateId === candidate.id);
+              if (candidateApplications.length > 0) {
+                const batch = writeBatch(db);
+                candidateApplications.forEach(app => {
+                  const appRef = doc(db, 'applications', app.id);
+                  batch.update(appRef, {
+                    status: newStage,
+                    updatedAt: serverTimestamp(),
+                    closedAt: serverTimestamp(),
+                    closedReason: newStage
+                  });
+                });
+                await batch.commit();
+              }
+            }
+            
             showToast('Status atualizado', 'success');
           }
         }} 
@@ -2067,6 +2127,26 @@ export default function App() {
               previousStatus, 
               pendingTransition.toStage
             );
+            
+            // Sincroniza status nas aplicações se for status de fechamento
+            if (CLOSING_STATUSES.includes(pendingTransition.toStage)) {
+              const candidateApplications = applications.filter(app => app.candidateId === pendingTransition.candidate.id);
+              const batch = writeBatch(db);
+              
+              candidateApplications.forEach(app => {
+                const appRef = doc(db, 'applications', app.id);
+                batch.update(appRef, {
+                  status: pendingTransition.toStage,
+                  updatedAt: serverTimestamp(),
+                  closedAt: serverTimestamp(),
+                  closedReason: pendingTransition.toStage
+                });
+              });
+              
+              if (candidateApplications.length > 0) {
+                await batch.commit();
+              }
+            }
             
             handleSaveGeneric('candidates', payload, () => setPendingTransition(null));
           }} 
@@ -2338,37 +2418,37 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
 
   return (
      <div className="flex flex-col h-full relative">
-        <div className="px-6 py-3 border-b border-brand-border flex flex-wrap gap-4 justify-between items-center bg-brand-dark">
+        <div className="px-6 py-3 border-b border-gray-200 dark:border-gray-700 flex flex-wrap gap-4 justify-between items-center bg-white dark:bg-gray-900">
            <div className="flex gap-3 items-center flex-wrap">
-              <div className="flex bg-brand-card p-1 rounded-lg border border-brand-border">
-                 <button onClick={() => setViewMode('kanban')} className={`p-2 rounded ${viewMode==='kanban' ? 'bg-brand-dark text-brand-cyan' : 'text-slate-400'}`}><Kanban size={16}/></button>
-                 <button onClick={() => setViewMode('list')} className={`p-2 rounded ${viewMode==='list' ? 'bg-brand-dark text-brand-cyan' : 'text-slate-400'}`}><List size={16}/></button>
+              <div className="flex bg-brand-card p-1 rounded-lg border border-gray-200 dark:border-gray-700">
+                 <button onClick={() => setViewMode('kanban')} className={`p-2 rounded ${viewMode==='kanban' ? 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400' : 'text-slate-400'}`}><Kanban size={16}/></button>
+                 <button onClick={() => setViewMode('list')} className={`p-2 rounded ${viewMode==='list' ? 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400' : 'text-slate-400'}`}><List size={16}/></button>
               </div>
-              <input className="bg-brand-card border border-brand-border rounded px-3 py-1.5 text-sm text-white outline-none focus:border-brand-cyan w-48" placeholder="Buscar..." value={localSearch} onChange={e=>setLocalSearch(e.target.value)}/>
-              <select className="bg-brand-card border border-brand-border rounded px-3 py-1.5 text-sm text-white outline-none" value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}>
+              <input className="bg-brand-card border border-gray-200 dark:border-gray-700 rounded px-3 py-1.5 text-sm text-white outline-none focus:border-brand-cyan w-48" placeholder="Buscar..." value={localSearch} onChange={e=>setLocalSearch(e.target.value)}/>
+              <select className="bg-brand-card border border-gray-200 dark:border-gray-700 rounded px-3 py-1.5 text-sm text-white outline-none" value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}>
                  <option value="active">Em Andamento</option><option value="hired">Contratados</option><option value="rejected">Reprovados</option><option value="all">Todos</option>
               </select>
               {viewMode === 'list' && (
                 <>
-                  <select className="bg-brand-card border border-brand-border rounded px-3 py-1.5 text-sm text-white outline-none" value={pipelineStatusFilter} onChange={e=>setPipelineStatusFilter(e.target.value)}>
+                  <select className="bg-brand-card border border-gray-200 dark:border-gray-700 rounded px-3 py-1.5 text-sm text-white outline-none" value={pipelineStatusFilter} onChange={e=>setPipelineStatusFilter(e.target.value)}>
                     <option value="all">Todas as Etapas</option>
                     {PIPELINE_STAGES.map(stage => <option key={stage} value={stage}>{stage}</option>)}
                   </select>
-                  <select className="bg-brand-card border border-brand-border rounded px-3 py-1.5 text-sm text-white outline-none" value={jobFilter} onChange={e=>setJobFilter(e.target.value)}>
+                  <select className="bg-brand-card border border-gray-200 dark:border-gray-700 rounded px-3 py-1.5 text-sm text-white outline-none" value={jobFilter} onChange={e=>setJobFilter(e.target.value)}>
                     <option value="all">Todas as Vagas</option>
                     {jobs.map(j => <option key={j.id} value={j.id}>{j.title}</option>)}
                   </select>
-                  <select className="bg-brand-card border border-brand-border rounded px-3 py-1.5 text-sm text-white outline-none" value={companyFilter} onChange={e=>setCompanyFilter(e.target.value)}>
+                  <select className="bg-brand-card border border-gray-200 dark:border-gray-700 rounded px-3 py-1.5 text-sm text-white outline-none" value={companyFilter} onChange={e=>setCompanyFilter(e.target.value)}>
                     <option value="all">Todas as Empresas</option>
                     {companies.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                   </select>
-                  <select className="bg-brand-card border border-brand-border rounded px-3 py-1.5 text-sm text-white outline-none" value={cityFilter} onChange={e=>setCityFilter(e.target.value)}>
+                  <select className="bg-brand-card border border-gray-200 dark:border-gray-700 rounded px-3 py-1.5 text-sm text-white outline-none" value={cityFilter} onChange={e=>setCityFilter(e.target.value)}>
                     <option value="all">Todas as Cidades</option>
                     {Array.from(new Set(candidates.map(c => c.city).filter(Boolean))).sort().map(city => <option key={city} value={city}>{city}</option>)}
                   </select>
                 </>
               )}
-              <select className="bg-brand-card border border-brand-border rounded px-3 py-1.5 text-sm text-white outline-none" value={localSort} onChange={e=>setLocalSort(e.target.value)}>
+              <select className="bg-brand-card border border-gray-200 dark:border-gray-700 rounded px-3 py-1.5 text-sm text-white outline-none" value={localSort} onChange={e=>setLocalSort(e.target.value)}>
                  <option value="recent">Mais Recentes</option><option value="oldest">Mais Antigos</option><option value="az">A-Z</option><option value="za">Z-A</option>
               </select>
            </div>
@@ -2376,7 +2456,7 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
            <div className="text-xs text-slate-500">{processedData.length} talentos</div>
              {viewMode === 'list' && (
                <select
-                 className="bg-brand-card border border-brand-border rounded px-2 py-1 text-xs text-white outline-none focus:border-brand-cyan"
+                 className="bg-brand-card border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-xs text-white outline-none focus:border-brand-cyan"
                  value={itemsPerPage}
                  onChange={e => {
                    setItemsPerPage(Number(e.target.value));
@@ -2392,7 +2472,7 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
              {viewMode === 'kanban' && (
               <>
                <select
-                 className="bg-brand-card border border-brand-border rounded px-2 py-1 text-xs text-white outline-none focus:border-brand-cyan"
+                 className="bg-brand-card border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-xs text-white outline-none focus:border-brand-cyan"
                  value={kanbanItemsPerPage}
                  onChange={e => {
                    setKanbanItemsPerPage(Number(e.target.value));
@@ -2409,7 +2489,7 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                  className={`flex items-center gap-1 px-3 py-1.5 text-xs rounded border transition-colors ${
                    showColorPicker 
                      ? 'bg-brand-orange text-white border-brand-orange' 
-                     : 'bg-brand-card border-brand-border text-slate-400 hover:text-white hover:border-brand-cyan'
+                     : 'bg-brand-card border-gray-200 dark:border-gray-700 text-slate-400 hover:text-white hover:border-brand-cyan'
                  }`}
                  title="Personalizar cores das colunas"
                >
@@ -2446,7 +2526,7 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                  <table className="w-full text-left text-sm text-slate-300">
                    <thead className="bg-brand-card text-white font-bold sticky top-0 z-10 shadow-sm">
                      <tr>
-                       <th className="p-4 w-10"><input type="checkbox" className="accent-brand-orange" checked={selectedIds.length>0 && selectedIds.length===processedData.length} onChange={handleSelectAll}/></th>
+                       <th className="p-4 w-10"><input type="checkbox" className="accent-blue-600 dark:accent-blue-500" checked={selectedIds.length>0 && selectedIds.length===processedData.length} onChange={handleSelectAll}/></th>
                        <th className="p-4">Nome</th>
                        <th className="p-4">Status</th>
                        <th className="p-4">Vaga</th>
@@ -2460,15 +2540,15 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                      {paginatedListData.map(c => {
                        const candidateJob = jobs.find(j=>j.id===c.jobId);
                        return (
-                         <tr key={c.id} className="hover:bg-brand-hover/50 dark:hover:bg-brand-hover/50 transition-colors">
-                           <td className="p-4"><input type="checkbox" className="accent-brand-orange" checked={selectedIds.includes(c.id)} onChange={() => handleSelect(c.id)}/></td>
+                         <tr key={c.id} className="hover:bg-gray-100 dark:hover:bg-gray-700/50 dark:hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
+                           <td className="p-4"><input type="checkbox" className="accent-blue-600 dark:accent-blue-500" checked={selectedIds.includes(c.id)} onChange={() => handleSelect(c.id)}/></td>
                            <td className="p-4 font-bold text-white dark:text-white cursor-pointer break-words" onClick={() => onEdit(c)}>{c.fullName}</td>
                            <td className="p-4"><span className={`px-2 py-0.5 rounded text-xs border break-words ${STATUS_COLORS[c.status] || 'bg-slate-700 text-slate-200 border-slate-600'}`}>{c.status || 'Inscrito'}</span></td>
                            <td className="p-4 text-xs break-words">{candidateJob?.title || 'N/A'}</td>
                            <td className="p-4 text-xs break-words">{candidateJob?.company || 'N/A'}</td>
                            <td className="p-4 text-xs break-words">{c.city || 'N/A'}</td>
                            <td className="p-4 text-xs break-words">{c.interestAreas || 'N/A'}</td>
-                           <td className="p-4"><button onClick={() => onEdit(c)} className="hover:text-brand-cyan transition-colors"><Edit3 size={16}/></button></td>
+                           <td className="p-4"><button onClick={() => onEdit(c)} className="hover:text-gray-600 dark:text-gray-400 transition-colors"><Edit3 size={16}/></button></td>
                          </tr>
                        );
                      })}
@@ -2479,7 +2559,7 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
            
            {/* Paginação */}
            {processedData.length > 0 && (
-             <div className="border-t border-brand-border px-6 py-4 bg-brand-card flex items-center justify-between">
+             <div className="border-t border-gray-200 dark:border-gray-700 px-6 py-4 bg-brand-card flex items-center justify-between">
                <div className="text-xs text-slate-400">
                  Mostrando {viewMode === 'list' 
                    ? `${(currentPage - 1) * itemsPerPage + 1} - ${Math.min(currentPage * itemsPerPage, processedData.length)} de ${processedData.length} talentos`
@@ -2493,7 +2573,7 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                    className={`px-3 py-1.5 rounded text-sm font-bold transition-colors ${
                      currentPage === 1
                        ? 'bg-brand-card text-slate-600 cursor-not-allowed'
-                       : 'bg-brand-dark text-white hover:bg-brand-hover'
+                       : 'bg-white dark:bg-gray-900 text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                    }`}
                  >
                    <ChevronLeft size={16} className="inline"/>
@@ -2507,7 +2587,7 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                    className={`px-3 py-1.5 rounded text-sm font-bold transition-colors ${
                      currentPage >= (viewMode === 'list' ? totalPages : kanbanTotalPages)
                        ? 'bg-brand-card text-slate-600 cursor-not-allowed'
-                       : 'bg-brand-dark text-white hover:bg-brand-hover'
+                       : 'bg-white dark:bg-gray-900 text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                    }`}
                  >
                    <ChevronRight size={16} className="inline"/>
@@ -2547,13 +2627,13 @@ const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, jobs, 
   ];
   
    return (
-      <div className="w-[240px] flex-shrink-0 flex flex-col bg-brand-card/40 border border-brand-border rounded-xl h-full backdrop-blur-sm" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
-         <div className={`p-2 border-b border-brand-border flex justify-between items-center rounded-t-xl ${columnColor} relative`}>
+      <div className="w-[240px] flex-shrink-0 flex flex-col bg-brand-card/40 border border-gray-200 dark:border-gray-700 rounded-xl h-full backdrop-blur-sm" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
+         <div className={`p-2 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center rounded-t-xl ${columnColor} relative`}>
            <span className="font-bold text-xs uppercase break-words">{stage}</span>
            <span className="bg-black/20 px-2 py-0.5 rounded text-xs font-mono">{total}</span>
            {/* Seletor de cor só aparece quando o botão "Cores" está ativo */}
            {showColorPicker && (
-             <div className="absolute top-full left-0 right-0 bg-brand-card border border-brand-border rounded-b-lg p-2 z-50 shadow-lg">
+             <div className="absolute top-full left-0 right-0 bg-brand-card border border-gray-200 dark:border-gray-700 rounded-b-lg p-2 z-50 shadow-lg">
                <div className="text-xs text-slate-400 mb-1">Cor da coluna:</div>
                <div className="grid grid-cols-5 gap-1">
                  {presetColors.map((color, idx) => (
@@ -2572,15 +2652,15 @@ const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, jobs, 
           {displayedCandidates.length > 0 ? displayedCandidates.map(c => {
           const candidateJob = jobs.find(j => j.id === c.jobId);
           return (
-          <div key={c.id} draggable onDragStart={(e) => handleDragStart(e, c.id)} onClick={() => onEdit(c)} className={`bg-brand-card p-3 rounded-lg border hover:border-brand-cyan cursor-grab shadow-sm group relative ${selectedIds.includes(c.id) ? 'border-brand-orange bg-brand-orange/5' : 'border-brand-border'}`}>
-            <div className={`absolute top-2 left-2 z-20 ${selectedIds.includes(c.id)?'opacity-100':'opacity-0 group-hover:opacity-100'}`} onClick={e=>e.stopPropagation()}><input type="checkbox" className="accent-brand-orange" checked={selectedIds.includes(c.id)} onChange={()=>onSelect(c.id)}/></div>
+          <div key={c.id} draggable onDragStart={(e) => handleDragStart(e, c.id)} onClick={() => onEdit(c)} className={`bg-brand-card p-3 rounded-lg border hover:border-brand-cyan cursor-grab shadow-sm group relative ${selectedIds.includes(c.id) ? 'border-brand-orange bg-brand-orange/5' : 'border-gray-200 dark:border-gray-700'}`}>
+            <div className={`absolute top-2 left-2 z-20 ${selectedIds.includes(c.id)?'opacity-100':'opacity-0 group-hover:opacity-100'}`} onClick={e=>e.stopPropagation()}><input type="checkbox" className="accent-blue-600 dark:accent-blue-500" checked={selectedIds.includes(c.id)} onChange={()=>onSelect(c.id)}/></div>
             
             {/* Cabeçalho com resumo */}
-            <div className="pl-6 mb-2 border-b border-brand-border/50 pb-2">
+            <div className="pl-6 mb-2 border-b border-gray-200 dark:border-gray-700/50 pb-2">
               <h4 className="font-bold text-white text-sm break-words mb-1">{c.fullName}</h4>
               <div className="text-xs space-y-0.5">
                 {candidateJob && (
-                  <div className="text-brand-cyan flex items-center gap-1">
+                  <div className="text-gray-600 dark:text-gray-400 flex items-center gap-1">
                     <Briefcase size={10}/> <span className="break-words">{candidateJob.title}</span>
                   </div>
                 )}
@@ -2608,9 +2688,9 @@ const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, jobs, 
             <div className="grid grid-cols-1 gap-1 pl-6">
               <div className="text-xs text-slate-400 truncate flex gap-1"><Mail size={10}/> {c.email || 'N/D'}</div>
               <div className="text-xs text-slate-400 truncate flex gap-1">📞 {c.phone || 'N/D'}</div>
-              {c.score && <div className="text-xs text-brand-orange font-bold">Match: {c.score}%</div>}
+              {c.score && <div className="text-xs text-blue-600 dark:text-blue-400 font-bold">Match: {c.score}%</div>}
             </div>
-            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-brand-card shadow-lg rounded border border-brand-border z-30">
+            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-brand-card shadow-lg rounded border border-gray-200 dark:border-gray-700 z-30">
               <button onClick={(e)=>{e.stopPropagation();onEdit(c)}} className="p-1.5 hover:text-blue-400 hover:bg-blue-500/20" title="Editar">
                 <Edit3 size={14}/>
               </button>
@@ -2726,10 +2806,10 @@ const JobsList = ({ jobs, candidates, onAdd, onEdit, onToggleStatus, onViewCandi
   }, [activeTab, statusFilter, cityFilter, companyFilter, periodFilter, jobs, jobsByPeriod]);
   
   const renderJobCard = (j) => (
-    <div key={j.id} className="bg-brand-card p-6 rounded-xl border border-brand-border shadow-lg group hover:border-brand-cyan/50 transition-colors">
+    <div key={j.id} className="bg-brand-card p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg group hover:border-brand-cyan/50 transition-colors">
       <div className="flex justify-between mb-4">
         <select 
-          className="text-xs px-2 py-1 rounded border bg-transparent outline-none cursor-pointer text-brand-cyan border-brand-cyan/30 hover:bg-brand-cyan/10 transition-colors" 
+          className="text-xs px-2 py-1 rounded border bg-transparent outline-none cursor-pointer text-gray-600 dark:text-gray-400 border-brand-cyan/30 hover:bg-brand-cyan/10 transition-colors" 
           value={j.status} 
           onChange={(e) => onToggleStatus('jobs', {id: j.id, status: e.target.value})} 
           onClick={(e) => e.stopPropagation()}
@@ -2744,10 +2824,10 @@ const JobsList = ({ jobs, candidates, onAdd, onEdit, onToggleStatus, onViewCandi
       <p className="text-sm text-slate-400 mb-2 break-words">{j.company}</p>
       <div className="space-y-1 mb-4">
         {j.city && <p className="text-xs text-slate-500 flex items-center gap-1"><MapPin size={12}/> {j.city}</p>}
-        {j.interestArea && <p className="text-xs text-brand-cyan flex items-center gap-1"><Briefcase size={12}/> {j.interestArea}</p>}
+        {j.interestArea && <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1"><Briefcase size={12}/> {j.interestArea}</p>}
       </div>
-      <div className="border-t border-brand-border pt-4 flex justify-between items-center">
-        <p className="text-xs text-slate-500 cursor-pointer hover:text-brand-cyan transition-colors" onClick={() => onViewCandidates(j)}>
+      <div className="border-t border-gray-200 dark:border-gray-700 pt-4 flex justify-between items-center">
+        <p className="text-xs text-slate-500 cursor-pointer hover:text-gray-600 dark:text-gray-400 transition-colors" onClick={() => onViewCandidates(j)}>
           {candidates.filter(c => c.jobId === j.id).length} candidatos
         </p>
       </div>
@@ -2764,12 +2844,12 @@ const JobsList = ({ jobs, candidates, onAdd, onEdit, onToggleStatus, onViewCandi
       </div>
       
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-brand-border overflow-x-auto custom-scrollbar">
+      <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 overflow-x-auto custom-scrollbar">
         <button
           onClick={() => setActiveTab('status')}
           className={`px-4 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${
             activeTab === 'status'
-              ? 'text-brand-orange border-brand-orange'
+              ? 'text-blue-600 dark:text-blue-400 border-brand-orange'
               : 'text-slate-500 border-transparent hover:text-slate-300'
           }`}
         >
@@ -2779,7 +2859,7 @@ const JobsList = ({ jobs, candidates, onAdd, onEdit, onToggleStatus, onViewCandi
           onClick={() => setActiveTab('city')}
           className={`px-4 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${
             activeTab === 'city'
-              ? 'text-brand-orange border-brand-orange'
+              ? 'text-blue-600 dark:text-blue-400 border-brand-orange'
               : 'text-slate-500 border-transparent hover:text-slate-300'
           }`}
         >
@@ -2789,7 +2869,7 @@ const JobsList = ({ jobs, candidates, onAdd, onEdit, onToggleStatus, onViewCandi
           onClick={() => setActiveTab('company')}
           className={`px-4 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${
             activeTab === 'company'
-              ? 'text-brand-orange border-brand-orange'
+              ? 'text-blue-600 dark:text-blue-400 border-brand-orange'
               : 'text-slate-500 border-transparent hover:text-slate-300'
           }`}
         >
@@ -2799,7 +2879,7 @@ const JobsList = ({ jobs, candidates, onAdd, onEdit, onToggleStatus, onViewCandi
           onClick={() => setActiveTab('period')}
           className={`px-4 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${
             activeTab === 'period'
-              ? 'text-brand-orange border-brand-orange'
+              ? 'text-blue-600 dark:text-blue-400 border-brand-orange'
               : 'text-slate-500 border-transparent hover:text-slate-300'
           }`}
         >
@@ -2811,7 +2891,7 @@ const JobsList = ({ jobs, candidates, onAdd, onEdit, onToggleStatus, onViewCandi
       <div className="flex gap-3 items-center flex-wrap">
         {activeTab === 'status' && (
           <select
-            className="bg-brand-card border border-brand-border rounded px-3 py-1.5 text-sm text-white outline-none focus:border-brand-cyan"
+            className="bg-brand-card border border-gray-200 dark:border-gray-700 rounded px-3 py-1.5 text-sm text-white outline-none focus:border-brand-cyan"
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
           >
@@ -2821,7 +2901,7 @@ const JobsList = ({ jobs, candidates, onAdd, onEdit, onToggleStatus, onViewCandi
         )}
         {activeTab === 'city' && (
           <select
-            className="bg-brand-card border border-brand-border rounded px-3 py-1.5 text-sm text-white outline-none focus:border-brand-cyan"
+            className="bg-brand-card border border-gray-200 dark:border-gray-700 rounded px-3 py-1.5 text-sm text-white outline-none focus:border-brand-cyan"
             value={cityFilter}
             onChange={e => setCityFilter(e.target.value)}
           >
@@ -2833,7 +2913,7 @@ const JobsList = ({ jobs, candidates, onAdd, onEdit, onToggleStatus, onViewCandi
         )}
         {activeTab === 'company' && (
           <select
-            className="bg-brand-card border border-brand-border rounded px-3 py-1.5 text-sm text-white outline-none focus:border-brand-cyan"
+            className="bg-brand-card border border-gray-200 dark:border-gray-700 rounded px-3 py-1.5 text-sm text-white outline-none focus:border-brand-cyan"
             value={companyFilter}
             onChange={e => setCompanyFilter(e.target.value)}
           >
@@ -2845,7 +2925,7 @@ const JobsList = ({ jobs, candidates, onAdd, onEdit, onToggleStatus, onViewCandi
         )}
         {activeTab === 'period' && (
           <select
-            className="bg-brand-card border border-brand-border rounded px-3 py-1.5 text-sm text-white outline-none focus:border-brand-cyan"
+            className="bg-brand-card border border-gray-200 dark:border-gray-700 rounded px-3 py-1.5 text-sm text-white outline-none focus:border-brand-cyan"
             value={periodFilter}
             onChange={e => setPeriodFilter(e.target.value)}
           >
@@ -3382,8 +3462,8 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
 
 const InputField = ({ label, field, value, onChange, type="text" }) => (
   <div className="mb-3">
-    <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">{label}</label>
-    <input type={type} className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange" value={value||''} onChange={e => onChange(field, e.target.value)} />
+    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">{label}</label>
+    <input type={type} className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={value||''} onChange={e => onChange(field, e.target.value)} />
   </div>
 );
 
@@ -3621,8 +3701,8 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-      <div className="bg-brand-card rounded-xl w-full max-w-3xl max-h-[90vh] border border-brand-border flex flex-col">
-        <div className="px-6 py-4 border-b border-brand-border flex justify-between items-center">
+      <div className="bg-brand-card rounded-xl w-full max-w-3xl max-h-[90vh] border border-gray-200 dark:border-gray-700 flex flex-col">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
           <h3 className="font-bold text-xl text-white">{d.id ? 'Editar' : 'Nova'} Vaga</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-white">
             <X size={20}/>
@@ -3630,14 +3710,14 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
         </div>
         
         {/* Tabs */}
-        <div className="flex border-b border-brand-border">
+        <div className="flex border-b border-gray-200 dark:border-gray-700">
           {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`flex-1 py-3 px-4 text-sm font-medium ${
                 activeTab === tab.id 
-                  ? 'text-brand-cyan border-b-2 border-brand-cyan' 
+                  ? 'text-gray-600 dark:text-gray-400 border-b-2 border-brand-cyan' 
                   : 'text-slate-500 hover:text-white'
               }`}
             >
@@ -3652,27 +3732,27 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
             <>
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Título da Vaga *</label>
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Título da Vaga *</label>
                   <input
-                    className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange"
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     placeholder="Ex: Analista de Obras"
                     value={d.title || ''}
                     onChange={e => setD({...d, title: e.target.value})}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Código da Vaga</label>
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Código da Vaga</label>
                   <input
-                    className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange"
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     placeholder="Ex: VAG-2024-001"
                     value={d.code || ''}
                     onChange={e => setD({...d, code: e.target.value})}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Status *</label>
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Status *</label>
                   <select
-                    className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange"
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     value={d.status || 'Aberta'}
                     onChange={e => setD({...d, status: e.target.value})}
                   >
@@ -3685,10 +3765,10 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
 
               {/* Empresa */}
               <div>
-                <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Empresa/Unidade *</label>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Empresa/Unidade *</label>
                 <div className="flex gap-2">
                   <select
-                    className="flex-1 bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange"
+                    className="flex-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     value={d.company || ''}
                     onChange={e => setD({...d, company: e.target.value})}
                   >
@@ -3705,16 +3785,16 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
                   </button>
                 </div>
                 {showNewCompany && (
-                  <div className="mt-2 p-3 bg-brand-dark border border-brand-border rounded-lg space-y-2">
+                  <div className="mt-2 p-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg space-y-2">
                     <input
                       type="text"
-                      className="w-full bg-brand-card border border-brand-border p-2 rounded text-sm text-white outline-none"
+                      className="w-full bg-brand-card border border-gray-200 dark:border-gray-700 p-2 rounded text-sm text-white outline-none"
                       placeholder="Nome da empresa/unidade"
                       value={newCompanyName}
                       onChange={e => setNewCompanyName(e.target.value)}
                     />
                     <select
-                      className="w-full bg-brand-card border border-brand-border p-2 rounded text-sm text-white outline-none"
+                      className="w-full bg-brand-card border border-gray-200 dark:border-gray-700 p-2 rounded text-sm text-white outline-none"
                       value={newCompanyCity}
                       onChange={e => setNewCompanyCity(e.target.value)}
                     >
@@ -3733,9 +3813,9 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Cidade *</label>
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Cidade *</label>
                   <select
-                    className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange"
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     value={d.city || ''}
                     onChange={e => setD({...d, city: e.target.value})}
                   >
@@ -3746,9 +3826,9 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Área *</label>
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Área *</label>
                   <select
-                    className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange"
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     value={d.interestArea || ''}
                     onChange={e => setD({...d, interestArea: e.target.value})}
                   >
@@ -3770,9 +3850,9 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Setor</label>
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Setor</label>
                   <select
-                    className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange"
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     value={d.sector || ''}
                     onChange={e => setD({...d, sector: e.target.value})}
                   >
@@ -3783,9 +3863,9 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Cargo</label>
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Cargo</label>
                   <select
-                    className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange"
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     value={d.position || ''}
                     onChange={e => setD({...d, position: e.target.value})}
                   >
@@ -3796,9 +3876,9 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Função</label>
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Função</label>
                   <select
-                    className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange"
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     value={d.function || ''}
                     onChange={e => setD({...d, function: e.target.value})}
                   >
@@ -3809,11 +3889,11 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Nº de Vagas</label>
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Nº de Vagas</label>
                   <input
                     type="number"
                     min="1"
-                    className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange"
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     value={d.vacancies || 1}
                     onChange={e => setD({...d, vacancies: parseInt(e.target.value) || 1})}
                   />
@@ -3827,9 +3907,9 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
             <>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Tipo de Contrato</label>
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Tipo de Contrato</label>
                   <select
-                    className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange"
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     value={d.contractType || 'CLT'}
                     onChange={e => setD({...d, contractType: e.target.value})}
                   >
@@ -3842,9 +3922,9 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Modelo de Trabalho</label>
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Modelo de Trabalho</label>
                   <select
-                    className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange"
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     value={d.workModel || 'Presencial'}
                     onChange={e => setD({...d, workModel: e.target.value})}
                   >
@@ -3854,9 +3934,9 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Carga Horária</label>
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Carga Horária</label>
                   <input
-                    className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange"
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     placeholder="Ex: 44h semanais"
                     value={d.workload || ''}
                     onChange={e => setD({...d, workload: e.target.value})}
@@ -3865,9 +3945,9 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Faixa Salarial</label>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Faixa Salarial</label>
                 <input
-                  className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange"
+                  className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   placeholder="Ex: R$ 3.000 - R$ 5.000"
                   value={d.salaryRange || ''}
                   onChange={e => setD({...d, salaryRange: e.target.value})}
@@ -3875,9 +3955,9 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Descrição da Vaga</label>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Descrição da Vaga</label>
                 <textarea
-                  className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange h-24 resize-none"
+                  className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-24 resize-none"
                   placeholder="Descreva a vaga, responsabilidades..."
                   value={d.description || ''}
                   onChange={e => setD({...d, description: e.target.value})}
@@ -3885,9 +3965,9 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Requisitos</label>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Requisitos</label>
                 <textarea
-                  className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange h-24 resize-none"
+                  className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-24 resize-none"
                   placeholder="Requisitos e qualificações..."
                   value={d.requirements || ''}
                   onChange={e => setD({...d, requirements: e.target.value})}
@@ -3895,9 +3975,9 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Benefícios</label>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Benefícios</label>
                 <textarea
-                  className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange h-20 resize-none"
+                  className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-20 resize-none"
                   placeholder="VT, VR, Plano de Saúde..."
                   value={d.benefits || ''}
                   onChange={e => setD({...d, benefits: e.target.value})}
@@ -3911,9 +3991,9 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
             <>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Prioridade</label>
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Prioridade</label>
                   <select
-                    className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange"
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     value={d.priority || 'Média'}
                     onChange={e => setD({...d, priority: e.target.value})}
                   >
@@ -3923,27 +4003,27 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Prazo para Preenchimento</label>
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Prazo para Preenchimento</label>
                   <input
                     type="date"
-                    className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange"
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     value={d.deadline || ''}
                     onChange={e => setD({...d, deadline: e.target.value})}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Recrutador Responsável</label>
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Recrutador Responsável</label>
                   <input
-                    className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange"
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     placeholder="Nome do recrutador"
                     value={d.recruiter || ''}
                     onChange={e => setD({...d, recruiter: e.target.value})}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Gestor Contratante</label>
+                  <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Gestor Contratante</label>
                   <input
-                    className="w-full bg-brand-dark border border-brand-border p-2.5 rounded-lg text-sm text-white outline-none focus:border-brand-orange"
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     placeholder="Nome do gestor"
                     value={d.hiringManager || ''}
                     onChange={e => setD({...d, hiringManager: e.target.value})}
@@ -3954,7 +4034,7 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
           )}
         </div>
 
-        <div className="px-6 py-4 border-t border-brand-border flex justify-end gap-2">
+        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-2">
           <button onClick={onClose} className="px-6 py-2 text-slate-400 hover:text-white">Cancelar</button>
           <button
             onClick={() => {
@@ -4127,8 +4207,8 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 dark:bg-black/80 p-4 backdrop-blur-sm">
-      <div className="bg-brand-card dark:bg-brand-card rounded-xl w-full max-w-4xl h-[90vh] flex flex-col border border-brand-border dark:border-brand-border text-white dark:text-white">
-        <div className="px-6 py-4 border-b border-brand-border dark:border-brand-border flex justify-between bg-brand-card dark:bg-brand-card opacity-50">
+      <div className="bg-brand-card dark:bg-brand-card rounded-xl w-full max-w-4xl h-[90vh] flex flex-col border border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700 text-white dark:text-white">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700 flex justify-between bg-brand-card dark:bg-brand-card opacity-50">
           <div><h3 className="font-bold text-xl">{d.id?'Editar':'Novo'} Candidato</h3></div>
           <button onClick={onClose}><X/></button>
         </div>
@@ -4159,14 +4239,14 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
           </div>
         )}
         
-        <div className="flex border-b border-brand-border dark:border-brand-border">
+        <div className="flex border-b border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700">
           {['pessoal', 'profissional', 'processo', 'etapas', 'histórico', 'adicional'].map(tab => (
-            <button key={tab} onClick={() => setActiveSection(tab)} className={`flex-1 py-3 px-4 text-sm font-bold uppercase ${activeSection === tab ? 'text-brand-orange border-b-2 border-brand-orange' : 'text-slate-500 dark:text-slate-500'}`}>
+            <button key={tab} onClick={() => setActiveSection(tab)} className={`flex-1 py-3 px-4 text-sm font-bold uppercase ${activeSection === tab ? 'text-blue-600 dark:text-blue-400 border-b-2 border-brand-orange' : 'text-slate-500 dark:text-slate-500'}`}>
               {tab === 'histórico' ? `📋 ${tab}` : tab === 'etapas' ? `🎯 ${tab}` : tab}
             </button>
           ))}
         </div>
-        <div className="p-8 overflow-y-auto flex-1 bg-brand-dark dark:bg-brand-dark">
+        <div className="p-8 overflow-y-auto flex-1 bg-white dark:bg-gray-900 dark:bg-white dark:bg-gray-900">
           {activeSection === 'pessoal' && (
             <>
               {/* Menu de Avanço de Etapa - Destaque */}
@@ -4206,8 +4286,8 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
                 <InputField label="Email Secundário" field="email_secondary" value={d.email_secondary} onChange={handleInputChange}/>
                 <InputField label="Telefone/Celular" field="phone" value={d.phone} onChange={handleInputChange}/>
               <div className="mb-3">
-                <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Cidade</label>
-                <select className="w-full bg-brand-dark dark:bg-brand-dark border border-brand-border dark:border-brand-border p-2.5 rounded text-white dark:text-white outline-none focus:border-brand-orange" value={d.city || ''} onChange={e=>handleInputChange('city', e.target.value)}>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Cidade</label>
+                <select className="w-full bg-white dark:bg-gray-900 dark:bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700 p-2.5 rounded text-white dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={d.city || ''} onChange={e=>handleInputChange('city', e.target.value)}>
                   <option value="">Selecione...</option>
                   <optgroup label="Cidades Principais">
                     {getMainCitiesOptions().map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
@@ -4223,8 +4303,8 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
               <InputField label="Data de Nascimento" field="birthDate" type="date" value={d.birthDate} onChange={handleInputChange}/>
               <InputField label="Idade" field="age" type="number" value={d.age} onChange={handleInputChange}/>
               <div className="mb-3">
-                <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Estado Civil</label>
-                <select className="w-full bg-brand-dark dark:bg-brand-dark border border-brand-border dark:border-brand-border p-2.5 rounded text-white dark:text-white outline-none focus:border-brand-orange" value={d.maritalStatus || ''} onChange={e=>setD({...d, maritalStatus:e.target.value})}>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Estado Civil</label>
+                <select className="w-full bg-white dark:bg-gray-900 dark:bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700 p-2.5 rounded text-white dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={d.maritalStatus || ''} onChange={e=>setD({...d, maritalStatus:e.target.value})}>
                   <option value="">Selecione...</option>
                   {options.marital && options.marital.map(m => <option key={m.id} value={m.name}>{m.name}</option>)}
                 </select>
@@ -4232,8 +4312,8 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
               <InputField label="Quantidade de Filhos" field="childrenCount" type="number" value={d.childrenCount} onChange={handleInputChange}/>
               <UrlField label="URL da Foto" field="photoUrl" value={d.photoUrl} onChange={handleInputChange} placeholder="Cole a URL da foto aqui..."/>
               <div className="mb-3">
-                <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Possui CNH Tipo B?</label>
-                <select className="w-full bg-brand-dark dark:bg-brand-dark border border-brand-border dark:border-brand-border p-2.5 rounded text-white dark:text-white outline-none focus:border-brand-orange" value={d.hasLicense || ''} onChange={e=>setD({...d, hasLicense:e.target.value})}>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Possui CNH Tipo B?</label>
+                <select className="w-full bg-white dark:bg-gray-900 dark:bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700 p-2.5 rounded text-white dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={d.hasLicense || ''} onChange={e=>setD({...d, hasLicense:e.target.value})}>
                   <option value="">Selecione...</option>
                   <option value="Sim">Sim</option>
                   <option value="Não">Não</option>
@@ -4246,8 +4326,8 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
             <div className="grid grid-cols-2 gap-6">
               <InputField label="Formação" field="education" value={d.education} onChange={handleInputChange}/>
               <div className="mb-3">
-                <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Nível de Escolaridade</label>
-                <select className="w-full bg-brand-dark dark:bg-brand-dark border border-brand-border dark:border-brand-border p-2.5 rounded text-white dark:text-white outline-none focus:border-brand-orange" value={d.schoolingLevel || ''} onChange={e=>setD({...d, schoolingLevel:e.target.value})}>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Nível de Escolaridade</label>
+                <select className="w-full bg-white dark:bg-gray-900 dark:bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700 p-2.5 rounded text-white dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={d.schoolingLevel || ''} onChange={e=>setD({...d, schoolingLevel:e.target.value})}>
                   <option value="">Selecione...</option>
                   {options.schooling && options.schooling.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                 </select>
@@ -4255,16 +4335,16 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
               <InputField label="Instituição de Ensino" field="institution" value={d.institution} onChange={handleInputChange}/>
               <InputField label="Data de Formatura" field="graduationDate" type="date" value={d.graduationDate} onChange={handleInputChange}/>
               <div className="mb-3">
-                <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Está Cursando Atualmente?</label>
-                <select className="w-full bg-brand-dark dark:bg-brand-dark border border-brand-border dark:border-brand-border p-2.5 rounded text-white dark:text-white outline-none focus:border-brand-orange" value={d.isStudying || ''} onChange={e=>setD({...d, isStudying:e.target.value})}>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Está Cursando Atualmente?</label>
+                <select className="w-full bg-white dark:bg-gray-900 dark:bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700 p-2.5 rounded text-white dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={d.isStudying || ''} onChange={e=>setD({...d, isStudying:e.target.value})}>
                   <option value="">Selecione...</option>
                   <option value="Sim">Sim</option>
                   <option value="Não">Não</option>
                 </select>
               </div>
               <div className="mb-3">
-                <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Área de Interesse</label>
-                <select className="w-full bg-brand-dark dark:bg-brand-dark border border-brand-border dark:border-brand-border p-2.5 rounded text-white dark:text-white outline-none focus:border-brand-orange" value={d.interestAreas || ''} onChange={e=>handleInputChange('interestAreas', e.target.value)}>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Área de Interesse</label>
+                <select className="w-full bg-white dark:bg-gray-900 dark:bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700 p-2.5 rounded text-white dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={d.interestAreas || ''} onChange={e=>handleInputChange('interestAreas', e.target.value)}>
                   <option value="">Selecione...</option>
                   <optgroup label="Áreas Principais">
                     {getMainInterestAreasOptions().map(i => <option key={i.id} value={i.name}>{i.name}</option>)}
@@ -4278,12 +4358,12 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
                 <p className="text-xs text-slate-400 mt-1">Digite ou selecione - será normalizado automaticamente</p>
               </div>
               <div className="mb-3 col-span-2">
-                <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Experiências Anteriores</label>
-                <textarea className="w-full bg-brand-dark dark:bg-brand-dark border border-brand-border dark:border-brand-border p-2.5 rounded text-white dark:text-white outline-none focus:border-brand-orange h-24" value={d.experience || ''} onChange={e=>setD({...d, experience:e.target.value})} placeholder="Descreva as experiências profissionais..."/>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Experiências Anteriores</label>
+                <textarea className="w-full bg-white dark:bg-gray-900 dark:bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700 p-2.5 rounded text-white dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-24" value={d.experience || ''} onChange={e=>setD({...d, experience:e.target.value})} placeholder="Descreva as experiências profissionais..."/>
               </div>
               <div className="mb-3 col-span-2">
-                <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Cursos e Certificações</label>
-                <textarea className="w-full bg-brand-dark dark:bg-brand-dark border border-brand-border dark:border-brand-border p-2.5 rounded text-white dark:text-white outline-none focus:border-brand-orange h-20" value={d.courses || ''} onChange={e=>setD({...d, courses:e.target.value})} placeholder="Liste cursos e certificações..."/>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Cursos e Certificações</label>
+                <textarea className="w-full bg-white dark:bg-gray-900 dark:bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700 p-2.5 rounded text-white dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-20" value={d.courses || ''} onChange={e=>setD({...d, courses:e.target.value})} placeholder="Liste cursos e certificações..."/>
               </div>
               <UrlField label="Link CV" field="cvUrl" value={d.cvUrl} onChange={handleInputChange} placeholder="Cole a URL do currículo aqui..."/>
               <UrlField label="Link Portfolio" field="portfolioUrl" value={d.portfolioUrl} onChange={handleInputChange} placeholder="Cole a URL do portfólio aqui..."/>
@@ -4292,8 +4372,8 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
           {activeSection === 'processo' && (
             <div className="grid grid-cols-2 gap-6">
               <div className="mb-3 col-span-2">
-                <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Vaga Associada</label>
-                <select className="w-full bg-brand-dark dark:bg-brand-dark border border-brand-border dark:border-brand-border p-2.5 rounded text-white dark:text-white outline-none focus:border-brand-orange" value={d.jobId || ''} onChange={e=>setD({...d, jobId:e.target.value})}>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Vaga Associada</label>
+                <select className="w-full bg-white dark:bg-gray-900 dark:bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700 p-2.5 rounded text-white dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={d.jobId || ''} onChange={e=>setD({...d, jobId:e.target.value})}>
                   <option value="">Nenhuma vaga (Banco de Talentos)</option>
                   {options.jobs && options.jobs.filter(j => j.status === 'Aberta').map(j => (
                     <option key={j.id} value={j.id}>
@@ -4307,8 +4387,8 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
                 </p>
               </div>
               <div className="mb-3">
-                <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Onde encontrou (Fonte)</label>
-                <select className="w-full bg-brand-dark dark:bg-brand-dark border border-brand-border dark:border-brand-border p-2.5 rounded text-white dark:text-white outline-none focus:border-brand-orange" value={d.source || ''} onChange={e=>handleInputChange('source', e.target.value)}>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Onde encontrou (Fonte)</label>
+                <select className="w-full bg-white dark:bg-gray-900 dark:bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700 p-2.5 rounded text-white dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={d.source || ''} onChange={e=>handleInputChange('source', e.target.value)}>
                   <option value="">Selecione...</option>
                   <optgroup label="Origens Principais">
                     {getMainSourcesOptions().map(o => <option key={o.id} value={o.name}>{o.name}</option>)}
@@ -4324,16 +4404,16 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
               <InputField label="Indicação (Quem indicou?)" field="referral" value={d.referral} onChange={handleInputChange}/>
               <InputField label="Expectativa Salarial" field="salaryExpectation" value={d.salaryExpectation} onChange={handleInputChange}/>
               <div className="mb-3">
-                <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Disponibilidade para Mudança de Cidade?</label>
-                <select className="w-full bg-brand-dark dark:bg-brand-dark border border-brand-border dark:border-brand-border p-2.5 rounded text-white dark:text-white outline-none focus:border-brand-orange" value={d.canRelocate || ''} onChange={e=>setD({...d, canRelocate:e.target.value})}>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Disponibilidade para Mudança de Cidade?</label>
+                <select className="w-full bg-white dark:bg-gray-900 dark:bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700 p-2.5 rounded text-white dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={d.canRelocate || ''} onChange={e=>setD({...d, canRelocate:e.target.value})}>
                   <option value="">Selecione...</option>
                   <option value="Sim">Sim</option>
                   <option value="Não">Não</option>
                 </select>
               </div>
               <div className="mb-3 col-span-2">
-                <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Referências Profissionais</label>
-                <textarea className="w-full bg-brand-dark dark:bg-brand-dark border border-brand-border dark:border-brand-border p-2.5 rounded text-white dark:text-white outline-none focus:border-brand-orange h-20" value={d.references || ''} onChange={e=>setD({...d, references:e.target.value})} placeholder="Liste referências profissionais..."/>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Referências Profissionais</label>
+                <textarea className="w-full bg-white dark:bg-gray-900 dark:bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700 p-2.5 rounded text-white dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-20" value={d.references || ''} onChange={e=>setD({...d, references:e.target.value})} placeholder="Liste referências profissionais..."/>
               </div>
               
               {/* Entrevistas Agendadas */}
@@ -4440,18 +4520,18 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
                 </h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Data e Hora</label>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Data e Hora</label>
                     <input 
                       type="datetime-local" 
-                      className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white outline-none focus:border-brand-orange"
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                       value={d.interview1Date || ''}
                       onChange={e => setD({...d, interview1Date: e.target.value})}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Status</label>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Status</label>
                     <select 
-                      className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white outline-none focus:border-brand-orange"
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                       value={d.interview1Status || ''}
                       onChange={e => setD({...d, interview1Status: e.target.value})}
                     >
@@ -4463,9 +4543,9 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
                     </select>
                   </div>
                   <div className="col-span-2">
-                    <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Observações</label>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Observações</label>
                     <textarea 
-                      className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white outline-none focus:border-brand-orange h-20"
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-20"
                       value={d.interview1Notes || ''}
                       onChange={e => setD({...d, interview1Notes: e.target.value})}
                       placeholder="Anotações sobre a entrevista..."
@@ -4482,9 +4562,9 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
                 </h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Resultado</label>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Resultado</label>
                     <select 
-                      className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white outline-none focus:border-brand-orange"
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                       value={d.testResults || ''}
                       onChange={e => setD({...d, testResults: e.target.value})}
                     >
@@ -4496,18 +4576,18 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Data do Teste</label>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Data do Teste</label>
                     <input 
                       type="date" 
-                      className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white outline-none focus:border-brand-orange"
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                       value={d.testDate || ''}
                       onChange={e => setD({...d, testDate: e.target.value})}
                     />
                   </div>
                   <div className="col-span-2">
-                    <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Observações dos Testes</label>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Observações dos Testes</label>
                     <textarea 
-                      className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white outline-none focus:border-brand-orange h-20"
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-20"
                       value={d.testNotes || ''}
                       onChange={e => setD({...d, testNotes: e.target.value})}
                       placeholder="Detalhes sobre os testes realizados..."
@@ -4524,18 +4604,18 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
                 </h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Data e Hora</label>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Data e Hora</label>
                     <input 
                       type="datetime-local" 
-                      className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white outline-none focus:border-brand-orange"
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                       value={d.interview2Date || ''}
                       onChange={e => setD({...d, interview2Date: e.target.value})}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Status</label>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Status</label>
                     <select 
-                      className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white outline-none focus:border-brand-orange"
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                       value={d.interview2Status || ''}
                       onChange={e => setD({...d, interview2Status: e.target.value})}
                     >
@@ -4547,9 +4627,9 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
                     </select>
                   </div>
                   <div className="col-span-2">
-                    <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Observações</label>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Observações</label>
                     <textarea 
-                      className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white outline-none focus:border-brand-orange h-20"
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-20"
                       value={d.interview2Notes || ''}
                       onChange={e => setD({...d, interview2Notes: e.target.value})}
                       placeholder="Anotações sobre a entrevista com gestor..."
@@ -4566,9 +4646,9 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
                 </h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Retorno Dado?</label>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Retorno Dado?</label>
                     <select 
-                      className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white outline-none focus:border-brand-orange"
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                       value={d.returnSent || ''}
                       onChange={e => setD({...d, returnSent: e.target.value})}
                     >
@@ -4579,18 +4659,18 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Data do Retorno</label>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Data do Retorno</label>
                     <input 
                       type="date" 
-                      className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white outline-none focus:border-brand-orange"
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                       value={d.returnDate || ''}
                       onChange={e => setD({...d, returnDate: e.target.value})}
                     />
                   </div>
                   <div className="col-span-2">
-                    <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Observações do Retorno</label>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Observações do Retorno</label>
                     <textarea 
-                      className="w-full bg-brand-dark border border-brand-border p-2.5 rounded text-white outline-none focus:border-brand-orange h-20"
+                      className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-20"
                       value={d.returnNotes || ''}
                       onChange={e => setD({...d, returnNotes: e.target.value})}
                       placeholder="Detalhes sobre o retorno dado ao candidato..."
@@ -4716,15 +4796,15 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
             <div className="grid grid-cols-2 gap-6">
               <InputField label="Tipo de Candidatura" field="typeOfApp" value={d.typeOfApp} onChange={handleInputChange}/>
               <div className="mb-3 col-span-2">
-                <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Campo Livre</label>
-                <textarea className="w-full bg-brand-dark dark:bg-brand-dark border border-brand-border dark:border-brand-border p-2.5 rounded text-white dark:text-white outline-none focus:border-brand-orange h-32" value={d.freeField || ''} onChange={e=>setD({...d, freeField:e.target.value})} placeholder="Informações adicionais..."/>
+                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Campo Livre</label>
+                <textarea className="w-full bg-white dark:bg-gray-900 dark:bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700 p-2.5 rounded text-white dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-32" value={d.freeField || ''} onChange={e=>setD({...d, freeField:e.target.value})} placeholder="Informações adicionais..."/>
               </div>
               <InputField label="ID Externo" field="external_id" value={d.external_id} onChange={handleInputChange}/>
               <InputField label="Timestamp Original" field="original_timestamp" value={d.original_timestamp} onChange={handleInputChange}/>
             </div>
           )}
         </div>
-        <div className="px-6 py-4 border-t border-brand-border dark:border-brand-border flex justify-end gap-2">
+        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700 flex justify-end gap-2">
           <button onClick={onClose} className="px-6 py-2 text-slate-400 dark:text-slate-400">Cancelar</button>
           <button onClick={handleSave} disabled={isSaving} className="bg-brand-orange text-white px-8 py-2 rounded">Salvar</button>
         </div>

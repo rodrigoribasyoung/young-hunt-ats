@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -8,91 +8,86 @@
 html, body, #root {
   height: 100%;
   margin: 0;
-  font-family: 'Space Grotesk', sans-serif;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Tema Escuro (padrão) */
+/* Tema Escuro - Minimalista e sofisticado */
 html.dark, html.dark body, html.dark #root {
-  background-color: #0f172a; /* Slate 900 */
-  color: #e2e8f0; /* Slate 200 */
+  background-color: #111827; /* Gray 900 */
+  color: #f9fafb; /* Gray 50 */
 }
 
-/* Tema Claro */
+/* Tema Claro - Minimalista e limpo */
 html:not(.dark), html:not(.dark) body, html:not(.dark) #root {
-  background-color: #f8fafc; /* Slate 50 */
-  color: #1e293b; /* Slate 800 */
+  background-color: #ffffff; /* Branco puro */
+  color: #111827; /* Gray 900 */
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar - Minimalista */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
-/* Scrollbar tema escuro */
 html.dark ::-webkit-scrollbar-track {
-  background: #1e293b; 
+  background: #1f2937; /* Gray 800 */
 }
 html.dark ::-webkit-scrollbar-thumb {
-  background: #334155; 
-  border-radius: 4px;
+  background: #374151; /* Gray 700 */
+  border-radius: 3px;
 }
 html.dark ::-webkit-scrollbar-thumb:hover {
-  background: #475569; 
+  background: #4b5563; /* Gray 600 */
 }
 
-/* Scrollbar tema claro */
 html:not(.dark) ::-webkit-scrollbar-track {
-  background: #e2e8f0; 
+  background: #f3f4f6; /* Gray 100 */
 }
 html:not(.dark) ::-webkit-scrollbar-thumb {
-  background: #cbd5e1; 
-  border-radius: 4px;
+  background: #d1d5db; /* Gray 300 */
+  border-radius: 3px;
 }
 html:not(.dark) ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8; 
+  background: #9ca3af; /* Gray 400 */
 }
 
-/* Estilos Light Mode para componentes brand - Design Universal */
-html:not(.dark) .bg-brand-dark {
-  background-color: #ffffff; /* Branco */
+/* Compatibilidade - Substituição de classes brand por padrões minimalistas */
+.bg-brand-dark {
+  @apply bg-white dark:bg-gray-900;
 }
 
-html:not(.dark) .bg-brand-card {
-  background-color: #f8fafc; /* Slate 50 */
-  border-color: #e2e8f0; /* Slate 200 */
+.bg-brand-card {
+  @apply bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700;
 }
 
-html:not(.dark) .bg-brand-hover {
-  background-color: #f1f5f9; /* Slate 100 */
+.bg-brand-hover {
+  @apply bg-gray-50 dark:bg-gray-700;
 }
 
-html:not(.dark) .border-brand-border {
-  border-color: #cbd5e1; /* Slate 300 */
+.border-brand-border {
+  @apply border-gray-200 dark:border-gray-700;
 }
 
-html:not(.dark) .text-white {
-  color: #1e293b; /* Slate 800 */
+.text-brand-orange {
+  @apply text-blue-600 dark:text-blue-400;
 }
 
-html:not(.dark) .text-slate-400 {
-  color: #64748b; /* Slate 500 */
+.text-brand-cyan {
+  @apply text-gray-700 dark:text-gray-300;
 }
 
-html:not(.dark) .text-slate-500 {
-  color: #475569; /* Slate 600 */
+.bg-brand-orange {
+  @apply bg-blue-600 dark:bg-blue-500;
 }
 
-html:not(.dark) .text-slate-300 {
-  color: #334155; /* Slate 700 */
+.bg-brand-cyan {
+  @apply bg-gray-100 dark:bg-gray-700;
 }
 
-html:not(.dark) .text-slate-200 {
-  color: #475569; /* Slate 600 */
-}
-
-/* Classes utilitárias universais para dark/light mode */
+/* Classes utilitárias minimalistas */
 .bg-surface {
   @apply bg-white dark:bg-gray-900;
 }
@@ -118,9 +113,9 @@ html:not(.dark) .text-slate-200 {
 }
 
 .btn-primary {
-  @apply bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600;
+  @apply bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white dark:bg-blue-500 dark:hover:bg-blue-600 dark:active:bg-blue-700 transition-colors;
 }
 
 .btn-secondary {
-  @apply bg-gray-200 hover:bg-gray-300 text-gray-900 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100;
+  @apply bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-900 dark:bg-gray-700 dark:hover:bg-gray-600 dark:active:bg-gray-500 dark:text-gray-100 transition-colors;
 }
