@@ -3,7 +3,8 @@ import {
   LayoutDashboard, Users, Briefcase, Settings, Plus, Search, 
   FileText, MapPin, Filter, Trophy, Menu, X, LogOut, Loader2, Edit3, Trash2,
   Building2, Mail, Check, Ban, UserMinus, CheckSquare, Square, Kanban, List,
-  CalendarCheck, AlertCircle, UserPlus, Moon, Sun, ChevronLeft, ChevronRight, ExternalLink
+  CalendarCheck, AlertCircle, UserPlus, Moon, Sun, ChevronLeft, ChevronRight, ExternalLink,
+  MessageSquare, History, ArrowRight, Palette, Copy
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -256,18 +257,31 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates, statusM
 
       {/* Taxas de Conversão entre Etapas */}
       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg">
-        <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4">Taxas de Conversão por Etapa</h3>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="font-bold text-lg text-gray-900 dark:text-white">Taxas de Conversão por Etapa</h3>
+          <div className={`text-xs px-2 py-1 rounded ${totalMovements > 0 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'}`}>
+            {totalMovements > 0 ? (
+              <span className="flex items-center gap-1">
+                <Check size={12}/> Baseado em {totalMovements} movimentações reais
+              </span>
+            ) : (
+              <span className="flex items-center gap-1">
+                <AlertCircle size={12}/> Dados estimados (mova candidatos para gerar histórico)
+              </span>
+            )}
+          </div>
+        </div>
         <div className="flex flex-wrap gap-3">
           {conversionRates.map((rate, idx) => (
             <div key={idx} className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-lg">
               <span className="text-xs text-gray-600 dark:text-gray-300">{rate.from}</span>
-              <span className="text-gray-400">→</span>
+              <ArrowRight size={12} className="text-gray-400"/>
               <span className="text-xs text-gray-600 dark:text-gray-300">{rate.to}</span>
               <span className={`text-sm font-bold ${rate.rate >= 50 ? 'text-green-500' : rate.rate >= 25 ? 'text-yellow-500' : 'text-red-500'}`}>
                 {rate.rate}%
               </span>
               <span className="text-xs text-gray-500">({rate.toCount}/{rate.fromCount})</span>
-      </div>
+            </div>
           ))}
         </div>
       </div>
@@ -1467,18 +1481,42 @@ export default function App() {
 
       {/* MODAIS GLOBAIS - CORRIGIDO PASSAGEM DE PROPS */}
       {isJobModalOpen && <JobModal isOpen={isJobModalOpen} job={editingJob} onClose={closeJobModal} onSave={d => handleSaveGeneric('jobs', d, closeJobModal)} options={optionsProps} isSaving={isSaving} />}
-      {editingCandidate && <CandidateModal candidate={editingCandidate} onClose={() => setEditingCandidate(null)} onSave={d => handleSaveGeneric('candidates', d, () => setEditingCandidate(null))} options={optionsProps} isSaving={isSaving} onAdvanceStage={async (candidate, newStage) => {
-        const missingFields = computeMissingFields(candidate, newStage);
-        const isConclusion = CLOSING_STATUSES.includes(newStage);
-        if (isConclusion || missingFields.length > 0) {
-          setPendingTransition({ candidate, toStage: newStage, missingFields, isConclusion });
-        } else {
-          const previousStatus = candidate.status || 'Inscrito';
-          await updateDoc(doc(db, 'candidates', candidate.id), { status: newStage, updatedAt: serverTimestamp() });
-          await recordStatusMovement(candidate.id, candidate.fullName, previousStatus, newStage);
-          showToast('Status atualizado', 'success');
-        }
-      }} />}
+      {editingCandidate && <CandidateModal 
+        candidate={editingCandidate} 
+        onClose={() => setEditingCandidate(null)} 
+        onSave={d => handleSaveGeneric('candidates', d, () => setEditingCandidate(null))} 
+        options={optionsProps} 
+        isSaving={isSaving} 
+        statusMovements={statusMovements}
+        onAddNote={async (candidateId, noteText) => {
+          const candidateRef = doc(db, 'candidates', candidateId);
+          const candidateDoc = candidates.find(c => c.id === candidateId);
+          const existingNotes = candidateDoc?.notes || [];
+          const newNote = {
+            text: noteText,
+            timestamp: new Date().toISOString(),
+            userEmail: user?.email || 'unknown',
+            userName: user?.displayName || user?.email || 'Usuário'
+          };
+          await updateDoc(candidateRef, {
+            notes: [newNote, ...existingNotes],
+            updatedAt: serverTimestamp()
+          });
+          showToast('Nota adicionada', 'success');
+        }}
+        onAdvanceStage={async (candidate, newStage) => {
+          const missingFields = computeMissingFields(candidate, newStage);
+          const isConclusion = CLOSING_STATUSES.includes(newStage);
+          if (isConclusion || missingFields.length > 0) {
+            setPendingTransition({ candidate, toStage: newStage, missingFields, isConclusion });
+          } else {
+            const previousStatus = candidate.status || 'Inscrito';
+            await updateDoc(doc(db, 'candidates', candidate.id), { status: newStage, updatedAt: serverTimestamp() });
+            await recordStatusMovement(candidate.id, candidate.fullName, previousStatus, newStage);
+            showToast('Status atualizado', 'success');
+          }
+        }} 
+      />}
       
       {/* CORREÇÃO IMPORTANTE: Passando todas as props necessárias para o TransitionModal */}
       {pendingTransition && (
@@ -3224,11 +3262,34 @@ const JobModal = ({ isOpen, job, onClose, onSave, options, isSaving }) => {
   );
 };
 
-const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvanceStage }) => {
+const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvanceStage, statusMovements = [], onAddNote }) => {
   // Normaliza cidade ao carregar candidato
   const normalizedCandidate = candidate?.city ? { ...candidate, city: normalizeCity(candidate.city) } : candidate;
   const [d, setD] = useState({ ...normalizedCandidate });
   const [activeSection, setActiveSection] = useState('pessoal');
+  const [newNote, setNewNote] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
+  
+  // Filtrar movimentações deste candidato
+  const candidateMovements = useMemo(() => {
+    if (!candidate?.id) return [];
+    return statusMovements
+      .filter(m => m.candidateId === candidate.id)
+      .sort((a, b) => {
+        const timeA = a.timestamp?.seconds || a.timestamp?._seconds || 0;
+        const timeB = b.timestamp?.seconds || b.timestamp?._seconds || 0;
+        return timeB - timeA; // Mais recente primeiro
+      });
+  }, [statusMovements, candidate?.id]);
+  
+  // Notas do candidato
+  const candidateNotes = useMemo(() => {
+    return (d.notes || []).sort((a, b) => {
+      const timeA = a.timestamp?.seconds || a.timestamp?._seconds || new Date(a.timestamp).getTime() / 1000 || 0;
+      const timeB = b.timestamp?.seconds || b.timestamp?._seconds || new Date(b.timestamp).getTime() / 1000 || 0;
+      return timeB - timeA;
+    });
+  }, [d.notes]);
   
   // Determina próxima etapa disponível
   const getCurrentStageIndex = () => {
@@ -3270,6 +3331,47 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
     }
     onSave(dataToSave);
   };
+  
+  const handleAddNote = async () => {
+    if (!newNote.trim() || !onAddNote) return;
+    setSavingNote(true);
+    try {
+      await onAddNote(d.id, newNote.trim());
+      // Atualiza localmente para feedback imediato
+      const newNoteObj = {
+        text: newNote.trim(),
+        timestamp: new Date().toISOString(),
+        userEmail: 'current_user', // Será substituído pelo App
+        userName: 'Você'
+      };
+      setD(prev => ({
+        ...prev,
+        notes: [newNoteObj, ...(prev.notes || [])]
+      }));
+      setNewNote('');
+    } catch (e) {
+      console.error('Erro ao adicionar nota:', e);
+    } finally {
+      setSavingNote(false);
+    }
+  };
+  
+  // Formatar data de timestamp
+  const formatTimestamp = (ts) => {
+    if (!ts) return 'N/A';
+    let date;
+    if (ts.seconds || ts._seconds) {
+      date = new Date((ts.seconds || ts._seconds) * 1000);
+    } else if (ts.toDate) {
+      date = ts.toDate();
+    } else {
+      date = new Date(ts);
+    }
+    return date.toLocaleString('pt-BR', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 dark:bg-black/80 p-4 backdrop-blur-sm">
@@ -3279,9 +3381,9 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
           <button onClick={onClose}><X/></button>
         </div>
         <div className="flex border-b border-brand-border dark:border-brand-border">
-          {['pessoal', 'profissional', 'processo', 'adicional'].map(tab => (
+          {['pessoal', 'profissional', 'processo', 'histórico', 'adicional'].map(tab => (
             <button key={tab} onClick={() => setActiveSection(tab)} className={`flex-1 py-3 px-4 text-sm font-bold uppercase ${activeSection === tab ? 'text-brand-orange border-b-2 border-brand-orange' : 'text-slate-500 dark:text-slate-500'}`}>
-              {tab}
+              {tab === 'histórico' ? `📋 ${tab}` : tab}
             </button>
           ))}
         </div>
@@ -3457,6 +3559,118 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
               <div className="mb-3 col-span-2">
                 <label className="block text-xs font-bold text-brand-cyan uppercase mb-1.5">Referências Profissionais</label>
                 <textarea className="w-full bg-brand-dark dark:bg-brand-dark border border-brand-border dark:border-brand-border p-2.5 rounded text-white dark:text-white outline-none focus:border-brand-orange h-20" value={d.references || ''} onChange={e=>setD({...d, references:e.target.value})} placeholder="Liste referências profissionais..."/>
+              </div>
+            </div>
+          )}
+          {activeSection === 'histórico' && (
+            <div className="space-y-6">
+              {/* Seção de Notas/Comentários */}
+              <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
+                <h4 className="font-bold text-white mb-3 flex items-center gap-2">
+                  <MessageSquare size={18} className="text-blue-400"/> Notas e Comentários
+                </h4>
+                
+                {/* Adicionar nova nota */}
+                <div className="flex gap-2 mb-4">
+                  <textarea
+                    value={newNote}
+                    onChange={e => setNewNote(e.target.value)}
+                    placeholder="Adicione uma nota, feedback de entrevista, observação..."
+                    className="flex-1 bg-gray-900 border border-gray-600 rounded-lg p-3 text-sm text-white resize-none h-20 outline-none focus:border-blue-500"
+                    disabled={savingNote}
+                  />
+                  <button
+                    onClick={handleAddNote}
+                    disabled={!newNote.trim() || savingNote}
+                    className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 rounded-lg font-medium text-sm transition-colors self-end h-10"
+                  >
+                    {savingNote ? '...' : 'Adicionar'}
+                  </button>
+                </div>
+                
+                {/* Lista de notas */}
+                <div className="space-y-3 max-h-48 overflow-y-auto">
+                  {candidateNotes.length > 0 ? candidateNotes.map((note, idx) => (
+                    <div key={idx} className="bg-gray-900/50 rounded-lg p-3 border-l-4 border-blue-500">
+                      <p className="text-sm text-gray-200 whitespace-pre-wrap">{note.text}</p>
+                      <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
+                        <span>{note.userName || note.userEmail || 'Usuário'}</span>
+                        <span>{formatTimestamp(note.timestamp)}</span>
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="text-center text-gray-500 py-4 text-sm">
+                      Nenhuma nota adicionada ainda
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Timeline de Movimentações */}
+              <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
+                <h4 className="font-bold text-white mb-3 flex items-center gap-2">
+                  <History size={18} className="text-green-400"/> Histórico de Movimentações
+                </h4>
+                
+                <div className="relative">
+                  {candidateMovements.length > 0 ? (
+                    <div className="space-y-4">
+                      {candidateMovements.map((movement, idx) => (
+                        <div key={movement.id || idx} className="flex gap-4">
+                          {/* Linha vertical */}
+                          <div className="flex flex-col items-center">
+                            <div className={`w-3 h-3 rounded-full ${
+                              movement.isClosingStatus 
+                                ? movement.newStatus === 'Contratado' ? 'bg-green-500' : 'bg-red-500'
+                                : 'bg-blue-500'
+                            }`}/>
+                            {idx < candidateMovements.length - 1 && (
+                              <div className="w-0.5 h-full bg-gray-600 mt-1"/>
+                            )}
+                          </div>
+                          
+                          {/* Conteúdo */}
+                          <div className="flex-1 pb-4">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="bg-gray-700 text-gray-300 px-2 py-0.5 rounded text-xs">
+                                {movement.previousStatus || 'Inscrito'}
+                              </span>
+                              <ArrowRight size={14} className="text-gray-500"/>
+                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                movement.newStatus === 'Contratado' ? 'bg-green-600 text-white' :
+                                movement.newStatus === 'Reprovado' ? 'bg-red-600 text-white' :
+                                'bg-blue-600 text-white'
+                              }`}>
+                                {movement.newStatus}
+                              </span>
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              {movement.userName || movement.userEmail} • {formatTimestamp(movement.timestamp)}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center text-gray-500 py-6 text-sm">
+                      <History size={32} className="mx-auto mb-2 opacity-50"/>
+                      Nenhuma movimentação registrada
+                      <p className="text-xs mt-1">As movimentações serão registradas a partir de agora</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Informações de Criação/Atualização */}
+              <div className="bg-gray-800/30 rounded-lg p-3 text-xs text-gray-500 grid grid-cols-2 gap-4">
+                <div>
+                  <span className="block text-gray-400">Criado em:</span>
+                  {formatTimestamp(d.createdAt)} {d.createdBy && `por ${d.createdBy}`}
+                </div>
+                <div>
+                  <span className="block text-gray-400">Última atualização:</span>
+                  {formatTimestamp(d.updatedAt)} {d.updatedBy && `por ${d.updatedBy}`}
+                </div>
               </div>
             </div>
           )}
