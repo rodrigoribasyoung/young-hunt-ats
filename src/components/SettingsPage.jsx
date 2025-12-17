@@ -37,7 +37,11 @@ export default function SettingsPage({
   currentUserRole = 'admin',
   onSetUserRole,
   onRemoveUserRole,
-  currentUserEmail
+  currentUserEmail,
+  currentUserName,
+  currentUserPhoto,
+  activityLog = [],
+  candidateFields = []
 }) {
   // Usar toast do App se disponível
   if (onShowToast) showToast = onShowToast;
@@ -47,6 +51,8 @@ export default function SettingsPage({
     if (onSettingsTabChange) onSettingsTabChange(tab);
   };
 
+  const isAdmin = currentUserRole === 'admin';
+
   const tabs = [
     { id: 'campos', label: 'Gerenciamento de Campos', icon: Database },
     { id: 'pipeline', label: 'Configuração do Pipeline', icon: Layout },
@@ -54,13 +60,30 @@ export default function SettingsPage({
     { id: 'users', label: 'Usuários', icon: Users },
     { id: 'emails', label: 'Modelos de Email', icon: Mail },
     { id: 'history', label: 'Histórico de Ações', icon: History },
+    ...(isAdmin ? [{ id: 'activity', label: 'Log de Atividades', icon: FileText }] : []),
   ];
 
   return (
     <div className="flex flex-col h-full bg-brand-dark text-slate-200">
       {/* Header e Navegação */}
       <div className="p-6 border-b border-brand-border bg-brand-card">
-        <h2 className="text-2xl font-bold text-white mb-6">Configurações do Sistema</h2>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-white">Configurações do Sistema</h2>
+          {/* Perfil do usuário atual */}
+          <div className="flex items-center gap-3 bg-gray-800/50 rounded-lg px-4 py-2">
+            {currentUserPhoto ? (
+              <img src={currentUserPhoto} alt="" className="w-8 h-8 rounded-full"/>
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
+                <Users size={16}/>
+              </div>
+            )}
+            <div className="text-sm">
+              <div className="font-medium text-white">{currentUserName || currentUserEmail}</div>
+              <div className="text-xs text-gray-400">{currentUserRole === 'admin' ? 'Administrador' : currentUserRole === 'recruiter' ? 'Recrutador' : 'Visualizador'}</div>
+            </div>
+          </div>
+        </div>
         <div className="flex gap-1 overflow-x-auto custom-scrollbar pb-1">
           {tabs.map(tab => (
             <button
@@ -80,13 +103,14 @@ export default function SettingsPage({
 
       {/* Conteúdo das Abas */}
       <div className="flex-1 p-6 overflow-y-auto custom-scrollbar">
-        {activeTab === 'campos' && <FieldsManager />}
+        {activeTab === 'campos' && <FieldsManager candidateFields={candidateFields} />}
         {activeTab === 'pipeline' && <PipelineManager />}
         {activeTab === 'companies' && <CompaniesManager onShowToast={onShowToast} />}
         {activeTab === 'import' && <ImportExportManager onOpenCsvModal={onOpenCsvModal} onShowToast={onShowToast} />}
-        {activeTab === 'users' && <UserManager userRoles={userRoles} currentUserRole={currentUserRole} onSetUserRole={onSetUserRole} onRemoveUserRole={onRemoveUserRole} currentUserEmail={currentUserEmail} onShowToast={onShowToast} />}
+        {activeTab === 'users' && <UserManager userRoles={userRoles} currentUserRole={currentUserRole} onSetUserRole={onSetUserRole} onRemoveUserRole={onRemoveUserRole} currentUserEmail={currentUserEmail} currentUserName={currentUserName} currentUserPhoto={currentUserPhoto} onShowToast={onShowToast} />}
         {activeTab === 'emails' && <EmailTemplateManager />}
         {activeTab === 'history' && <MassActionHistory />}
+        {activeTab === 'activity' && isAdmin && <ActivityLog activityLog={activityLog} />}
       </div>
     </div>
   );
@@ -94,7 +118,7 @@ export default function SettingsPage({
 
 // --- SUB-COMPONENTES DE CADA ABA ---
 
-const FieldsManager = () => {
+const FieldsManager = ({ candidateFields = [] }) => {
   const [candidateFieldsState, setCandidateFieldsState] = useState([]);
   const [jobFieldsState, setJobFieldsState] = useState([]);
   const [activeSection, setActiveSection] = useState('candidate');
@@ -102,25 +126,42 @@ const FieldsManager = () => {
   const [loading, setLoading] = useState(true);
   const [editingField, setEditingField] = useState(null);
 
-  // Inicializar campos padrão
+  // Inicializar campos usando CANDIDATE_FIELDS do constants
   useEffect(() => {
-    const defaultCandidateFields = CSV_FIELD_MAPPING_OPTIONS.map((f, i) => ({
-      id: f.value, label: f.label.replace(':', ''), type: 'Texto', visible: true, required: i < 3
-    }));
+    // Usar campos passados via props ou fallback para CSV_FIELD_MAPPING_OPTIONS
+    const defaultCandidateFields = candidateFields.length > 0 
+      ? candidateFields.map(f => ({
+          id: f.key,
+          displayName: f.displayName, // Nome visual para exibição
+          csvLabel: f.csvLabel, // Nome original do CSV/Forms
+          type: f.type || 'text',
+          category: f.category || 'geral',
+          visible: true,
+          required: f.required || false
+        }))
+      : CSV_FIELD_MAPPING_OPTIONS.map((f, i) => ({
+          id: f.value, 
+          displayName: f.label.replace(':', ''),
+          csvLabel: f.label,
+          type: 'text', 
+          visible: true, 
+          required: i < 3
+        }));
     setCandidateFieldsState(defaultCandidateFields);
     
     const defaultJobFields = [
-      { id: 'title', label: 'Título da Vaga', type: 'Texto', visible: true, required: true },
-      { id: 'company', label: 'Empresa', type: 'Texto', visible: true, required: true },
-      { id: 'city', label: 'Cidade', type: 'Texto', visible: true, required: false },
-      { id: 'description', label: 'Descrição', type: 'Texto Longo', visible: true, required: false },
-      { id: 'requirements', label: 'Requisitos', type: 'Texto Longo', visible: true, required: false },
-      { id: 'salary', label: 'Salário', type: 'Número', visible: true, required: false },
-      { id: 'status', label: 'Status', type: 'Seleção', visible: true, required: true },
+      { id: 'title', displayName: 'Título', csvLabel: 'Título', type: 'text', visible: true, required: true },
+      { id: 'company', displayName: 'Empresa', csvLabel: 'Empresa', type: 'select', visible: true, required: true },
+      { id: 'city', displayName: 'Cidade', csvLabel: 'Cidade da vaga', type: 'select', visible: true, required: false },
+      { id: 'interestArea', displayName: 'Área', csvLabel: 'Área de interesse', type: 'select', visible: true, required: false },
+      { id: 'description', displayName: 'Descrição', csvLabel: 'Descrição', type: 'textarea', visible: true, required: false },
+      { id: 'requirements', displayName: 'Requisitos', csvLabel: 'Requisitos', type: 'textarea', visible: true, required: false },
+      { id: 'salary', displayName: 'Salário', csvLabel: 'Faixa salarial', type: 'text', visible: true, required: false },
+      { id: 'status', displayName: 'Status', csvLabel: 'Status', type: 'select', visible: true, required: true },
     ];
     setJobFieldsState(defaultJobFields);
     setLoading(false);
-  }, []);
+  }, [candidateFields]);
 
   const handleToggleVisibility = (fieldId, currentValue) => {
     if (activeSection === 'candidate') {
@@ -143,10 +184,14 @@ const FieldsManager = () => {
   };
 
   const filteredCandidateFields = candidateFieldsState.filter(f => 
-    f.label.toLowerCase().includes(search.toLowerCase())
+    f.displayName?.toLowerCase().includes(search.toLowerCase()) ||
+    f.csvLabel?.toLowerCase().includes(search.toLowerCase()) ||
+    f.id?.toLowerCase().includes(search.toLowerCase())
   );
   const filteredJobFields = jobFieldsState.filter(f => 
-    f.label.toLowerCase().includes(search.toLowerCase())
+    f.displayName?.toLowerCase().includes(search.toLowerCase()) ||
+    f.csvLabel?.toLowerCase().includes(search.toLowerCase()) ||
+    f.id?.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -175,22 +220,22 @@ const FieldsManager = () => {
           </button>
         </div>
         <div className="flex gap-3">
-          <div className="relative w-64">
-            <Search className="absolute left-3 top-2.5 text-slate-500" size={16} />
-            <input 
-              className="w-full bg-brand-card border border-brand-border rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:border-brand-cyan outline-none"
-              placeholder="Buscar campo..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-          </div>
+        <div className="relative w-64">
+          <Search className="absolute left-3 top-2.5 text-slate-500" size={16} />
+          <input 
+            className="w-full bg-brand-card border border-brand-border rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:border-brand-cyan outline-none"
+            placeholder="Buscar campo..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
                       <div className="flex items-center gap-2">
                         <button 
                           onClick={() => showToast('Funcionalidade de campo personalizado em desenvolvimento', 'info')}
                           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 text-sm transition-colors dark:bg-blue-500 dark:hover:bg-blue-600"
                         >
-                          <Plus size={16}/> Novo Campo Personalizado
-                        </button>
+          <Plus size={16}/> Novo Campo Personalizado
+        </button>
                         <div className="px-3 py-1.5 bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-700 rounded-lg text-xs text-yellow-800 dark:text-yellow-300 font-medium">
                           ⚠️ Em desenvolvimento
                         </div>
@@ -198,30 +243,51 @@ const FieldsManager = () => {
         </div>
       </div>
 
+      {/* Legenda */}
+      <div className="flex gap-4 text-xs text-gray-500 dark:text-gray-400">
+        <span><strong className="text-white">Nome Visual:</strong> Exibido nas tabelas e formulários</span>
+        <span><strong className="text-cyan-400">Nome do Campo (CSV/Forms):</strong> Nome original da planilha/formulário</span>
+      </div>
+
       <div className="bg-brand-card border border-brand-border rounded-xl overflow-hidden shadow-lg">
         <table className="w-full text-left text-sm">
           <thead className="bg-brand-dark/50 text-slate-400 font-bold uppercase text-xs">
             <tr>
-              <th className="p-4">Nome do Campo</th>
-              <th className="p-4">ID (Sistema)</th>
+              <th className="p-4">Nome Visual</th>
+              <th className="p-4">Nome do Campo (CSV/Forms)</th>
               <th className="p-4">Tipo</th>
+              <th className="p-4 text-center">Categoria</th>
               <th className="p-4 text-center">Visível</th>
               <th className="p-4 text-center">Obrigatório</th>
-              <th className="p-4 text-right">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-brand-border">
             {(activeSection === 'candidate' ? filteredCandidateFields : filteredJobFields).map(field => (
               <tr key={field.id} className="hover:bg-brand-hover/50 dark:hover:bg-brand-hover/50 transition-colors">
-                <td className="p-4 font-bold text-white break-words">{field.label}</td>
-                <td className="p-4 font-mono text-xs text-brand-cyan break-words">{field.id}</td>
-                <td className="p-4 text-slate-400 break-words">{field.type}</td>
+                <td className="p-4">
+                  <span className="font-bold text-white">{field.displayName}</span>
+                  <span className="block text-xs text-gray-500 font-mono mt-0.5">id: {field.id}</span>
+                </td>
+                <td className="p-4 text-cyan-400 text-sm">{field.csvLabel}</td>
+                <td className="p-4 text-slate-400 capitalize">{field.type}</td>
+                <td className="p-4 text-center">
+                  <span className={`px-2 py-0.5 rounded text-xs ${
+                    field.category === 'pessoal' ? 'bg-blue-900/30 text-blue-300' :
+                    field.category === 'profissional' ? 'bg-green-900/30 text-green-300' :
+                    field.category === 'links' ? 'bg-purple-900/30 text-purple-300' :
+                    field.category === 'processo' ? 'bg-yellow-900/30 text-yellow-300' :
+                    field.category === 'sistema' ? 'bg-gray-900/30 text-gray-300' :
+                    'bg-gray-700 text-gray-400'
+                  }`}>
+                    {field.category || 'geral'}
+                  </span>
+                </td>
                 <td className="p-4 text-center">
                   <input
                     type="checkbox"
                     checked={field.visible}
                     onChange={() => handleToggleVisibility(field.id, field.visible)}
-                    className="accent-brand-cyan cursor-pointer"
+                    className="accent-brand-cyan cursor-pointer w-4 h-4"
                     title="Alternar visibilidade"
                   />
                 </td>
@@ -230,20 +296,9 @@ const FieldsManager = () => {
                      type="checkbox"
                      checked={field.required}
                      onChange={() => handleToggleRequired(field.id, field.required)}
-                     className="accent-brand-orange cursor-pointer"
+                     className="accent-brand-orange cursor-pointer w-4 h-4"
                      title="Alternar obrigatoriedade"
                    />
-                </td>
-                <td className="p-4 text-right">
-                  <button
-                    onClick={() => {
-                      if (onShowToast) onShowToast(`Edição completa do campo "${field.label}" em desenvolvimento`, 'info');
-                    }}
-                    className="p-2 text-slate-400 hover:text-brand-cyan transition-colors"
-                    title="Editar campo (em desenvolvimento)"
-                  >
-                    <Edit3 size={16}/>
-                  </button>
                 </td>
               </tr>
             ))}
@@ -338,7 +393,7 @@ const PipelineManager = () => {
             >
               <X size={16}/>
             </button>
-          </div>
+        </div>
         )}
 
         <div className="bg-brand-card border border-brand-border rounded-xl overflow-hidden">
@@ -356,7 +411,7 @@ const PipelineManager = () => {
                       autoFocus
                     />
                   ) : (
-                    <span className="font-medium text-white">{stage}</span>
+                  <span className="font-medium text-white">{stage}</span>
                   )}
                 </div>
                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -548,23 +603,23 @@ const ImportExportManager = ({ onOpenCsvModal, onShowToast }) => {
     <div className="max-w-4xl mx-auto animate-in fade-in space-y-6">
       <div className="grid md:grid-cols-2 gap-6">
         {/* Importação */}
-        <div className="bg-brand-card p-8 rounded-xl border border-brand-border flex flex-col items-center text-center hover:border-brand-cyan/50 transition-colors">
-          <div className="w-16 h-16 bg-brand-cyan/10 rounded-full flex items-center justify-center mb-4 text-brand-cyan">
-            <UploadCloud size={32}/>
-          </div>
-          <h3 className="text-xl font-bold text-white mb-2">Importar Candidatos</h3>
-          <p className="text-slate-400 text-sm mb-6">Carregue arquivos CSV para adicionar candidatos em massa ao banco de talentos.</p>
-          <button onClick={onOpenCsvModal} className="bg-brand-cyan text-brand-dark px-6 py-3 rounded-lg font-bold hover:bg-cyan-400 w-full">
-            Iniciar Importação
-          </button>
+     <div className="bg-brand-card p-8 rounded-xl border border-brand-border flex flex-col items-center text-center hover:border-brand-cyan/50 transition-colors">
+        <div className="w-16 h-16 bg-brand-cyan/10 rounded-full flex items-center justify-center mb-4 text-brand-cyan">
+           <UploadCloud size={32}/>
         </div>
+        <h3 className="text-xl font-bold text-white mb-2">Importar Candidatos</h3>
+        <p className="text-slate-400 text-sm mb-6">Carregue arquivos CSV para adicionar candidatos em massa ao banco de talentos.</p>
+        <button onClick={onOpenCsvModal} className="bg-brand-cyan text-brand-dark px-6 py-3 rounded-lg font-bold hover:bg-cyan-400 w-full">
+           Iniciar Importação
+        </button>
+     </div>
 
         {/* Exportação */}
-        <div className="bg-brand-card p-8 rounded-xl border border-brand-border flex flex-col items-center text-center hover:border-brand-orange/50 transition-colors">
-          <div className="w-16 h-16 bg-brand-orange/10 rounded-full flex items-center justify-center mb-4 text-brand-orange">
-            <Download size={32}/>
-          </div>
-          <h3 className="text-xl font-bold text-white mb-2">Exportar Dados</h3>
+     <div className="bg-brand-card p-8 rounded-xl border border-brand-border flex flex-col items-center text-center hover:border-brand-orange/50 transition-colors">
+        <div className="w-16 h-16 bg-brand-orange/10 rounded-full flex items-center justify-center mb-4 text-brand-orange">
+           <Download size={32}/>
+        </div>
+        <h3 className="text-xl font-bold text-white mb-2">Exportar Dados</h3>
           <p className="text-slate-400 text-sm mb-6">Baixe relatórios completos de candidatos ou vagas em formato CSV ou Excel.</p>
           
           <div className="w-full space-y-3">
@@ -578,7 +633,7 @@ const ImportExportManager = ({ onOpenCsvModal, onShowToast }) => {
             </select>
             
             <div className="flex gap-2">
-              <button
+        <button
                 onClick={() => setExportFormat('csv')}
                 className={`flex-1 px-3 py-2 rounded text-sm font-bold transition-colors ${
                   exportFormat === 'csv'
@@ -597,10 +652,10 @@ const ImportExportManager = ({ onOpenCsvModal, onShowToast }) => {
                 }`}
               >
                 Excel
-              </button>
+        </button>
             </div>
             
-            <button
+        <button
               onClick={exportData}
               disabled={exporting}
               className="bg-brand-orange text-white px-6 py-3 rounded-lg font-bold hover:bg-orange-600 w-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
@@ -616,17 +671,18 @@ const ImportExportManager = ({ onOpenCsvModal, onShowToast }) => {
                   Exportar {exportType === 'candidates' ? 'Candidatos' : 'Vagas'}
                 </>
               )}
-            </button>
+        </button>
           </div>
         </div>
-      </div>
-    </div>
-  );
+     </div>
+  </div>
+);
 };
 
-const UserManager = ({ userRoles = [], currentUserRole, onSetUserRole, onRemoveUserRole, currentUserEmail, onShowToast }) => {
+const UserManager = ({ userRoles = [], currentUserRole, onSetUserRole, onRemoveUserRole, currentUserEmail, currentUserName, currentUserPhoto, onShowToast }) => {
   const [showAddUser, setShowAddUser] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserName, setNewUserName] = useState('');
   const [newUserRole, setNewUserRole] = useState('recruiter');
 
   const ROLES = [
@@ -642,8 +698,9 @@ const UserManager = ({ userRoles = [], currentUserRole, onSetUserRole, onRemoveU
     }
     
     if (onSetUserRole) {
-      await onSetUserRole(newUserEmail.trim().toLowerCase(), newUserRole);
+      await onSetUserRole(newUserEmail.trim().toLowerCase(), newUserRole, newUserName.trim());
       setNewUserEmail('');
+      setNewUserName('');
       setShowAddUser(false);
     }
   };
@@ -653,14 +710,14 @@ const UserManager = ({ userRoles = [], currentUserRole, onSetUserRole, onRemoveU
   const isAdmin = currentUserRole === 'admin';
 
   return (
-    <div className="max-w-4xl mx-auto animate-in fade-in space-y-6">
-      <div className="flex justify-between items-center">
+  <div className="max-w-4xl mx-auto animate-in fade-in space-y-6">
+     <div className="flex justify-between items-center">
         <div>
           <h3 className="text-lg font-bold text-gray-900 dark:text-white">Usuários do Sistema</h3>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             Seu perfil: <span className={`px-2 py-0.5 rounded text-xs border ${getRoleInfo(currentUserRole).color}`}>{getRoleInfo(currentUserRole).label}</span>
           </p>
-        </div>
+     </div>
         {isAdmin && (
           <button 
             onClick={() => setShowAddUser(!showAddUser)}
@@ -675,14 +732,25 @@ const UserManager = ({ userRoles = [], currentUserRole, onSetUserRole, onRemoveU
       {showAddUser && isAdmin && (
         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 space-y-4">
           <h4 className="font-medium text-blue-800 dark:text-blue-300">Novo Usuário</h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <p className="text-xs text-blue-700 dark:text-blue-400">O usuário deve fazer login com Google usando o email cadastrado. O nome e foto serão atualizados automaticamente no primeiro login.</p>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Email do Google *</label>
               <input
                 type="email"
-                placeholder="usuario@empresa.com"
+                placeholder="usuario@gmail.com"
                 value={newUserEmail}
                 onChange={e => setNewUserEmail(e.target.value)}
+                className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Nome (opcional)</label>
+              <input
+                type="text"
+                placeholder="João Silva"
+                value={newUserName}
+                onChange={e => setNewUserName(e.target.value)}
                 className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -700,7 +768,7 @@ const UserManager = ({ userRoles = [], currentUserRole, onSetUserRole, onRemoveU
             </div>
           </div>
           <div className="flex justify-end gap-2">
-            <button onClick={() => setShowAddUser(false)} className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+            <button onClick={() => { setShowAddUser(false); setNewUserEmail(''); setNewUserName(''); }} className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
               Cancelar
             </button>
             <button onClick={handleAddUser} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700">
@@ -718,26 +786,40 @@ const UserManager = ({ userRoles = [], currentUserRole, onSetUserRole, onRemoveU
             <p className="text-xs text-gray-600 dark:text-gray-400">{role.desc}</p>
           </div>
         ))}
-      </div>
+     </div>
 
       {/* Lista de usuários */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden shadow">
         <table className="w-full text-left text-sm">
           <thead className="bg-gray-100 dark:bg-gray-900/50 text-gray-700 dark:text-gray-300 uppercase text-xs font-bold">
             <tr>
-              <th className="p-4">Email</th>
+              <th className="p-4">Usuário</th>
               <th className="p-4">Perfil</th>
               <th className="p-4">Desde</th>
               {isAdmin && <th className="p-4 text-right">Ações</th>}
             </tr>
-          </thead>
+           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
             {/* Usuário atual (sempre aparece mesmo sem registro) */}
             {currentUserEmail && !userRoles.find(r => r.email === currentUserEmail) && (
               <tr className="bg-blue-50/50 dark:bg-blue-900/10">
-                <td className="p-4 font-medium text-gray-900 dark:text-white">
-                  {currentUserEmail}
-                  <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">(você)</span>
+                <td className="p-4">
+                  <div className="flex items-center gap-3">
+                    {currentUserPhoto ? (
+                      <img src={currentUserPhoto} alt="" className="w-10 h-10 rounded-full"/>
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                        <Users size={20}/>
+                      </div>
+                    )}
+                    <div>
+                      <div className="font-medium text-gray-900 dark:text-white">
+                        {currentUserName || currentUserEmail}
+                        <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">(você)</span>
+                      </div>
+                      {currentUserName && <div className="text-xs text-gray-500">{currentUserEmail}</div>}
+                    </div>
+                  </div>
                 </td>
                 <td className="p-4">
                   <span className={`px-2 py-1 rounded text-xs border ${getRoleInfo('admin').color}`}>
@@ -750,9 +832,23 @@ const UserManager = ({ userRoles = [], currentUserRole, onSetUserRole, onRemoveU
             )}
             {userRoles.map(userRole => (
               <tr key={userRole.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 ${userRole.email === currentUserEmail ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
-                <td className="p-4 font-medium text-gray-900 dark:text-white">
-                  {userRole.email}
-                  {userRole.email === currentUserEmail && <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">(você)</span>}
+                <td className="p-4">
+                  <div className="flex items-center gap-3">
+                    {userRole.photo ? (
+                      <img src={userRole.photo} alt="" className="w-10 h-10 rounded-full"/>
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                        <Users size={20}/>
+                      </div>
+                    )}
+                    <div>
+                      <div className="font-medium text-gray-900 dark:text-white">
+                        {userRole.name || userRole.email}
+                        {userRole.email === currentUserEmail && <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">(você)</span>}
+                      </div>
+                      {userRole.name && <div className="text-xs text-gray-500">{userRole.email}</div>}
+                    </div>
+                  </div>
                 </td>
                 <td className="p-4">
                   {isAdmin && userRole.email !== currentUserEmail ? (
@@ -796,11 +892,11 @@ const UserManager = ({ userRoles = [], currentUserRole, onSetUserRole, onRemoveU
                 </td>
               </tr>
             )}
-          </tbody>
+           </tbody>
         </table>
-      </div>
-    </div>
-  );
+     </div>
+  </div>
+);
 };
 
 const EmailTemplateManager = () => (
@@ -960,7 +1056,7 @@ const CompaniesManager = ({ onShowToast }) => {
   }
 
   return (
-    <div className="max-w-5xl mx-auto animate-in fade-in space-y-6">
+   <div className="max-w-5xl mx-auto animate-in fade-in space-y-6">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-bold text-gray-900 dark:text-white">Empresas e Unidades</h3>
         <button
@@ -1064,7 +1160,7 @@ const CompaniesManager = ({ onShowToast }) => {
       )}
 
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden shadow-lg">
-        <table className="w-full text-left text-sm">
+         <table className="w-full text-left text-sm">
           <thead className="bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 font-bold uppercase text-xs">
             <tr>
               <th className="p-4">Nome</th>
@@ -1073,7 +1169,7 @@ const CompaniesManager = ({ onShowToast }) => {
               <th className="p-4">Contato</th>
               <th className="p-4 text-right">Ações</th>
             </tr>
-          </thead>
+            </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
             {companies.length > 0 ? (
               companies.map(company => (
@@ -1104,20 +1200,20 @@ const CompaniesManager = ({ onShowToast }) => {
                       </button>
                     </div>
                   </td>
-                </tr>
+               </tr>
               ))
             ) : (
               <tr>
                 <td colSpan="5" className="p-8 text-center text-gray-500 dark:text-gray-400">
                   Nenhuma empresa cadastrada
                 </td>
-              </tr>
+               </tr>
             )}
-          </tbody>
-        </table>
+            </tbody>
+         </table>
       </div>
-    </div>
-  );
+   </div>
+);
 };
 
 const MassActionHistory = () => {
@@ -1179,7 +1275,7 @@ const MassActionHistory = () => {
   return (
     <div className="max-w-5xl mx-auto animate-in fade-in space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-bold text-white">Histórico de Ações em Massa</h3>
+      <h3 className="text-lg font-bold text-white">Histórico de Ações em Massa</h3>
         <div className="text-xs text-slate-400">
           {history.length} registro{history.length !== 1 ? 's' : ''}
         </div>
@@ -1196,7 +1292,7 @@ const MassActionHistory = () => {
             <p>Nenhuma ação registrada ainda</p>
           </div>
         ) : (
-          <table className="w-full text-left text-sm">
+         <table className="w-full text-left text-sm">
             <thead className="bg-brand-dark/50 text-slate-400 uppercase text-xs font-bold">
               <tr>
                 <th className="p-4">Data/Hora</th>
@@ -1237,11 +1333,163 @@ const MassActionHistory = () => {
                   <td className="p-4 text-right font-mono font-bold text-white">
                     {item.recordsAffected || 0}
                   </td>
-                </tr>
+               </tr>
               ))}
             </tbody>
-          </table>
+         </table>
         )}
+      </div>
+   </div>
+);
+};
+
+// Log de Atividades completo (apenas para admin)
+const ActivityLog = ({ activityLog = [] }) => {
+  const [filter, setFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const formatDate = (timestamp) => {
+    if (!timestamp) return 'N/A';
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp.seconds ? timestamp.seconds * 1000 : timestamp);
+    return date.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getActivityIcon = (type) => {
+    const icons = {
+      'login': '🔐',
+      'create': '➕',
+      'update': '✏️',
+      'delete': '🗑️',
+      'move': '📦',
+      'import': '📥',
+      'export': '📤',
+      'schedule': '📅',
+      'user_create': '👤',
+      'user_update': '👥',
+      'user_delete': '🚫'
+    };
+    return icons[type] || '📋';
+  };
+
+  const getActivityColor = (type) => {
+    if (type.includes('delete')) return 'border-l-red-500';
+    if (type.includes('create') || type.includes('import')) return 'border-l-green-500';
+    if (type.includes('update') || type.includes('move')) return 'border-l-blue-500';
+    if (type.includes('user')) return 'border-l-purple-500';
+    if (type.includes('schedule')) return 'border-l-yellow-500';
+    return 'border-l-gray-500';
+  };
+
+  const filteredActivities = activityLog.filter(activity => {
+    if (filter !== 'all' && activity.type !== filter) return false;
+    if (searchTerm && !activity.description?.toLowerCase().includes(searchTerm.toLowerCase()) && 
+        !activity.userName?.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    return true;
+  });
+
+  const activityTypes = [...new Set(activityLog.map(a => a.type))].filter(Boolean);
+
+  return (
+    <div className="max-w-5xl mx-auto animate-in fade-in space-y-6">
+      <div className="flex justify-between items-center flex-wrap gap-4">
+        <div>
+          <h3 className="text-lg font-bold text-white">Log de Atividades do Sistema</h3>
+          <p className="text-sm text-gray-400 mt-1">Todas as ações realizadas no sistema</p>
+        </div>
+        <div className="flex gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-2.5 text-gray-500" size={16} />
+            <input
+              type="text"
+              placeholder="Buscar..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="bg-gray-800 border border-gray-700 rounded-lg pl-10 pr-4 py-2 text-sm text-white outline-none focus:border-blue-500 w-48"
+            />
+          </div>
+          <select
+            value={filter}
+            onChange={e => setFilter(e.target.value)}
+            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+          >
+            <option value="all">Todas as ações</option>
+            {activityTypes.map(type => (
+              <option key={type} value={type}>{type}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="bg-gray-800/50 border border-gray-700 rounded-xl overflow-hidden">
+        {filteredActivities.length === 0 ? (
+          <div className="p-8 text-center text-gray-400">
+            <FileText size={48} className="mx-auto mb-4 opacity-50" />
+            <p>Nenhuma atividade encontrada</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-700/50 max-h-[600px] overflow-y-auto">
+            {filteredActivities.map((activity) => (
+              <div 
+                key={activity.id} 
+                className={`p-4 hover:bg-gray-700/30 transition-colors border-l-4 ${getActivityColor(activity.type)}`}
+              >
+                <div className="flex items-start gap-4">
+                  {/* Avatar */}
+                  <div className="flex-shrink-0">
+                    {activity.userPhoto ? (
+                      <img src={activity.userPhoto} alt="" className="w-10 h-10 rounded-full"/>
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-lg">
+                        {getActivityIcon(activity.type)}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Conteúdo */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-white">{activity.userName || activity.userEmail}</span>
+                      <span className="text-gray-500">•</span>
+                      <span className="text-xs text-gray-400">{formatDate(activity.timestamp)}</span>
+                      {activity.userRole && (
+                        <span className={`text-xs px-2 py-0.5 rounded ${
+                          activity.userRole === 'admin' ? 'bg-purple-900/50 text-purple-300' :
+                          activity.userRole === 'recruiter' ? 'bg-blue-900/50 text-blue-300' :
+                          'bg-gray-700 text-gray-400'
+                        }`}>
+                          {activity.userRole}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-gray-300 mt-1">{activity.description}</p>
+                    {activity.entityType && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        Entidade: {activity.entityType} {activity.entityId && `(${activity.entityId.substring(0, 8)}...)`}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Badge do tipo */}
+                  <div className="flex-shrink-0">
+                    <span className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">
+                      {activity.type}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      
+      <div className="text-xs text-gray-500 text-center">
+        Mostrando {filteredActivities.length} de {activityLog.length} atividades
       </div>
     </div>
   );

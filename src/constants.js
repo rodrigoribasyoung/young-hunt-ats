@@ -48,49 +48,88 @@ export const STATUS_COLORS = {
   'Desistiu da vaga': 'bg-gray-500 dark:bg-gray-600 text-white border-gray-600 dark:border-gray-700 font-medium'
 };
 
-// Mapeamento EXATO das colunas do seu CSV para as variáveis do Sistema
-export const CSV_FIELD_MAPPING_OPTIONS = [
-  // ... (Mantenha o restante das opções de CSV igual ao anterior)
+// Mapeamento de campos do candidato
+// - key: nome do campo no sistema (Firebase)
+// - csvLabel: nome exato da coluna no CSV/Sheets/Forms (para importação)
+// - displayName: nome visual para exibição nas tabelas e formulários
+// - type: tipo do campo para renderização
+// - category: categoria para organização nos formulários
+export const CANDIDATE_FIELDS = [
   // Identificação e Contato
-  { label: 'Nome completo:', value: 'fullName' },
-  { label: 'E-mail principal:', value: 'email' },
-  { label: 'Endereço de e-mail', value: 'email_secondary' },
-  { label: 'Nº telefone celular / Whatsapp:', value: 'phone' },
-  { label: 'Cidade onde reside:', value: 'city' },
+  { key: 'fullName', csvLabel: 'Nome completo:', displayName: 'Nome', type: 'text', category: 'pessoal', required: true },
+  { key: 'email', csvLabel: 'E-mail principal:', displayName: 'Email', type: 'email', category: 'pessoal', required: true },
+  { key: 'email_secondary', csvLabel: 'Endereço de e-mail', displayName: 'Email Secundário', type: 'email', category: 'pessoal' },
+  { key: 'phone', csvLabel: 'Nº telefone celular / Whatsapp:', displayName: 'Telefone', type: 'phone', category: 'pessoal', required: true },
+  { key: 'city', csvLabel: 'Cidade onde reside:', displayName: 'Cidade', type: 'select', category: 'pessoal' },
   
   // Dados Pessoais
-  { label: 'Data de Nascimento:', value: 'birthDate' },
-  { label: 'Idade', value: 'age' },
-  { label: 'Estado civil:', value: 'maritalStatus' },
-  { label: 'Se tem filhos, quantos?', value: 'childrenCount' },
-  { label: 'Nos envie uma foto atual que você goste:', value: 'photoUrl' },
-  { label: 'Você possui CNH tipo B?', value: 'hasLicense' },
+  { key: 'birthDate', csvLabel: 'Data de Nascimento:', displayName: 'Data Nasc.', type: 'date', category: 'pessoal' },
+  { key: 'age', csvLabel: 'Idade', displayName: 'Idade', type: 'number', category: 'pessoal' },
+  { key: 'maritalStatus', csvLabel: 'Estado civil:', displayName: 'Estado Civil', type: 'select', category: 'pessoal' },
+  { key: 'childrenCount', csvLabel: 'Se tem filhos, quantos?', displayName: 'Filhos', type: 'number', category: 'pessoal' },
+  { key: 'photoUrl', csvLabel: 'Nos envie uma foto atual que você goste:', displayName: 'Foto', type: 'url', category: 'pessoal' },
+  { key: 'hasLicense', csvLabel: 'Você possui CNH tipo B?', displayName: 'CNH', type: 'boolean', category: 'pessoal' },
   
   // Profissional e Acadêmico
-  { label: 'Formação:', value: 'education' },
-  { label: 'Nível de escolaridade:', value: 'schoolingLevel' },
-  { label: 'Instituição de ensino:', value: 'institution' },
-  { label: 'Data de formatura:', value: 'graduationDate' },
-  { label: 'Em caso de curso superior, está cursando neste momento?', value: 'isStudying' },
-  { label: 'Experiências anteriores:', value: 'experience' },
-  { label: 'Cursos e certificações profissionais.', value: 'courses' },
-  { label: 'Certificações profissionais:', value: 'certifications' },
-  { label: 'Áreas de interesse profissional', value: 'interestAreas' },
+  { key: 'education', csvLabel: 'Formação:', displayName: 'Formação', type: 'text', category: 'profissional' },
+  { key: 'schoolingLevel', csvLabel: 'Nível de escolaridade:', displayName: 'Escolaridade', type: 'select', category: 'profissional' },
+  { key: 'institution', csvLabel: 'Instituição de ensino:', displayName: 'Instituição', type: 'text', category: 'profissional' },
+  { key: 'graduationDate', csvLabel: 'Data de formatura:', displayName: 'Formatura', type: 'date', category: 'profissional' },
+  { key: 'isStudying', csvLabel: 'Em caso de curso superior, está cursando neste momento?', displayName: 'Cursando', type: 'boolean', category: 'profissional' },
+  { key: 'experience', csvLabel: 'Experiências anteriores:', displayName: 'Experiência', type: 'textarea', category: 'profissional' },
+  { key: 'courses', csvLabel: 'Cursos e certificações profissionais.', displayName: 'Cursos', type: 'textarea', category: 'profissional' },
+  { key: 'certifications', csvLabel: 'Certificações profissionais:', displayName: 'Certificações', type: 'textarea', category: 'profissional' },
+  { key: 'interestAreas', csvLabel: 'Áreas de interesse profissional', displayName: 'Área de Interesse', type: 'select', category: 'profissional' },
   
   // Links
-  { label: 'Anexar currículo:', value: 'cvUrl' },
-  { label: 'Portfólio de trabalho:', value: 'portfolioUrl' },
+  { key: 'cvUrl', csvLabel: 'Anexar currículo:', displayName: 'CV', type: 'url', category: 'links' },
+  { key: 'portfolioUrl', csvLabel: 'Portfólio de trabalho:', displayName: 'Portfólio', type: 'url', category: 'links' },
   
-  // Perguntas de Filtro e Fit Cultural
-  { label: 'Onde você nos encontrou?', value: 'source' },
-  { label: 'Você foi indicado por algum colaborador da Young? Se sim, quem?', value: 'referral' },
-  { label: 'Qual seria sua expectativa salarial?', value: 'salaryExpectation' },
-  { label: 'Teria disponibilidade para mudança de cidade?', value: 'canRelocate' },
-  { label: 'Referências profissionais:', value: 'references' },
-  { label: 'Você está se candidatando a uma vaga específica...?', value: 'typeOfApp' },
-  { label: 'Campo Livre, SEJA VOCÊ!', value: 'freeField' },
+  // Processo Seletivo
+  { key: 'source', csvLabel: 'Onde você nos encontrou?', displayName: 'Fonte', type: 'select', category: 'processo' },
+  { key: 'referral', csvLabel: 'Você foi indicado por algum colaborador da Young? Se sim, quem?', displayName: 'Indicação', type: 'text', category: 'processo' },
+  { key: 'salaryExpectation', csvLabel: 'Qual seria sua expectativa salarial?', displayName: 'Pretensão Salarial', type: 'text', category: 'processo' },
+  { key: 'canRelocate', csvLabel: 'Teria disponibilidade para mudança de cidade?', displayName: 'Disponível p/ Mudança', type: 'boolean', category: 'processo' },
+  { key: 'references', csvLabel: 'Referências profissionais:', displayName: 'Referências', type: 'textarea', category: 'processo' },
+  { key: 'typeOfApp', csvLabel: 'Você está se candidatando a uma vaga específica...?', displayName: 'Tipo de Candidatura', type: 'text', category: 'processo' },
+  { key: 'freeField', csvLabel: 'Campo Livre, SEJA VOCÊ!', displayName: 'Observações', type: 'textarea', category: 'adicional' },
   
   // Metadados
-  { label: 'Carimbo de data/hora', value: 'original_timestamp' },
-  { label: 'COD', value: 'external_id' }
+  { key: 'original_timestamp', csvLabel: 'Carimbo de data/hora', displayName: 'Data Cadastro', type: 'datetime', category: 'sistema' },
+  { key: 'external_id', csvLabel: 'COD', displayName: 'Código Externo', type: 'text', category: 'sistema' },
+  { key: 'status', csvLabel: 'Status', displayName: 'Status', type: 'select', category: 'sistema' },
+  { key: 'tags', csvLabel: 'Tags', displayName: 'Tags', type: 'tags', category: 'sistema' },
+  { key: 'jobId', csvLabel: 'Vaga', displayName: 'Vaga', type: 'select', category: 'sistema' },
+  { key: 'createdAt', csvLabel: 'Criado em', displayName: 'Importado em', type: 'datetime', category: 'sistema' },
+];
+
+// Helper para obter nome visual do campo
+export const getFieldDisplayName = (key) => {
+  const field = CANDIDATE_FIELDS.find(f => f.key === key);
+  return field?.displayName || key;
+};
+
+// Helper para obter nome CSV do campo
+export const getFieldCsvLabel = (key) => {
+  const field = CANDIDATE_FIELDS.find(f => f.key === key);
+  return field?.csvLabel || key;
+};
+
+// Mapeamento legado para compatibilidade com importação CSV
+export const CSV_FIELD_MAPPING_OPTIONS = CANDIDATE_FIELDS.map(f => ({
+  label: f.csvLabel,
+  value: f.key
+}));
+
+// Campos da Vaga
+export const JOB_FIELDS = [
+  { key: 'title', csvLabel: 'Título', displayName: 'Título', type: 'text', required: true },
+  { key: 'company', csvLabel: 'Empresa', displayName: 'Empresa', type: 'select', required: true },
+  { key: 'city', csvLabel: 'Cidade da vaga', displayName: 'Cidade', type: 'select' },
+  { key: 'interestArea', csvLabel: 'Área de interesse', displayName: 'Área', type: 'select' },
+  { key: 'description', csvLabel: 'Descrição', displayName: 'Descrição', type: 'textarea' },
+  { key: 'requirements', csvLabel: 'Requisitos', displayName: 'Requisitos', type: 'textarea' },
+  { key: 'salary', csvLabel: 'Faixa salarial', displayName: 'Salário', type: 'text' },
+  { key: 'status', csvLabel: 'Status', displayName: 'Status', type: 'select', required: true },
+  { key: 'type', csvLabel: 'Tipo', displayName: 'Tipo', type: 'select' },
 ];

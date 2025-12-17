@@ -29,7 +29,7 @@ import CsvImportModal from './components/modals/CsvImportModal';
 import JobCandidatesModal from './components/modals/JobsCandidateModal';
 import { useTheme } from './ThemeContext';
 
-import { PIPELINE_STAGES, STATUS_COLORS, JOB_STATUSES, CSV_FIELD_MAPPING_OPTIONS, ALL_STATUSES, CLOSING_STATUSES, STAGE_REQUIRED_FIELDS } from './constants';
+import { PIPELINE_STAGES, STATUS_COLORS, JOB_STATUSES, CSV_FIELD_MAPPING_OPTIONS, ALL_STATUSES, CLOSING_STATUSES, STAGE_REQUIRED_FIELDS, CANDIDATE_FIELDS, getFieldDisplayName } from './constants';
 import { normalizeCity, getMainCitiesOptions } from './utils/cityNormalizer';
 import { normalizeSource, getMainSourcesOptions } from './utils/sourceNormalizer';
 import { normalizeInterestArea, normalizeInterestAreasString, getMainInterestAreasOptions } from './utils/interestAreaNormalizer';
@@ -289,7 +289,7 @@ const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates, statusM
                 <AlertCircle size={12}/> Dados estimados (mova candidatos para gerar histórico)
               </span>
             )}
-          </div>
+      </div>
         </div>
         <div className="flex flex-wrap gap-3">
           {conversionRates.map((rate, idx) => (
@@ -1175,6 +1175,7 @@ export default function App() {
   const [applications, setApplications] = useState([]); // Candidaturas formais (candidato-vaga)
   const [interviews, setInterviews] = useState([]); // Agendamentos de entrevistas
   const [userRoles, setUserRoles] = useState([]); // Roles de usuários do sistema
+  const [activityLog, setActivityLog] = useState([]); // Log de atividades para admin
   
   // Role do usuário atual (admin, recruiter, viewer)
   const currentUserRole = useMemo(() => {
@@ -1262,7 +1263,65 @@ export default function App() {
   };
 
   useEffect(() => { return onAuthStateChanged(auth, (u) => { setUser(u); setAuthLoading(false); }); }, []);
-  const handleGoogleLogin = async () => { try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { console.error(e); } };
+  const handleGoogleLogin = async () => { 
+    try { 
+      const result = await signInWithPopup(auth, new GoogleAuthProvider());
+      const loggedUser = result.user;
+      
+      // Auto-registrar/atualizar perfil do usuário no primeiro login
+      if (loggedUser) {
+        setTimeout(async () => {
+          try {
+            // Verificar se o usuário já existe em userRoles
+            const q = query(collection(db, 'userRoles'), orderBy('createdAt', 'desc'));
+            const snapshot = await getDocs(q);
+            const existingRoles = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            const existingRole = existingRoles.find(r => r.email === loggedUser.email);
+            
+            if (existingRole) {
+              // Atualizar nome e foto do Google se diferentes
+              if (existingRole.name !== loggedUser.displayName || existingRole.photo !== loggedUser.photoURL) {
+                await updateDoc(doc(db, 'userRoles', existingRole.id), {
+                  name: loggedUser.displayName || existingRole.name,
+                  photo: loggedUser.photoURL || existingRole.photo,
+                  lastLogin: serverTimestamp()
+                });
+              }
+            } else {
+              // Criar registro para novo usuário (admin se primeiro usuário, senão viewer)
+              const isFirstUser = existingRoles.length === 0;
+              await addDoc(collection(db, 'userRoles'), {
+                email: loggedUser.email,
+                name: loggedUser.displayName || '',
+                photo: loggedUser.photoURL || '',
+                role: isFirstUser ? 'admin' : 'viewer', // Primeiro usuário é admin
+                createdAt: serverTimestamp(),
+                lastLogin: serverTimestamp()
+              });
+            }
+            
+            // Registrar atividade de login
+            await addDoc(collection(db, 'activityLog'), {
+              type: 'login',
+              description: `${loggedUser.displayName || loggedUser.email} fez login no sistema`,
+              entityType: 'user',
+              entityId: loggedUser.uid,
+              metadata: { method: 'google' },
+              userEmail: loggedUser.email,
+              userName: loggedUser.displayName || loggedUser.email,
+              userPhoto: loggedUser.photoURL || null,
+              timestamp: serverTimestamp(),
+              createdAt: serverTimestamp()
+            });
+          } catch (err) {
+            console.error('Erro ao registrar login:', err);
+          }
+        }, 500);
+      }
+    } catch (e) { 
+      console.error(e); 
+    } 
+  };
 
   // Sync Data
   useEffect(() => {
@@ -1285,6 +1344,8 @@ export default function App() {
       onSnapshot(query(collection(db, 'interviews')), s => setInterviews(s.docs.map(d => ({id:d.id, ...d.data()})))),
       // Roles de usuários
       onSnapshot(query(collection(db, 'userRoles')), s => setUserRoles(s.docs.map(d => ({id:d.id, ...d.data()})))),
+      // Log de atividades (últimas 200)
+      onSnapshot(query(collection(db, 'activityLog'), orderBy('timestamp', 'desc')), s => setActivityLog(s.docs.slice(0, 200).map(d => ({id:d.id, ...d.data()})))),
     ];
     return () => unsubs.forEach(u => u());
   }, [user]);
@@ -1371,6 +1432,7 @@ export default function App() {
         recordsAffected,
         userEmail: user.email,
         userName: user.displayName || user.email,
+        userPhoto: user.photoURL || null,
         timestamp: serverTimestamp(),
         details,
         createdAt: serverTimestamp()
@@ -1378,6 +1440,29 @@ export default function App() {
     } catch (error) {
       console.error('Erro ao registrar histórico:', error);
       // Não interrompe a operação principal se o histórico falhar
+    }
+  };
+
+  // Função para registrar atividades gerais do sistema (log completo)
+  const recordActivity = async (activityType, description, entityType = null, entityId = null, metadata = {}) => {
+    if (!user || !user.email) return;
+    
+    try {
+      await addDoc(collection(db, 'activityLog'), {
+        type: activityType, // 'login', 'create', 'update', 'delete', 'move', 'import', 'export', 'schedule', etc.
+        description,
+        entityType, // 'candidate', 'job', 'application', 'interview', 'user', etc.
+        entityId,
+        metadata,
+        userEmail: user.email,
+        userName: user.displayName || user.email,
+        userPhoto: user.photoURL || null,
+        userRole: currentUserRole,
+        timestamp: serverTimestamp(),
+        createdAt: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Erro ao registrar atividade:', error);
     }
   };
 
@@ -1396,9 +1481,14 @@ export default function App() {
         isClosingStatus,
         userEmail: user.email,
         userName: user.displayName || user.email,
+        userPhoto: user.photoURL || null,
         timestamp: serverTimestamp(),
         createdAt: serverTimestamp()
       });
+      
+      // Registrar também no log de atividades
+      await recordActivity('move', `${candidateName} movido de "${previousStatus || 'Inscrito'}" para "${newStatus}"`, 'candidate', candidateId, { previousStatus: previousStatus || 'Inscrito', newStatus, isClosingStatus });
+      
       console.log(`[Log] Movimentação registrada: ${candidateName} de "${previousStatus || 'Inscrito'}" para "${newStatus}"`);
     } catch (error) {
       console.error('Erro ao registrar movimentação de status:', error);
@@ -1567,6 +1657,10 @@ export default function App() {
       };
       
       const docRef = await addDoc(collection(db, 'interviews'), interviewData);
+      
+      // Registrar atividade
+      await recordActivity('schedule', `Entrevista agendada para ${data.candidateName} em ${data.date} às ${data.time}`, 'interview', docRef.id, { candidateId: data.candidateId, jobId: data.jobId, date: data.date, time: data.time });
+      
       showToast('Entrevista agendada com sucesso!', 'success');
       return { id: docRef.id, ...interviewData };
     } catch (error) {
@@ -1624,7 +1718,7 @@ export default function App() {
   // ======= GERENCIAMENTO DE USUÁRIOS E ROLES =======
   
   // Adicionar/atualizar role de usuário
-  const setUserRole = async (email, role) => {
+  const setUserRole = async (email, role, userName = '') => {
     if (!hasPermission('all')) {
       showToast('Apenas administradores podem gerenciar usuários', 'error');
       return;
@@ -1636,16 +1730,24 @@ export default function App() {
       if (existingRole) {
         await updateDoc(doc(db, 'userRoles', existingRole.id), {
           role,
+          name: userName || existingRole.name || '',
           updatedAt: serverTimestamp(),
           updatedBy: user?.email
         });
+        
+        // Registrar atividade
+        await recordActivity('user_update', `Permissão de ${email} alterada para ${role}`, 'user', existingRole.id, { email, role, previousRole: existingRole.role });
       } else {
-        await addDoc(collection(db, 'userRoles'), {
+        const docRef = await addDoc(collection(db, 'userRoles'), {
           email,
           role,
+          name: userName || '',
           createdAt: serverTimestamp(),
           createdBy: user?.email
         });
+        
+        // Registrar atividade
+        await recordActivity('user_create', `Usuário ${email} adicionado como ${role}`, 'user', docRef.id, { email, role });
       }
       
       showToast(`Permissão de ${email} atualizada para ${role}`, 'success');
@@ -1890,7 +1992,7 @@ export default function App() {
            {activeTab === 'pipeline' && <PipelineView candidates={filteredCandidates} jobs={jobs} companies={companies} onDragEnd={handleDragEnd} onEdit={setEditingCandidate} onCloseStatus={handleCloseStatus} />}
            {activeTab === 'jobs' && <div className="p-6 overflow-y-auto h-full"><JobsList jobs={jobs} candidates={candidates} companies={companies} onAdd={()=>openJobModal({})} onEdit={(j)=>openJobModal(j)} onDelete={(id)=>handleDeleteGeneric('jobs', id)} onToggleStatus={handleSaveGeneric} onFilterPipeline={()=>{setFilters({...filters, jobId: 'mock_id'}); setActiveTab('pipeline')}} onViewCandidates={openJobCandidatesModal}/></div>}
            {activeTab === 'candidates' && <div className="p-6 overflow-y-auto h-full"><CandidatesList candidates={filteredCandidates} jobs={jobs} onAdd={()=>setEditingCandidate({})} onEdit={setEditingCandidate} onDelete={(id)=>handleDeleteGeneric('candidates', id)}/></div>}
-           {activeTab === 'settings' && <div className="p-0 h-full"><SettingsPage {...optionsProps} onOpenCsvModal={openCsvModal} activeSettingsTab={route.settingsTab} onSettingsTabChange={(tab) => { updateURL({ settingsTab: tab }); setRoute(prev => ({ ...prev, settingsTab: tab })); }} onShowToast={showToast} userRoles={userRoles} currentUserRole={currentUserRole} onSetUserRole={setUserRole} onRemoveUserRole={removeUserRole} currentUserEmail={user?.email} /></div>}
+           {activeTab === 'settings' && <div className="p-0 h-full"><SettingsPage {...optionsProps} onOpenCsvModal={openCsvModal} activeSettingsTab={route.settingsTab} onSettingsTabChange={(tab) => { updateURL({ settingsTab: tab }); setRoute(prev => ({ ...prev, settingsTab: tab })); }} onShowToast={showToast} userRoles={userRoles} currentUserRole={currentUserRole} onSetUserRole={setUserRole} onRemoveUserRole={removeUserRole} currentUserEmail={user?.email} currentUserName={user?.displayName} currentUserPhoto={user?.photoURL} activityLog={activityLog} candidateFields={CANDIDATE_FIELDS} /></div>}
         </div>
       </div>
 
@@ -2832,41 +2934,16 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
   const [sortOrder, setSortOrder] = useState('asc');
   const [showColumnSelector, setShowColumnSelector] = useState(false);
 
-  // Todas as colunas disponíveis
-  const ALL_COLUMNS = [
-    { key: 'fullName', label: 'Nome', default: true },
-    { key: 'email', label: 'Email', default: true },
-    { key: 'phone', label: 'Telefone', default: true },
-    { key: 'city', label: 'Cidade', default: true },
-    { key: 'source', label: 'Fonte', default: true },
-    { key: 'interestAreas', label: 'Áreas de Interesse', default: true },
-    { key: 'education', label: 'Formação', default: false },
-    { key: 'schoolingLevel', label: 'Escolaridade', default: true },
-    { key: 'institution', label: 'Instituição', default: false },
-    { key: 'hasLicense', label: 'CNH', default: true },
-    { key: 'status', label: 'Status', default: true },
-    { key: 'original_timestamp', label: 'Data Cadastro Original', default: true },
-    { key: 'birthDate', label: 'Data Nascimento', default: false },
-    { key: 'age', label: 'Idade', default: false },
-    { key: 'maritalStatus', label: 'Estado Civil', default: false },
-    { key: 'childrenCount', label: 'Filhos', default: false },
-    { key: 'graduationDate', label: 'Data Formatura', default: false },
-    { key: 'isStudying', label: 'Cursando?', default: false },
-    { key: 'experience', label: 'Experiência', default: false },
-    { key: 'courses', label: 'Cursos', default: false },
-    { key: 'certifications', label: 'Certificações', default: false },
-    { key: 'cvUrl', label: 'CV', default: false },
-    { key: 'portfolioUrl', label: 'Portfolio', default: false },
-    { key: 'photoUrl', label: 'Foto', default: false },
-    { key: 'referral', label: 'Indicação', default: false },
-    { key: 'salaryExpectation', label: 'Expect. Salarial', default: false },
-    { key: 'canRelocate', label: 'Mudança Cidade', default: false },
-    { key: 'references', label: 'Referências', default: false },
-    { key: 'typeOfApp', label: 'Tipo Candidatura', default: false },
-    { key: 'freeField', label: 'Campo Livre', default: false },
-    { key: 'external_id', label: 'ID Externo', default: false },
-    { key: 'email_secondary', label: 'Email Secundário', default: false },
-  ];
+  // Todas as colunas disponíveis - usando nomes visuais do CANDIDATE_FIELDS
+  const ALL_COLUMNS = useMemo(() => {
+    const defaultColumns = ['fullName', 'email', 'phone', 'city', 'source', 'interestAreas', 'schoolingLevel', 'hasLicense', 'status', 'original_timestamp'];
+    return CANDIDATE_FIELDS.map(f => ({
+      key: f.key,
+      label: f.displayName,
+      csvLabel: f.csvLabel, // Nome original do CSV para referência
+      default: defaultColumns.includes(f.key)
+    }));
+  }, []);
 
   // Colunas visíveis - carregar do localStorage ou usar default
   const [visibleColumns, setVisibleColumns] = useState(() => {
