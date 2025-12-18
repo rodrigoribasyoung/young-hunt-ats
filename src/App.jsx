@@ -28,6 +28,8 @@ import InterviewModal from './components/modals/InterviewModal';
 import CsvImportModal from './components/modals/CsvImportModal';
 import JobCandidatesModal from './components/modals/JobsCandidateModal';
 import ApplicationsPage from './components/ApplicationsPage';
+import ReportsPage from './components/ReportsPage';
+import HelpPage from './components/HelpPage';
 import { useTheme } from './ThemeContext';
 
 import { PIPELINE_STAGES, STATUS_COLORS, JOB_STATUSES, CSV_FIELD_MAPPING_OPTIONS, ALL_STATUSES, CLOSING_STATUSES, STAGE_REQUIRED_FIELDS, CANDIDATE_FIELDS, getFieldDisplayName, REJECTION_REASONS } from './constants';
