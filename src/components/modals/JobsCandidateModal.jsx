@@ -294,9 +294,11 @@ export default function JobCandidatesModal({
                             </div>
                           )}
                           {candidate.experience && (
-                            <div>
+                            <div className="col-span-2">
                               <span className="text-gray-500">Experiência:</span>
-                              <span className="ml-2 text-gray-900 dark:text-white truncate">{candidate.experience.substring(0, 50)}...</span>
+                              <div className="mt-1 text-gray-900 dark:text-white whitespace-pre-wrap break-words max-h-32 overflow-y-auto text-sm">
+                                {candidate.experience}
+                              </div>
                             </div>
                           )}
                           {candidate.schoolingLevel && (

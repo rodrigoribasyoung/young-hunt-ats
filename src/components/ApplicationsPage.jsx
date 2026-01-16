@@ -587,7 +587,10 @@ export default function ApplicationsPage({
                               )}
                               {candidate?.experience && (
                                 <div className="text-gray-600 dark:text-gray-400">
-                                  <span className="text-gray-500">Experiência:</span> {candidate.experience.substring(0, 100)}...
+                                  <span className="text-gray-500">Experiência:</span>
+                                  <div className="mt-1 whitespace-pre-wrap break-words">
+                                    {candidate.experience}
+                                  </div>
                                 </div>
                               )}
                             </div>

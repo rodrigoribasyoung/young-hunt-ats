@@ -1278,8 +1278,6 @@ export default function App() {
   const getRouteFromURL = () => {
     const params = new URLSearchParams(window.location.search);
     let page = params.get('page') || 'dashboard';
-    // Mapear 'pipeline' antigo para 'candidates' (compatibilidade)
-    if (page === 'pipeline') page = 'candidates';
     return {
       page,
       modal: params.get('modal') || null,
@@ -2168,9 +2166,14 @@ export default function App() {
              <LayoutDashboard size={18}/> Dashboard
            </button>
            
-           {/* Candidatos */}
+           {/* Pipeline */}
+           <button onClick={() => { setActiveTab('pipeline'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'pipeline' ? 'bg-blue-600 text-white shadow-lg dark:bg-blue-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'}`}>
+             <Kanban size={18}/> Pipeline
+           </button>
+           
+           {/* Banco de Talentos */}
            <button onClick={() => { setActiveTab('candidates'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'candidates' ? 'bg-blue-600 text-white shadow-lg dark:bg-blue-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'}`}>
-             <Users size={18}/> Candidatos
+             <Users size={18}/> Banco de Talentos
            </button>
            
            {/* Vagas - com submenu */}
@@ -2246,7 +2249,7 @@ export default function App() {
                {isSidebarCollapsed ? <Menu size={20} className="text-gray-600 dark:text-gray-400"/> : <ChevronLeft size={20} className="text-gray-600 dark:text-gray-400"/>}
              </button>
            <h2 className="text-lg font-bold text-gray-900 dark:text-white ml-2">
-              {activeTab === 'pipeline' ? 'Pipeline de Talentos' : activeTab === 'jobs' ? 'Gestão de Vagas' : activeTab === 'applications' ? 'Candidaturas' : activeTab === 'settings' ? 'Configurações' : 'Dashboard'}
+              {activeTab === 'pipeline' ? 'Pipeline de Talentos' : activeTab === 'candidates' ? 'Banco de Talentos' : activeTab === 'jobs' ? 'Gestão de Vagas' : activeTab === 'applications' ? 'Candidaturas' : activeTab === 'settings' ? 'Configurações' : 'Dashboard'}
            </h2>
            </div>
            <div className="flex items-center gap-3">
@@ -2261,8 +2264,8 @@ export default function App() {
 
         <div className="flex-1 overflow-hidden bg-white dark:bg-gray-900 relative">
            {activeTab === 'dashboard' && <div className="p-6 overflow-y-auto h-full"><Dashboard filteredJobs={jobs} filteredCandidates={filteredCandidates} onOpenCandidates={setDashboardModalCandidates} statusMovements={statusMovements} applications={applications} onViewJob={openJobCandidatesModal} interviews={interviews} onScheduleInterview={(candidate) => setInterviewModalData({ candidate })} /></div>}
-           {activeTab === 'candidates' && <PipelineView candidates={filteredCandidates} jobs={jobs} companies={companies} onDragEnd={handleDragEnd} onEdit={setEditingCandidate} onCloseStatus={handleCloseStatus} applications={applications} interviews={interviews} />}
-           {activeTab === 'pipeline' && <PipelineView candidates={filteredCandidates} jobs={jobs} companies={companies} onDragEnd={handleDragEnd} onEdit={setEditingCandidate} onCloseStatus={handleCloseStatus} applications={applications} interviews={interviews} />}
+           {activeTab === 'pipeline' && <PipelineView candidates={filteredCandidates} jobs={jobs} companies={companies} onDragEnd={handleDragEnd} onEdit={setEditingCandidate} onCloseStatus={handleCloseStatus} applications={applications} interviews={interviews} forceViewMode="kanban" />}
+           {activeTab === 'candidates' && <TalentBankView candidates={filteredCandidates} jobs={jobs} companies={companies} onEdit={setEditingCandidate} applications={applications} />}
            {activeTab === 'jobs' && <div className="p-6 overflow-y-auto h-full"><JobsList jobs={jobs} candidates={candidates} companies={companies} onAdd={()=>openJobModal({})} onEdit={(j)=>openJobModal(j)} onDelete={(id)=>handleDeleteGeneric('jobs', id)} onToggleStatus={handleSaveGeneric} onFilterPipeline={()=>{setFilters({...filters, jobId: 'mock_id'}); setActiveTab('candidates')}} onViewCandidates={openJobCandidatesModal}/></div>}
            {activeTab === 'applications' && <ApplicationsPage applications={applications} candidates={candidates} jobs={jobs} companies={companies} onUpdateApplicationStatus={updateApplicationStatus} onRemoveApplication={removeApplication} onAddApplicationNote={addApplicationNote} onEditCandidate={setEditingCandidate} onViewJob={openJobCandidatesModal} onCreateApplication={createApplication} />}
            {activeTab === 'companies' && <MasterDataManager collection="companies" title="Empresas" fields={[{key: 'name', label: 'Nome', required: true}]} onSave={handleSaveGeneric} onDelete={handleDeleteGeneric} items={companies} onShowToast={showToast} />}
@@ -2556,8 +2559,8 @@ export default function App() {
 }
 
 // --- PIPELINE VIEW ---
-const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, companies, applications = [], interviews = [] }) => {
-  const [viewMode, setViewMode] = useState('kanban'); 
+const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, companies, applications = [], interviews = [], forceViewMode = null }) => {
+  const [viewMode, setViewMode] = useState(forceViewMode || 'kanban'); 
   const [itemsPerPage, setItemsPerPage] = useState(50);
   const [currentPage, setCurrentPage] = useState(1);
   const [kanbanItemsPerPage, setKanbanItemsPerPage] = useState(10); // Itens por coluna no kanban
@@ -2605,7 +2608,13 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
        }
      }
      if (cityFilter !== 'all') {
-       data = data.filter(c => c.city === cityFilter);
+       // Normaliza cidade para comparação case-insensitive usando a função de normalização
+       const normalizedFilter = normalizeCity(cityFilter).toLowerCase().trim();
+       data = data.filter(c => {
+         if (!c.city) return false;
+         const normalizedCity = normalizeCity(c.city).toLowerCase().trim();
+         return normalizedCity === normalizedFilter || c.city === cityFilter;
+       });
      }
      
      if (localSearch) {
@@ -2658,10 +2667,12 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
      <div className="flex flex-col h-full relative">
         <div className="px-6 py-3 border-b border-gray-200 dark:border-gray-700 flex flex-wrap gap-4 justify-between items-center bg-white dark:bg-gray-900">
            <div className="flex gap-3 items-center flex-wrap">
-              <div className="flex bg-brand-card p-1 rounded-lg border border-gray-200 dark:border-gray-700">
-                 <button onClick={() => setViewMode('kanban')} className={`p-2 rounded ${viewMode==='kanban' ? 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400' : 'text-slate-400'}`}><Kanban size={16}/></button>
-                 <button onClick={() => setViewMode('list')} className={`p-2 rounded ${viewMode==='list' ? 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400' : 'text-slate-400'}`}><List size={16}/></button>
-              </div>
+              {!forceViewMode && (
+                <div className="flex bg-brand-card p-1 rounded-lg border border-gray-200 dark:border-gray-700">
+                   <button onClick={() => setViewMode('kanban')} className={`p-2 rounded ${viewMode==='kanban' ? 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400' : 'text-slate-400'}`}><Kanban size={16}/></button>
+                   <button onClick={() => setViewMode('list')} className={`p-2 rounded ${viewMode==='list' ? 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400' : 'text-slate-400'}`}><List size={16}/></button>
+                </div>
+              )}
               <input className="bg-brand-card border border-gray-200 dark:border-gray-700 rounded px-3 py-1.5 text-sm text-white outline-none focus:border-brand-cyan w-48" placeholder="Buscar..." value={localSearch} onChange={e=>setLocalSearch(e.target.value)}/>
               <select className="bg-brand-card border border-gray-200 dark:border-gray-700 rounded px-3 py-1.5 text-sm text-white outline-none" value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}>
                  <option value="active">Em Andamento</option><option value="hired">Contratados</option><option value="rejected">Reprovados</option><option value="withdrawn">Desistências</option><option value="all">Todos</option>
@@ -3013,6 +3024,192 @@ const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, jobs, 
         </div>
       </div>
    );
+};
+
+// --- BANCO DE TALENTOS (TABELA COMPLETA) ---
+const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = [] }) => {
+  const [itemsPerPage, setItemsPerPage] = useState(50);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [localSearch, setLocalSearch] = useState('');
+  const [localSort, setLocalSort] = useState('recent');
+  const [selectedIds, setSelectedIds] = useState([]);
+
+  const processedData = useMemo(() => {
+    let data = candidates.filter(c => !c.deletedAt);
+    
+    if (localSearch) {
+      const s = localSearch.toLowerCase();
+      data = data.filter(c => 
+        c.fullName?.toLowerCase().includes(s) ||
+        c.email?.toLowerCase().includes(s) ||
+        c.phone?.toLowerCase().includes(s) ||
+        c.city?.toLowerCase().includes(s) ||
+        c.interestAreas?.toLowerCase().includes(s) ||
+        c.source?.toLowerCase().includes(s)
+      );
+    }
+    
+    data.sort((a, b) => {
+      if (localSort === 'recent') {
+        const tsA = a.original_timestamp?.seconds || a.original_timestamp?._seconds || a.createdAt?.seconds || a.createdAt?._seconds || 0;
+        const tsB = b.original_timestamp?.seconds || b.original_timestamp?._seconds || b.createdAt?.seconds || b.createdAt?._seconds || 0;
+        return tsB - tsA;
+      }
+      if (localSort === 'oldest') {
+        const tsA = a.original_timestamp?.seconds || a.original_timestamp?._seconds || a.createdAt?.seconds || a.createdAt?._seconds || 0;
+        const tsB = b.original_timestamp?.seconds || b.original_timestamp?._seconds || b.createdAt?.seconds || b.createdAt?._seconds || 0;
+        return tsA - tsB;
+      }
+      if (localSort === 'az') return (a.fullName||'').localeCompare(b.fullName||'');
+      if (localSort === 'za') return (b.fullName||'').localeCompare(a.fullName||'');
+      return 0;
+    });
+    
+    return data;
+  }, [candidates, localSearch, localSort]);
+
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    return processedData.slice(start, end);
+  }, [processedData, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(processedData.length / itemsPerPage);
+
+  return (
+    <div className="flex flex-col h-full p-6 overflow-hidden bg-white dark:bg-gray-900">
+      <div className="mb-4 flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Banco de Talentos</h2>
+        <div className="flex items-center gap-3">
+          <input
+            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-3 py-1.5 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 w-64"
+            placeholder="Buscar candidatos..."
+            value={localSearch}
+            onChange={e => setLocalSearch(e.target.value)}
+          />
+          <select
+            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-3 py-1.5 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500"
+            value={localSort}
+            onChange={e => setLocalSort(e.target.value)}
+          >
+            <option value="recent">Mais Recentes</option>
+            <option value="oldest">Mais Antigos</option>
+            <option value="az">A-Z</option>
+            <option value="za">Z-A</option>
+          </select>
+          <select
+            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-3 py-1.5 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500"
+            value={itemsPerPage}
+            onChange={e => {
+              setItemsPerPage(Number(e.target.value));
+              setCurrentPage(1);
+            }}
+          >
+            <option value={10}>10 por página</option>
+            <option value={25}>25 por página</option>
+            <option value={50}>50 por página</option>
+            <option value={100}>100 por página</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-auto">
+        <table className="w-full border-collapse">
+          <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
+            <tr>
+              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">
+                <input type="checkbox" className="accent-blue-600 dark:accent-blue-500" />
+              </th>
+              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Nome</th>
+              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Status</th>
+              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Email</th>
+              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Telefone</th>
+              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Cidade</th>
+              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">CNH</th>
+              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Área de Interesse</th>
+              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Fonte</th>
+              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Data Cadastro</th>
+              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Estado Civil</th>
+              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Ações</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            {paginatedData.map(c => {
+              return (
+                <tr key={c.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                  <td className="p-3">
+                    <input
+                      type="checkbox"
+                      className="accent-blue-600 dark:accent-blue-500"
+                      checked={selectedIds.includes(c.id)}
+                      onChange={() => setSelectedIds(prev => prev.includes(c.id) ? prev.filter(x => x !== c.id) : [...prev, c.id])}
+                    />
+                  </td>
+                  <td className="p-3">
+                    <span className="font-semibold text-gray-900 dark:text-white cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" onClick={() => onEdit(c)}>
+                      {c.fullName || 'Sem nome'}
+                    </span>
+                  </td>
+                  <td className="p-3">
+                    <span className={`px-2 py-0.5 rounded text-xs border ${STATUS_COLORS[c.status] || 'bg-slate-700 text-slate-200 border-slate-600'}`}>
+                      {c.status || 'Inscrito'}
+                    </span>
+                  </td>
+                  <td className="p-3 text-sm text-gray-700 dark:text-gray-300">{c.email || 'N/A'}</td>
+                  <td className="p-3 text-sm text-gray-700 dark:text-gray-300">{c.phone || 'N/A'}</td>
+                  <td className="p-3 text-sm text-gray-700 dark:text-gray-300">{c.city || 'N/A'}</td>
+                  <td className="p-3 text-sm text-gray-700 dark:text-gray-300">{c.hasLicense === 'Sim' ? '✓' : c.hasLicense === 'Não' ? '✗' : 'N/A'}</td>
+                  <td className="p-3 text-sm text-gray-700 dark:text-gray-300 truncate max-w-[200px]" title={c.interestAreas}>{c.interestAreas || 'N/A'}</td>
+                  <td className="p-3 text-sm text-gray-700 dark:text-gray-300">{c.source || 'N/A'}</td>
+                  <td className="p-3 text-sm text-gray-700 dark:text-gray-300">
+                    {(() => {
+                      const ts = c.original_timestamp?.seconds || c.original_timestamp?._seconds || c.createdAt?.seconds || c.createdAt?._seconds || 0;
+                      if (!ts) return 'N/A';
+                      const date = new Date(ts * 1000);
+                      return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    })()}
+                  </td>
+                  <td className="p-3 text-sm text-gray-700 dark:text-gray-300">{c.maritalStatus || 'N/A'}</td>
+                  <td className="p-3">
+                    <button onClick={() => onEdit(c)} className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                      <Edit3 size={16}/>
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {totalPages > 1 && (
+        <div className="mt-4 flex justify-between items-center">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            Mostrando {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, processedData.length)} de {processedData.length} candidatos
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded text-sm text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              Anterior
+            </button>
+            <span className="px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300">
+              Página {currentPage} de {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded text-sm text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              Próxima
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 const JobsList = ({ jobs, candidates, onAdd, onEdit, onToggleStatus, onViewCandidates, companies }) => {

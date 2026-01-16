@@ -1,0 +1,352 @@
+// ============================================================================
+// CONFIGURAÇÃO DO FIREBASE (PREENCHA AQUI)
+// ============================================================================
+const FIREBASE_CONFIG = {
+  email: "firebase-adminsdk-fbsvc@young-talents-ats.iam.gserviceaccount.com",
+  key: "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCwJWbTzJkfqaNt\nv3bwRMFRNnYi0Jrv8pkbcZRa1uWKnULG0p2c8qw3uDpgijGhKNo4VaNrAN4QgChS\n8zDTlJQEuxCB0NM5S3W8PaVDg4v4lTQCSqAXk+v8cSVXico8XqB6mbVT1VricLAV\nZ611OveUb+3loTfmb2w7OnQI5PhktBXwy3mT+MJE09ArtM0wGbsKcwY/4OqXNfHb\nJA+EFaS2YLYpqtfohcbG6+jlS4hgSpZFJitHdCjOssih7oYzkBUywpqYa22A0mLo\nycueoNHLaAfDraIQVKslnLXNqmE+DXUlMV/EcTwN/O7LIQMLKxDtH982iE3BiqpU\nXGP4NIJrAgMBAAECggEAA1ymDUXQPbFMVrm68z6vXTWdD0YMUacU3VgPck+8BXzB\n5lnlEIv11dcUz3yOZ5qIK7TAD+NDhGzFwuuJqN14Q8Iu6vi0MgRAL4MSW+sEqWPD\noIWRxPwZmscCukcoI9B/NJ0palEIpojAZkWFIyx9xt3/XDd1rIFqPz563M6Yn7y4\nu+7j4Lxsk0daEF1Wl5ROnHfGlL2XwwNJk0dUZlDzwVxsN7/AX13PVqWj60nofRwz\nygNVfl/aAmHCyJUSMu6AdjKsbCLg9q3tbmN9m0uKM45pdxOdNbKIu5evJu/HqkNw\nUJn27BxN/VpOcMqi87VkE2Sn+1pJTVO/adjLxo+sGQKBgQDWP3/sRvv5ADTKrfGA\nfRduETGoeACgjaaWeWN3aagLuZQ3MfQDoOvFM8NkjaTuR92bQL2SDUVy2FktGn08\nsMKkYq8NZ1cfrnHck0ZwKI6mp+HCAy5YDMTlIadyfGaNBuOQQyTdQksS+l9Qdr+r\nVrs4DshBWx++cCS98ITcQ5cGUwKBgQDSeQ4xCjSPwAxYEBVPcemZh586ios3hxxr\nmt92PFSLuPwQagZrIHB8WQEJl8eqoqMIRrp/KIK/vQXmgIw+w/saO7xf1FbVVM3c\nVJLyYFADAUnS+N2mDHuYJRiwGwJIHUlctI5upAIv+AchdvyZKSCVi1Z7gYGZda5+\n4CqQd5FgiQKBgHxamQ50WRY652loss8ITEwnkLIfDQYjkbivNmt+GPrNOVkcFmzw\nv0hT9ipsCHoBnn/ZgO6/4zp4lrIWOPC8DA3L9Z0LCUerQg1sMisxbzMOKHwqyoBy\n0OnJsd5ClGdwwy7dugzuyJJ4XlBezHtPuRUdh2Bf2rn3b2wLqaILXSJfAoGAbOLl\n3acK9EeF21VOwRAMqzoHvXCJf4utv1mbO/8QOkzUUuWXNnrM1vfw2nakfHmxYIm+\n2CQsKGfxEoP0ilA3qyW2WdlvpuQ9sDws3anIGxXijHvlp48Tre2bLRh8ALTuDED4\n4vKEky58+eol2lL1oYg5kKG6W5sPUGJGgwDovAkCgYBjWqTL5vNlEWwqFBm7OqKH\ntUyIRZS3TN7rjtnmep6Pe1T7eZpSaMCdc0qP8Cr1RL5ugVzdChjv9VAA72EzYwtl\n463CweFFT4ryXGcgIToP4yWGmaK1sFZ/G75cYQOTLdQtxFQpPbsphlQNbhYgMlIF\nEIX2CAMgRKhowjk9SY7uJw==\n-----END PRIVATE KEY-----\n", // Cole sua chave inteira aqui
+  projectId: "young-talents-ats" // Nome do seu projeto
+};
+
+const FIRESTORE_BATCH_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_CONFIG.projectId}/databases/(default)/documents:commit`;
+
+// Nome exato da coluna que usaremos para controle (Crie ela na planilha!)
+const NOME_COLUNA_CONTROLE = "Status Firebase"; 
+
+// ============================================================================
+// FUNÇÃO PRINCIPAL
+// ============================================================================
+function enviarDadosParaFirebase() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const dataRange = sheet.getDataRange();
+  const data = dataRange.getDisplayValues();
+  
+  if (data.length < 2) {
+    Logger.log("Planilha vazia.");
+    return;
+  }
+
+  const headers = data[0];
+  
+  // Localiza o índice da coluna de Status (começa em 0)
+  const indexStatus = headers.indexOf(NOME_COLUNA_CONTROLE);
+  if (indexStatus === -1) {
+    Browser.msgBox(`ERRO: Crie uma coluna chamada "${NOME_COLUNA_CONTROLE}" na planilha antes de rodar.`);
+    return;
+  }
+
+  const rows = data.slice(1); // Dados sem cabeçalho
+  
+  // Filtra apenas as linhas que NÃO têm "Enviado" na coluna de status
+  // Guardamos o 'index' original para saber onde escrever o "Enviado" depois
+  const linhasPendentes = rows.map((row, index) => {
+    return { rowData: row, originalIndex: index + 2 }; // +2 porque pula cabeçalho e array começa em 0
+  }).filter(item => item.rowData[indexStatus] !== "Enviado");
+
+  const total = linhasPendentes.length;
+
+  if (total === 0) {
+    Logger.log("Nada novo para enviar.");
+    return;
+  }
+  
+  Logger.log(`Encontradas ${total} novas linhas para processar...`);
+
+  const BATCH_SIZE = 450; 
+
+  for (let i = 0; i < total; i += BATCH_SIZE) {
+    const loteItens = linhasPendentes.slice(i, i + BATCH_SIZE);
+    
+    // Prepara as operações de escrita
+    const writes = [];
+    const linhasParaMarcar = [];
+
+    loteItens.forEach(item => {
+      const candidato = mapearColunasParaApp(headers, item.rowData);
+      const operacao = criarOperacaoDeEscrita(candidato);
+      
+      if (operacao) {
+        writes.push(operacao);
+        linhasParaMarcar.push(item.originalIndex);
+      }
+    });
+
+    if (writes.length > 0) {
+      // 1. Tenta enviar para o Firebase
+      try {
+        enviarLoteFirestore(writes);
+        
+        // 2. Se deu certo, marca como "Enviado" na planilha
+        // (Fazemos isso linha a linha ou em bloco, aqui faremos um loop simples para segurança)
+        linhasParaMarcar.forEach(rowIndex => {
+          // getRange(linha, coluna). O indexStatus é base 0, getRange usa base 1, então +1
+          sheet.getRange(rowIndex, indexStatus + 1).setValue("Enviado");
+        });
+
+        Logger.log(`Lote processado e marcado: ${Math.min(i + BATCH_SIZE, total)} / ${total}`);
+        
+      } catch (e) {
+        Logger.log(`Erro ao enviar lote: ${e.message}`);
+        // Se der erro, não marcamos como enviado, assim tentará de novo na próxima execução
+      }
+    }
+  }
+}
+
+// ============================================================================
+// MAPEAMENTO (MANTIDO IGUAL, APENAS PEQUENO AJUSTE DE SEGURANÇA)
+// ============================================================================
+function mapearColunasParaApp(headers, rowData) {
+  const candidato = {};
+  
+  headers.forEach((header, index) => {
+    const valor = String(rowData[index]).trim(); 
+    if (valor === "") return;
+
+    const h = header.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+    // Ignora a própria coluna de controle para não enviar "Status: Enviado" para o banco
+    if (h === NOME_COLUNA_CONTROLE.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")) return;
+
+    if (h.includes("carimbo") || h.includes("timestamp")) {
+      candidato["original_timestamp"] = valor;
+      candidato["createdAt"] = formatarData(valor) || new Date().toISOString(); 
+    }
+    else if (h.includes("nome completo")) candidato["fullName"] = valor;
+    else if (h.includes("foto atual")) candidato["photoUrl"] = valor;
+    else if (h.includes("data de nascimento")) candidato["birthDate"] = formatarData(valor);
+    else if (h.includes("idade")) candidato["age"] = valor;
+    else if (h.includes("e-mail principal") || (h.includes("mail") && !h.includes("endereco"))) candidato["email"] = valor;
+    else if (h.includes("endereco de e-mail")) { if (!candidato["email"]) candidato["email"] = valor; }
+    else if (h.includes("telefone") || h.includes("celular") || h.includes("whatsapp")) candidato["phone"] = valor;
+    else if (h.includes("cidade onde reside")) candidato["city"] = normalizarCidade(valor);
+    else if (h.includes("estado civil")) candidato["maritalStatus"] = valor;
+    else if (h.includes("cnh")) candidato["hasLicense"] = valor;
+    else if (h.includes("filhos")) candidato["childrenCount"] = valor;
+    else if (h.includes("areas de interesse")) candidato["interestAreas"] = valor;
+    else if (h.includes("formacao")) candidato["education"] = valor;
+    else if (h.includes("nivel de escolaridade")) candidato["schoolingLevel"] = valor;
+    else if (h.includes("instituicao de ensino")) candidato["institution"] = valor;
+    else if (h.includes("data de formatura")) candidato["graduationDate"] = formatarData(valor);
+    else if (h.includes("cursando neste momento")) candidato["isStudying"] = valor;
+    else if (h.includes("experiencias anteriores")) candidato["experience"] = valor;
+    else if (h.includes("campo livre")) candidato["freeField"] = valor;
+    else if (h.includes("referencias profissionais")) candidato["references"] = valor;
+    else if (h.includes("cursos e certificacoes")) candidato["courses"] = valor;
+    else if (h.includes("certificacoes profissionais")) { 
+       candidato["courses"] = candidato["courses"] ? candidato["courses"] + "\n" + valor : valor; 
+    }
+    else if (h.includes("anexar curriculo")) candidato["cvUrl"] = valor;
+    else if (h.includes("portfolio")) candidato["portfolioUrl"] = valor;
+    else if (h.includes("encontrou")) candidato["source"] = valor;
+    else if (h.includes("indicado por")) candidato["referral"] = valor;
+    else if (h.includes("candidatando a uma vaga")) candidato["typeOfApp"] = valor;
+    else if (h.includes("expectativa salarial")) candidato["salaryExpectation"] = valor;
+    else if (h.includes("mudanca de cidade")) candidato["canRelocate"] = valor;
+    else if (h.includes("etapa_funil")) candidato["status"] = valor; 
+    else if (h.includes("data primeira entrevista")) candidato["firstInterviewDate"] = formatarData(valor);
+    else if (h.includes("data segunda entrevista")) candidato["secondInterviewDate"] = formatarData(valor);
+    else if (h.includes("dados dos testes")) candidato["testData"] = valor;
+    else if (h.includes("feedback")) candidato["feedback"] = valor;
+    else if (h === "id") candidato["sheetId"] = valor; 
+  });
+
+  if (!candidato["fullName"]) return null;
+  
+  if (!candidato["status"]) candidato["status"] = "Inscrito"; 
+  if (!candidato["createdAt"]) candidato["createdAt"] = new Date().toISOString();
+  candidato["imported"] = true;
+
+  return candidato;
+}
+
+// ============================================================================
+// AUXILIARES (MANTER IGUAIS)
+// ============================================================================
+function criarOperacaoDeEscrita(data) {
+  if (!data) return null;
+  const uniqueString = (data.email || "sem_email") + "_" + (data.original_timestamp || data.createdAt || "sem_data");
+  const docId = Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, uniqueString));
+  const collectionPath = `projects/${FIREBASE_CONFIG.projectId}/databases/(default)/documents/candidates/${docId}`;
+  
+  const fields = {};
+  for (const key in data) {
+    fields[key] = { stringValue: String(data[key]) };
+  }
+
+  return { update: { name: collectionPath, fields: fields } };
+}
+
+function enviarLoteFirestore(writes) {
+  const token = getServiceAccountToken();
+  const payload = { writes: writes };
+  const options = {
+    method: "post",
+    contentType: "application/json",
+    headers: { Authorization: "Bearer " + token },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+  
+  const response = UrlFetchApp.fetch(FIRESTORE_BATCH_URL, options);
+  if (response.getResponseCode() !== 200) throw new Error("Erro Firebase: " + response.getContentText());
+}
+
+function getServiceAccountToken() {
+  const privateKey = FIREBASE_CONFIG.key.replace(/\\n/g, '\n');
+  const clientEmail = FIREBASE_CONFIG.email;
+  const header = { alg: "RS256", typ: "JWT" };
+  const now = Math.floor(Date.now() / 1000);
+  const claim = { iss: clientEmail, scope: "https://www.googleapis.com/auth/datastore", aud: "https://oauth2.googleapis.com/token", exp: now + 3600, iat: now };
+  const toSign = Utilities.base64EncodeWebSafe(JSON.stringify(header)) + "." + Utilities.base64EncodeWebSafe(JSON.stringify(claim));
+  const signature = Utilities.base64EncodeWebSafe(Utilities.computeRsaSha256Signature(toSign, privateKey));
+  const jwt = toSign + "." + signature;
+  const params = { method: "post", payload: { grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: jwt }, muteHttpExceptions: true };
+  const response = UrlFetchApp.fetch("https://oauth2.googleapis.com/token", params);
+  const json = JSON.parse(response.getContentText());
+  if (json.error) throw new Error("Erro Token: " + json.error_description);
+  return json.access_token;
+}
+
+function formatarData(valor) {
+  if (!valor) return "";
+  if (!isNaN(valor) && valor > 20000) { 
+     const date = new Date((valor - 25569) * 86400 * 1000);
+     return date.toISOString().split('T')[0];
+  }
+  return String(valor).trim();
+}
+
+// ============================================================================
+// NORMALIZAÇÃO DE CIDADES
+// ============================================================================
+function normalizarCidade(city) {
+  if (!city || typeof city !== 'string') return "";
+  
+  const normalized = city.trim();
+  const lowerCity = normalized.toLowerCase();
+  
+  // Remove acentos para comparação mais flexível
+  const removeAccents = function(str) {
+    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  };
+  
+  const lowerCityNoAccents = removeAccents(lowerCity);
+  
+  // Cidades principais com suas variações
+  const mainCities = {
+    'Porto Alegre/RS': ['porto alegre', 'porto alegre/rs', 'poa', 'poa/rs', 'portoalegre', 'porto alegre rs', 'p. alegre', 'p. alegre/rs'],
+    'Canoas/RS': ['canoas', 'canoas/rs', 'canoas rs'],
+    'Bagé/RS': ['bagé', 'bage', 'bagé/rs', 'bage/rs', 'bagé rs', 'bage rs'],
+    'Santo Antônio da Patrulha/RS': ['santo antônio da patrulha', 'santo antonio da patrulha', 'sto antônio da patrulha', 'sto antonio da patrulha', 'santo ant patrulha', 'sto ant patrulha', 'sap', 'sap/rs', 'sap rs', 'santo antônio da patrulha/rs', 'santo antonio da patrulha/rs', 'sto antônio da patrulha/rs', 'sto antonio da patrulha/rs', 'santo ant patrulha/rs', 'sto ant patrulha/rs'],
+    'Guaíba/RS': ['guaíba', 'guaiba', 'guaíba/rs', 'guaiba/rs', 'guaíba rs', 'guaiba rs'],
+    'Osório/RS': ['osório', 'osorio', 'osório/rs', 'osorio/rs', 'osório rs', 'osorio rs'],
+    'Tramandaí/RS': ['tramandaí', 'tramandai', 'tramandaí/rs', 'tramandai/rs', 'tramandaí rs', 'tramandai rs', 'tramandai/rs'],
+    'São Borja/RS': ['são borja', 'sao borja', 'são borja/rs', 'sao borja/rs', 'são borja rs', 'sao borja rs', 's borja', 's borja/rs'],
+    "Sant'Ana do Livramento/RS": ["sant'ana do livramento", "santana do livramento", "sant'ana do livramento/rs", "santana do livramento/rs", "sant'ana do livramento rs", "santana do livramento rs", "sant ana do livramento", "sant ana do livramento/rs", "livramento", "livramento/rs", "livramento rs"],
+    'Cruz Alta/RS': ['cruz alta', 'cruz alta/rs', 'cruz alta rs', 'cruzalta', 'cruzalta/rs'],
+    'Itaqui/RS': ['itaqui', 'itaqui/rs', 'itaqui rs'],
+    'Alegrete/RS': ['alegrete', 'alegrete/rs', 'alegrete rs'],
+    'Arroio do Sal/RS': ['arroio do sal', 'arroio do sal/rs', 'arroio do sal rs', 'arroio sal', 'arroio sal/rs', 'arroio sal rs'],
+    'Torres/RS': ['torres', 'torres/rs', 'torres rs']
+  };
+  
+  // Procura nas cidades principais
+  for (const [standardName, variations] of Object.entries(mainCities)) {
+    // Verifica se é exatamente igual (case-insensitive)
+    if (lowerCity === standardName.toLowerCase()) {
+      return standardName;
+    }
+    
+    // Verifica variações
+    for (let i = 0; i < variations.length; i++) {
+      const variation = variations[i];
+      const lowerVariation = variation.toLowerCase();
+      const lowerVariationNoAccents = removeAccents(lowerVariation);
+      
+      // Match exato
+      if (lowerCity === lowerVariation || lowerCityNoAccents === lowerVariationNoAccents) {
+        return standardName;
+      }
+      
+      // Match parcial (para casos como "SAP" dentro de "SAP/RS")
+      if (lowerCity.indexOf(lowerVariation) !== -1 || lowerVariation.indexOf(lowerCity) !== -1) {
+        // Verifica se não é muito genérico (ex: "RS" sozinho)
+        if (lowerVariation.length > 2 && lowerCity.length > 2) {
+          return standardName;
+        }
+      }
+    }
+    
+    // Verifica se o nome padrão está contido no input
+    const lowerStandard = standardName.toLowerCase();
+    const lowerStandardNoAccents = removeAccents(lowerStandard);
+    
+    if (lowerCity.indexOf(lowerStandardNoAccents) !== -1 || lowerStandardNoAccents.indexOf(lowerCity) !== -1) {
+      // Verifica se não é muito genérico
+      if (lowerStandard.length > 5 && lowerCity.length > 5) {
+        return standardName;
+      }
+    }
+  }
+  
+  // Se não encontrou, tenta limpar e padronizar formato básico
+  const words = normalized.split(/\s+/);
+  const cleaned = words.map(function(word) {
+    if (word.length === 0) return '';
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  }).join(' ');
+  
+  // Se termina com /RS, mantém; se não, adiciona se for do RS
+  if (cleaned.indexOf('/') === -1 && !cleaned.match(/\b(RS|SC|PR|SP|RJ|MG|ES|BA|SE|AL|PE|PB|RN|CE|PI|MA|PA|AP|AM|AC|RO|RR|TO|GO|MT|MS|DF)\b/i)) {
+    return cleaned + '/RS';
+  }
+  
+  return cleaned;
+}
+
+// ============================================================================
+// CONFIGURAÇÃO DE GATILHOS AUTOMÁTICOS
+// ============================================================================
+/**
+ * Configura gatilhos automáticos para sincronização
+ * Execute esta função UMA VEZ para configurar os gatilhos
+ */
+function setupTriggers() {
+  // Remove gatilhos existentes com os mesmos nomes para evitar duplicatas
+  const triggers = ScriptApp.getProjectTriggers();
+  triggers.forEach(function(trigger) {
+    if (trigger.getHandlerFunction() === 'enviarDadosParaFirebase' || 
+        trigger.getHandlerFunction() === 'checkNewSubmissions') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+  
+  // Cria gatilho diário para verificar novos cadastros na planilha
+  // Executa todos os dias às 2h da manhã
+  ScriptApp.newTrigger('checkNewSubmissions')
+    .timeBased()
+    .everyDays(1)
+    .atHour(2)
+    .create();
+  
+  Logger.log("✅ Gatilhos configurados com sucesso!");
+  Logger.log("   - Gatilho diário (checkNewSubmissions) às 2h da manhã");
+  Logger.log("   - Para novos formulários, execute enviarDadosParaFirebase manualmente ou configure gatilho do Form");
+}
+
+/**
+ * Verifica novos cadastros na planilha e sincroniza com Firebase
+ * Esta função é chamada automaticamente pelo gatilho diário
+ * Também pode ser executada manualmente quando necessário
+ */
+function checkNewSubmissions() {
+  try {
+    Logger.log("🔍 Verificando novos cadastros na planilha...");
+    enviarDadosParaFirebase();
+    Logger.log("✅ Verificação concluída!");
+  } catch (e) {
+    Logger.log("❌ Erro ao verificar novos cadastros: " + e.message);
+    // Envia email de notificação se configurado (opcional)
+    // MailApp.sendEmail("seu-email@exemplo.com", "Erro na sincronização", e.message);
+  }
+}
