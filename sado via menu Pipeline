@@ -1,0 +1,30 @@
+[33m584d9a8[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m fix: Criar componentes ReportsPage e HelpPage faltantes
+[33m5823667[m feat: Implementar melhorias críticas de vínculos e UX
+[33m9501642[m feat: Implementar views faltantes e funcionalidades pendentes
+[33m5d1701d[m feat: Reestruturar front-end com separação de candidatos e candidaturas
+[33m5565b44[m feat: Implementar melhorias de CRM no ATS
+[33m8b8c03d[m feat: melhorias abrangentes no dashboard, filtros, vagas e unificação pipeline/banco
+[33m61f1fa9[m feat: melhorias críticas de filtros e sincronização
+[33m08d646b[m fix: correções críticas de UX e funcionalidades
+[33m7e710a5[m feat: página dedicada de Gestão de Candidaturas
+[33m6049b30[m feat: sistema completo de dados base e vagas estruturadas
+[33m7608d62[m feat: processo seletivo completo com campos de etapas
+[33m567c2bf[m feat: sistema completo de validação de dados
+[33m19a5e16[m feat: log de atividades, perfil Google e nomes visuais de campos
+[33me4d6146[m feat: controle de acessos e agendamento de entrevistas
+[33mbaeab92[m feat: sistema de candidaturas formais (applications)
+[33m1000be4[m feat: implementação de funcionalidades críticas do ATS
+[33mdf1d86b[m feat: sistema de log de movimentações de status
+[33mdccc088[m fix: múltiplas correções no Banco de Talentos e Pipeline
+[33m780c218[m fix: melhorias no Dashboard e botão do menu
+[33md57b584[m feat: adicionar logos da Young na aplicação
+[33m2813cb8[m feat: expandir banco de talentos com todas as colunas do Firebase
+[33m7a97702[m fix: corrigir data de cadastro e adicionar todas as colunas do Firebase
+[33ma11d052[m fix: adicionar import do ícone ExternalLink
+[33mae4dceb[m feat: converter campos CV e Foto em hiperlinks clicáveis
+[33md12927f[m fix: alterar layout do dashboard para 1 coluna
+[33m9f73e68[m feat: melhorias completas na tabela de candidatos e design
+[33m3a604a2[m feat: simplificar design visual para padrão universal dark/light
+[33m58eecda[m feat: adicionar menu de avanço de etapa no CandidateModal e iniciar simplificação visual
+[33m99ca199[m feat: expandir cadastro de vagas com áreas de interesse, cidades e empresas
+[33m74e6297[m feat: atualizar cores para Material Design e implementar funcionalidades pendentes
