@@ -2,9 +2,9 @@
 // CONFIGURAÇÃO DO FIREBASE (PREENCHA AQUI)
 // ============================================================================
 const FIREBASE_CONFIG = {
-  email: "firebase-adminsdk-fbsvc@young-talents-ats.iam.gserviceaccount.com",
-  key: "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCwJWbTzJkfqaNt\nv3bwRMFRNnYi0Jrv8pkbcZRa1uWKnULG0p2c8qw3uDpgijGhKNo4VaNrAN4QgChS\n8zDTlJQEuxCB0NM5S3W8PaVDg4v4lTQCSqAXk+v8cSVXico8XqB6mbVT1VricLAV\nZ611OveUb+3loTfmb2w7OnQI5PhktBXwy3mT+MJE09ArtM0wGbsKcwY/4OqXNfHb\nJA+EFaS2YLYpqtfohcbG6+jlS4hgSpZFJitHdCjOssih7oYzkBUywpqYa22A0mLo\nycueoNHLaAfDraIQVKslnLXNqmE+DXUlMV/EcTwN/O7LIQMLKxDtH982iE3BiqpU\nXGP4NIJrAgMBAAECggEAA1ymDUXQPbFMVrm68z6vXTWdD0YMUacU3VgPck+8BXzB\n5lnlEIv11dcUz3yOZ5qIK7TAD+NDhGzFwuuJqN14Q8Iu6vi0MgRAL4MSW+sEqWPD\noIWRxPwZmscCukcoI9B/NJ0palEIpojAZkWFIyx9xt3/XDd1rIFqPz563M6Yn7y4\nu+7j4Lxsk0daEF1Wl5ROnHfGlL2XwwNJk0dUZlDzwVxsN7/AX13PVqWj60nofRwz\nygNVfl/aAmHCyJUSMu6AdjKsbCLg9q3tbmN9m0uKM45pdxOdNbKIu5evJu/HqkNw\nUJn27BxN/VpOcMqi87VkE2Sn+1pJTVO/adjLxo+sGQKBgQDWP3/sRvv5ADTKrfGA\nfRduETGoeACgjaaWeWN3aagLuZQ3MfQDoOvFM8NkjaTuR92bQL2SDUVy2FktGn08\nsMKkYq8NZ1cfrnHck0ZwKI6mp+HCAy5YDMTlIadyfGaNBuOQQyTdQksS+l9Qdr+r\nVrs4DshBWx++cCS98ITcQ5cGUwKBgQDSeQ4xCjSPwAxYEBVPcemZh586ios3hxxr\nmt92PFSLuPwQagZrIHB8WQEJl8eqoqMIRrp/KIK/vQXmgIw+w/saO7xf1FbVVM3c\nVJLyYFADAUnS+N2mDHuYJRiwGwJIHUlctI5upAIv+AchdvyZKSCVi1Z7gYGZda5+\n4CqQd5FgiQKBgHxamQ50WRY652loss8ITEwnkLIfDQYjkbivNmt+GPrNOVkcFmzw\nv0hT9ipsCHoBnn/ZgO6/4zp4lrIWOPC8DA3L9Z0LCUerQg1sMisxbzMOKHwqyoBy\n0OnJsd5ClGdwwy7dugzuyJJ4XlBezHtPuRUdh2Bf2rn3b2wLqaILXSJfAoGAbOLl\n3acK9EeF21VOwRAMqzoHvXCJf4utv1mbO/8QOkzUUuWXNnrM1vfw2nakfHmxYIm+\n2CQsKGfxEoP0ilA3qyW2WdlvpuQ9sDws3anIGxXijHvlp48Tre2bLRh8ALTuDED4\n4vKEky58+eol2lL1oYg5kKG6W5sPUGJGgwDovAkCgYBjWqTL5vNlEWwqFBm7OqKH\ntUyIRZS3TN7rjtnmep6Pe1T7eZpSaMCdc0qP8Cr1RL5ugVzdChjv9VAA72EzYwtl\n463CweFFT4ryXGcgIToP4yWGmaK1sFZ/G75cYQOTLdQtxFQpPbsphlQNbhYgMlIF\nEIX2CAMgRKhowjk9SY7uJw==\n-----END PRIVATE KEY-----\n", // Cole sua chave inteira aqui
-  projectId: "young-talents-ats" // Nome do seu projeto
+  email: "firebase-adminsdk-fbsvc@talents-c856d.iam.gserviceaccount.com",
+  key: "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCNRvTVgSfW5iDd\na+g7kxkKIL8dxCj/DJ05mcioq/nICieQx0pqxy2fKUD6gFl81Pv4k2sNGPkZ2lX5\nr5ZVZ0W2wB4GQB9a74skxfqsPKPNx/U/blg911och6EWVozPpshWQfkE2HfhaGWm\n5b0vLxMlToMSkmG27Sfm/W8XSLM8xNPPkvPrDXvUvolNMfmTF0tSl7Ydl3K7xifZ\nnKbgoCukbMVSLi1yEnlzhHyPxKb4rbAKjo4YCoQuS3qDZi3Cnpi9EF1uL9cVjjnS\n6cJrtPPF8rQErjc/6cCQVHDyqAni5kY6MUH+8TmbJognqjOTmiBsey8drLU8rhSx\n2Ej/rIQbAgMBAAECggEAAOMWq3aFpQRJ5YoFacZZLGabPJkcNsnB/PgZufFmfpqN\nuAuATJ5Wi37LUSdYKH//2wY18F2dRsvHqWswUvX0ipq3NYvWhpAlfAQgOE+jKaod\nQJo1RKIjBzXUzZqahL1D2cLNSPoA+rHYnY0ovHCbuqq9CPNRWMAxdXJW7br/oRyK\n4oUjYnuRD78efHxTn517JfF23LnALLU9zhUoZ68BWswCN/1IyrpOJE9XIpnu2W68\noyqZ4622czH2GOnKWLlDDnQF+ww8Rd31XDOd9dwHS1+MPFePaxhCIwv+rBZV3GSW\n+IQBNxWJ7LHgOn4m+aSI7vnKPsZ2TAd3fXsAUoDytQKBgQC/uyto4aVT9ElQK7/e\nb2Szxg4LeGK+TLcsFwQHIowkln43SVradCNFvTgc9El5J/Yl7pps+shuhWt6DqKS\nJfgn1QFbyoBu6NX5afdrjBTxD6Jy/imvyE1yuFbOgzR7cG/iTBEJQcj1eJuKCc1P\nqIZDmiQFyjG415gSgs3z4TeMjwKBgQC8ojtup8Pj3xnwRzM0Xwtj9eqGwXEcqeaJ\nti1RJMhqtztgT279IfTh1RqjdD7dVcu29irXOEGxjn2GmYnmkWJ00P2g2zrfPu2c\nsb+JR4ZofS1ZC58eO8cV+YDDqtvK9hIA8s6UwapIWCs8GUVs6TR55hvsUXwvaeYX\n/ZZuT78ttQKBgEOZt6WEIamnMQ4uTrkbp3LnOt56dL5KCC9ocggd+zGPSjMuDvWF\nC0a0f4td6mXoXBZluVcBWRf2vL1NWa6T6poItTDrBjuUppUI8q6dtmiELa/Dw2jy\nA7SWIC0x/5giPaCZV0xfQH6kJpsV96jFb4l4WIkeEEfu4/Rq4DjDyLUrAoGAdcVA\nH+0kU1/WXPrHEFqKzQUbQLkDeubkpXQVRQUXD/GIY7AUVnxd3KVlNUn9ecj4ICn/\nQ1G/SjDxVBkGTOrWMqLMxyI41mr+hQdA01/RnekRZ/fmh0TBHoohB4jkIwqQ4QC3\nU466VuKdU69fdgj/l1/AbUHOq/eNDctooUSu0sUCgYEAnAc8AYDZrlKoaBi7t0+v\nTXHbbB9x0j1TgzW1kyfKYp2T+FGpT8sMsvcvu75a6/tQY8m9xAJGJwY+C97DWLTR\nYuvA5PLt4WCoMRBpg5ibxdp7Z2/+xLbkRhuaTypa07B7+cdARcSiMVX/bFX82q6i\ngnKX4qEqQa2PeX1T5gHPDOU=\n-----END PRIVATE KEY-----\n",
+  projectId: "talents-c856d"
 };
 
 const FIRESTORE_BATCH_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_CONFIG.projectId}/databases/(default)/documents:commit`;
@@ -49,12 +49,21 @@ function enviarDadosParaFirebase() {
     return;
   }
   
-  Logger.log(`Encontradas ${total} novas linhas para processar...`);
+  Logger.log(`📊 Encontradas ${total} novas linhas para processar...`);
 
   const BATCH_SIZE = 450; 
+  const totalLotes = Math.ceil(total / BATCH_SIZE);
+  let loteAtual = 0;
+  let totalEnviado = 0;
+  let totalErros = 0;
+
+  Logger.log(`📦 Processando em ${totalLotes} lote(s) de até ${BATCH_SIZE} registros cada...`);
 
   for (let i = 0; i < total; i += BATCH_SIZE) {
+    loteAtual++;
     const loteItens = linhasPendentes.slice(i, i + BATCH_SIZE);
+    
+    Logger.log(`⏳ Processando lote ${loteAtual}/${totalLotes} (${loteItens.length} registro(s))...`);
     
     // Prepara as operações de escrita
     const writes = [];
@@ -73,23 +82,39 @@ function enviarDadosParaFirebase() {
     if (writes.length > 0) {
       // 1. Tenta enviar para o Firebase
       try {
+        Logger.log(`  📤 Enviando ${writes.length} registro(s) para o Firebase...`);
         enviarLoteFirestore(writes);
         
         // 2. Se deu certo, marca como "Enviado" na planilha
-        // (Fazemos isso linha a linha ou em bloco, aqui faremos um loop simples para segurança)
         linhasParaMarcar.forEach(rowIndex => {
           // getRange(linha, coluna). O indexStatus é base 0, getRange usa base 1, então +1
           sheet.getRange(rowIndex, indexStatus + 1).setValue("Enviado");
         });
 
-        Logger.log(`Lote processado e marcado: ${Math.min(i + BATCH_SIZE, total)} / ${total}`);
+        totalEnviado += writes.length;
+        Logger.log(`  ✅ Lote ${loteAtual} processado com sucesso! (${totalEnviado} de ${total} enviados até agora)`);
         
       } catch (e) {
-        Logger.log(`Erro ao enviar lote: ${e.message}`);
+        totalErros += writes.length;
+        Logger.log(`  ❌ Erro ao enviar lote ${loteAtual}: ${e.message}`);
+        Logger.log(`  ⚠️  ${writes.length} registro(s) não foram marcados como enviados e serão tentados novamente na próxima execução`);
         // Se der erro, não marcamos como enviado, assim tentará de novo na próxima execução
       }
     }
+    
+    // Pausa entre lotes para evitar limite de taxa (apenas se não for o último lote)
+    if (loteAtual < totalLotes) {
+      Utilities.sleep(500); // Pausa de 500ms entre lotes
+    }
   }
+  
+  // Resumo final
+  Logger.log("=".repeat(50));
+  Logger.log(`📈 RESUMO DA EXECUÇÃO:`);
+  Logger.log(`  ✅ Total enviado com sucesso: ${totalEnviado}`);
+  Logger.log(`  ❌ Total com erro: ${totalErros}`);
+  Logger.log(`  📊 Total processado: ${totalEnviado + totalErros} de ${total}`);
+  Logger.log("=".repeat(50));
 }
 
 // ============================================================================
@@ -188,7 +213,17 @@ function enviarLoteFirestore(writes) {
   };
   
   const response = UrlFetchApp.fetch(FIRESTORE_BATCH_URL, options);
-  if (response.getResponseCode() !== 200) throw new Error("Erro Firebase: " + response.getContentText());
+  const statusCode = response.getResponseCode();
+  
+  if (statusCode !== 200) {
+    const errorText = response.getContentText();
+    Logger.log(`  ⚠️  Resposta do Firebase: Status ${statusCode}`);
+    Logger.log(`  ⚠️  Erro: ${errorText}`);
+    throw new Error(`Erro Firebase (${statusCode}): ${errorText}`);
+  }
+  
+  // Log de sucesso (opcional, pode comentar se gerar muito log)
+  // Logger.log(`  ✓ Firebase retornou: ${statusCode} (${writes.length} registro(s) processados)`);
 }
 
 function getServiceAccountToken() {
