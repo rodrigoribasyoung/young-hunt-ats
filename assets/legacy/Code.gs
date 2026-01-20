@@ -1,7 +1,20 @@
 /*
- * YOUNG TALENTS ATS - INTEGRAÇÃO FINAL (CORRIGIDO)
+ * ⚠️ LEGADO - NÃO USAR ⚠️
+ * 
+ * Este arquivo é uma versão antiga/legada do script de integração Google Forms → Firebase.
+ * 
+ * O SCRIPT OFICIAL está em: assets/.APPSCRIPT.txt
+ * 
+ * Para configurar o Apps Script, siga o guia: GUIA_APPS_SCRIPT.md
+ * 
+ * =================================================================================
+ * YOUNG TALENTS ATS - INTEGRAÇÃO FINAL (CORRIGIDO) - VERSÃO LEGADA
  * Funcionalidade: Conecta Google Forms e Planilhas ao Firebase Firestore via REST API
  * Versão: 2.0 - Alinhado com Frontend React
+ * 
+ * ⚠️ ATENÇÃO: Este arquivo é mantido apenas para referência histórica.
+ * Use o script em assets/.APPSCRIPT.txt para novas instalações.
+ * =================================================================================
  */
 
 // =================================================================================

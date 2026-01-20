@@ -538,8 +538,8 @@ function importarEmLotes() {
     Logger.log(`📊 Iniciando importação histórica de ${rows.length} linhas da planilha...`);
 
     let totalEnviado = 0;
-    let totalDuplicatas = 0;
     let totalErros = 0;
+    let totalIgnorados = 0; // Linhas vazias ou inválidas
     const totalLotes = Math.ceil(rows.length / BATCH_SIZE);
 
     // Loop principal: Processa em blocos de 400
@@ -547,10 +547,12 @@ function importarEmLotes() {
       const loteNum = Math.floor(i / BATCH_SIZE) + 1;
       const chunk = rows.slice(i, i + BATCH_SIZE);
       const writes = [];
+      const inicioLote = new Date();
 
       Logger.log(`⏳ Processando lote ${loteNum}/${totalLotes} (linhas ${i + 1} a ${Math.min(i + BATCH_SIZE, rows.length)})...`);
+      Logger.log(`   📋 Preparando ${chunk.length} registros para envio...`);
 
-      chunk.forEach(row => {
+      chunk.forEach((row, index) => {
         // Pula linhas vazias se houver
         if (!row[0] && !row[2]) return;
 
@@ -558,17 +560,11 @@ function importarEmLotes() {
         
         if (!candidato || !candidato.fullName) return;
         
-        // Verifica duplicata ANTES de adicionar ao lote
-        if (candidato.email) {
-          const existe = verificarCandidatoExistente(candidato.email);
-          if (existe) {
-            totalDuplicatas++;
-            Logger.log(`  ⚠️  Duplicata ignorada: ${candidato.fullName} (${candidato.email})`);
-            return; // Pula este candidato
-          }
-        }
+        // NOTA: Removida verificação de duplicata durante importação em massa
+        // O Firebase faz upsert automaticamente (cria ou atualiza) com base no docId único
+        // Isso torna a importação muito mais rápida
         
-        // Gera ID único para o documento
+        // Gera ID único para o documento (baseado em email + timestamp)
         const uniqueString = (candidato.email || "sem_email") + "_" + (candidato.original_timestamp || candidato.createdAt || "sem_data");
         const docId = Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, uniqueString));
         
@@ -599,19 +595,28 @@ function importarEmLotes() {
         });
       });
 
+      Logger.log(`   📦 ${writes.length} documento(s) preparado(s) para envio...`);
+
       if (writes.length > 0) {
         try {
+          Logger.log(`   🚀 Enviando lote ${loteNum} para Firebase...`);
           enviarBatchFirestore(writes);
           totalEnviado += writes.length;
-          Logger.log(`  ✅ Lote ${loteNum} enviado com sucesso! (${writes.length} registro(s))`);
+          const tempoLote = ((new Date() - inicioLote) / 1000).toFixed(2);
+          Logger.log(`  ✅ Lote ${loteNum} enviado com sucesso! (${writes.length} registro(s) em ${tempoLote}s)`);
         } catch (e) {
           totalErros += writes.length;
           Logger.log(`  ❌ Erro ao enviar lote ${loteNum}: ${e.message}`);
+          Logger.log(`     Stack: ${e.stack}`);
         }
+      } else {
+        totalIgnorados += chunk.length;
+        Logger.log(`  ⚠️  Lote ${loteNum} vazio - nenhum registro válido encontrado.`);
       }
       
-      // Pausa para evitar limite de taxa
+      // Pausa para evitar limite de taxa (apenas entre lotes, não no último)
       if (loteNum < totalLotes) {
+        Logger.log(`   ⏸️  Pausa de 1 segundo antes do próximo lote...`);
         Utilities.sleep(1000);
       }
     }
@@ -619,11 +624,13 @@ function importarEmLotes() {
     // Resumo final
     Logger.log("=".repeat(50));
     Logger.log(`📈 RESUMO DA IMPORTAÇÃO HISTÓRICA:`);
-    Logger.log(`  ✅ Total enviado: ${totalEnviado}`);
-    Logger.log(`  ⚠️  Total duplicatas ignoradas: ${totalDuplicatas}`);
+    Logger.log(`  ✅ Total enviado para Firebase: ${totalEnviado}`);
+    Logger.log(`  ⚠️  Total ignorados (vazios/inválidos): ${totalIgnorados}`);
     Logger.log(`  ❌ Total com erro: ${totalErros}`);
-    Logger.log(`  📊 Total processado: ${totalEnviado + totalDuplicatas + totalErros} de ${rows.length}`);
+    Logger.log(`  📊 Total processado: ${totalEnviado + totalIgnorados + totalErros} de ${rows.length}`);
+    Logger.log(`  📦 Total de lotes processados: ${totalLotes}`);
     Logger.log("=".repeat(50));
+    Logger.log(`✅ Importação concluída! Verifique o Firebase para confirmar os dados.`);
     
   } catch (e) {
     Logger.log(`❌ Erro na importação em lotes: ${e.message}`);

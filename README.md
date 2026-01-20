@@ -148,10 +148,27 @@ VITE_FIREBASE_APP_ID=seu_app_id
 
 ## 📚 Documentação
 
-- [GUIA_APPS_SCRIPT.md](./GUIA_APPS_SCRIPT.md) - **Guia completo de configuração do Google Apps Script** (Forms → Firebase)
-- [GUIA_IMPORTACAO_CSV.md](./GUIA_IMPORTACAO_CSV.md) - Guia de importação de dados via CSV
+### 📖 Para Usuários Finais
+- [README_USUARIO.md](./README_USUARIO.md) - **Guia completo do usuário** - Como usar todas as funcionalidades do sistema
+
+### 🔧 Para Desenvolvedores / Administradores
+
+#### Configuração e Integração
+- [GUIA_APPS_SCRIPT.md](./GUIA_APPS_SCRIPT.md) - **Configuração do Google Apps Script** (Forms → Firebase)
+  - Script oficial: `assets/.APPSCRIPT.txt`
+  - ⚠️ **Nota:** O arquivo `Code.gs` na raiz é **LEGADO** - não usar
+
+#### Importação e Normalização de Dados
+- [GUIA_IMPORTACAO_CSV.md](./GUIA_IMPORTACAO_CSV.md) - Guia de importação de dados via CSV/XLSX
 - [GUIA_NORMALIZACAO_CIDADES.md](./GUIA_NORMALIZACAO_CIDADES.md) - Regras de normalização de cidades
-- [TROUBLESHOOTING_LOGIN.md](./TROUBLESHOOTING_LOGIN.md) - Solução de problemas de autenticação
+
+#### Deploy e Troubleshooting
+- [CONFIGURACAO_VERCEL.md](./CONFIGURACAO_VERCEL.md) - Configuração de variáveis de ambiente no Vercel
+- [TROUBLESHOOTING_LOGIN.md](./TROUBLESHOOTING_LOGIN.md) - Solução de problemas de autenticação Google
+
+#### Documentação Técnica (Histórico)
+- [TECHNICAL_CHANGES.md](./TECHNICAL_CHANGES.md) - Registro de mudanças técnicas
+- [TESTE_COMPLETO.md](./TESTE_COMPLETO.md) - Plano de testes e checklist
 
 ## 🛠️ Scripts Disponíveis
 
@@ -167,14 +184,17 @@ npm run lint     # Verificar linting
 \`\`\`
 src/
 ├── App.jsx                 # Aplicação principal
+├── firebase.js             # Configuração centralizada do Firebase
 ├── constants.js            # Constantes (Pipeline stages, cores, etc)
 ├── ThemeContext.jsx        # Context para tema dark/light
 ├── components/
 │   ├── SettingsPage.jsx   # Página de configurações
+│   ├── DataManager.jsx    # Gerenciamento de dados base
 │   └── modals/
 │       ├── TransitionModal.jsx      # Modal de transição entre etapas
 │       ├── JobsCandidateModal.jsx   # Modal de candidatos de vagas
 │       └── CsvImportModal.jsx       # Modal de importação CSV
+├── utils/                  # Utilitários (normalização, validação)
 ├── assets/                 # Imagens e assets
 └── index.css              # Estilos globais
 \`\`\`
@@ -225,6 +245,9 @@ Proprietário - Young Talents
 - ✅ **Soft Delete**: Registros deletados não aparecem mais nas listas
 - ✅ **Contraste Visual**: Tags, etapas e cabeçalhos com melhor visibilidade
 - ✅ **Tabela Completa**: Todas as colunas importantes incluídas
+- ✅ **Filtro Padrão de Candidatos**: Corrigido para mostrar todos os candidatos por padrão (não apenas últimos 7 dias)
+- ✅ **Módulo Firebase Centralizado**: Criado `src/firebase.js` para evitar inicializações duplicadas
+- ✅ **Código de Debug Removido**: Removido código de telemetria que causava erros em produção
 
 ---
 

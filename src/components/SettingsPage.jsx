@@ -8,21 +8,8 @@ import DataManager from './DataManager';
 import { 
   collection, onSnapshot, query, orderBy, limit, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp
 } from 'firebase/firestore';
-import { getFirestore } from 'firebase/firestore';
-import { initializeApp } from 'firebase/app';
+import { db } from '../firebase';
 import * as XLSX from 'xlsx';
-
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
 
 // Helper para mostrar toast (será passado do App ou criado localmente)
 let showToast = (message, type = 'info') => {
@@ -70,7 +57,7 @@ export default function SettingsPage({
       {/* Header e Navegação */}
       <div className="p-6 border-b border-brand-border bg-brand-card">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-white">Configurações do Sistema</h2>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Configurações do Sistema</h2>
           {/* Perfil do usuário atual */}
           <div className="flex items-center gap-3 bg-gray-800/50 rounded-lg px-4 py-2">
             {currentUserPhoto ? (
@@ -81,7 +68,7 @@ export default function SettingsPage({
               </div>
             )}
             <div className="text-sm">
-              <div className="font-medium text-white">{currentUserName || currentUserEmail}</div>
+              <div className="font-medium text-gray-900 dark:text-white">{currentUserName || currentUserEmail}</div>
               <div className="text-xs text-gray-400">{currentUserRole === 'admin' ? 'Administrador' : currentUserRole === 'recruiter' ? 'Recrutador' : 'Visualizador'}</div>
             </div>
           </div>
@@ -226,7 +213,7 @@ const FieldsManager = ({ candidateFields = [] }) => {
         <div className="relative w-64">
           <Search className="absolute left-3 top-2.5 text-slate-500" size={16} />
           <input 
-            className="w-full bg-brand-card border border-brand-border rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:border-brand-cyan outline-none"
+            className="w-full bg-brand-card border border-brand-border rounded-lg pl-9 pr-4 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:border-brand-cyan outline-none"
             placeholder="Buscar campo..."
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -248,7 +235,7 @@ const FieldsManager = ({ candidateFields = [] }) => {
 
       {/* Legenda */}
       <div className="flex gap-4 text-xs text-gray-500 dark:text-gray-400">
-        <span><strong className="text-white">Nome Visual:</strong> Exibido nas tabelas e formulários</span>
+        <span><strong className="text-gray-900 dark:text-white">Nome Visual:</strong> Exibido nas tabelas e formulários</span>
         <span><strong className="text-cyan-400">Nome do Campo (CSV/Forms):</strong> Nome original da planilha/formulário</span>
       </div>
 

@@ -12,12 +12,16 @@ import {
 } from 'recharts';
 
 // Firebase Imports
-import { initializeApp } from "firebase/app";
+import { auth, db } from "./firebase";
 import { 
-  getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut 
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithRedirect,
+  onAuthStateChanged,
+  signOut 
 } from "firebase/auth";
 import { 
-  getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, 
+  collection, addDoc, updateDoc, deleteDoc, doc, 
   onSnapshot, serverTimestamp, query, orderBy, writeBatch, getDocs 
 } from "firebase/firestore";
 
@@ -52,25 +56,23 @@ const MATERIAL_COLORS = [
   '#009688', // Teal
 ];
 
-const COLORS = MATERIAL_COLORS; 
-
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+const COLORS = MATERIAL_COLORS;
 
 // --- COMPONENTES AUXILIARES ---
 
 // Dashboard com Gráficos
-const Dashboard = ({ filteredJobs, filteredCandidates, onOpenCandidates, statusMovements = [], applications = [], onViewJob, interviews = [], onScheduleInterview }) => {
+const Dashboard = ({ 
+  filteredJobs, 
+  filteredCandidates, 
+  onOpenCandidates, 
+  statusMovements = [], 
+  applications: applicationsProp = [], 
+  onViewJob, 
+  interviews = [], 
+  onScheduleInterview 
+}) => {
+  // Garante que sempre exista uma variável local `applications`
+  const applications = applicationsProp || [];
   const [periodFilter, setPeriodFilter] = useState('7d'); // Filtro de período para gráficos
   
   // Filtrar statusMovements por período
@@ -1418,10 +1420,20 @@ export default function App() {
   };
   
   // Filtro Global
+  // IMPORTANTE: createdAtPreset = 'all' para NÃO limitar por padrão aos últimos 7 dias.
+  // Isso garante que todo o histórico de candidatos (ex: 2600+) apareça no Banco de Talentos,
+  // a menos que o usuário ative filtros de período manualmente.
   const initialFilters = { 
-    jobId: 'all', company: 'all', city: 'all', interestArea: 'all',
-    cnh: 'all', marital: 'all', origin: 'all', schooling: 'all',
-    createdAtPreset: '7d', tags: 'all'
+    jobId: 'all',
+    company: 'all',
+    city: 'all',
+    interestArea: 'all',
+    cnh: 'all',
+    marital: 'all',
+    origin: 'all',
+    schooling: 'all',
+    createdAtPreset: 'all',
+    tags: 'all'
   };
   const [filters, setFilters] = useState(() => {
     try {
@@ -1439,10 +1451,18 @@ export default function App() {
     setTimeout(() => setToast(null), 2500);
   };
 
-  useEffect(() => { return onAuthStateChanged(auth, (u) => { setUser(u); setAuthLoading(false); }); }, []);
+  useEffect(() => { 
+    return onAuthStateChanged(auth, (u) => { 
+      setUser(u); 
+      setAuthLoading(false); 
+    }); 
+  }, []);
   const handleGoogleLogin = async () => { 
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+
     try { 
-      const result = await signInWithPopup(auth, new GoogleAuthProvider());
+      const result = await signInWithPopup(auth, provider);
       const loggedUser = result.user;
       
       // Auto-registrar/atualizar perfil do usuário no primeiro login
@@ -1496,7 +1516,24 @@ export default function App() {
         }, 500);
       }
     } catch (e) { 
-      console.error(e); 
+      console.error(e);
+
+      // Tratamento específico para bloqueio de popup
+      if (e.code === 'auth/popup-blocked') {
+        try {
+          await signInWithRedirect(auth, provider);
+        } catch (redirectError) {
+          console.error('Erro no login com redirecionamento:', redirectError);
+
+          if (typeof showToast === 'function') {
+            showToast('Seu navegador bloqueou o popup de login. Permita pop-ups ou tente outro navegador.', 'error');
+          }
+        }
+      } else {
+        if (typeof showToast === 'function') {
+          showToast('Erro ao fazer login com Google. Tente novamente mais tarde.', 'error');
+        }
+      }
     } 
   };
 
@@ -1505,7 +1542,13 @@ export default function App() {
     if (!user) return;
     const unsubs = [
       onSnapshot(query(collection(db, 'jobs')), s => setJobs(s.docs.map(d => ({id:d.id, ...d.data()})))),
-      onSnapshot(query(collection(db, 'candidates')), s => setCandidates(s.docs.map(d => ({id:d.id, ...d.data()})))),
+      onSnapshot(
+        query(collection(db, 'candidates')),
+        s => {
+          const docs = s.docs.map(d => ({ id: d.id, ...d.data() }));
+          setCandidates(docs);
+        }
+      ),
       onSnapshot(query(collection(db, 'companies')), s => setCompanies(s.docs.map(d => ({id:d.id, ...d.data()})))),
       onSnapshot(query(collection(db, 'cities')), s => setCities(s.docs.map(d => ({id:d.id, ...d.data()})))),
       onSnapshot(query(collection(db, 'interest_areas')), s => setInterestAreas(s.docs.map(d => ({id:d.id, ...d.data()})))),
@@ -2773,7 +2816,8 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                       allCandidates={kanbanDataByStage[stage]?.all || []}
                       displayedCandidates={kanbanDataByStage[stage]?.displayed || []}
                       total={kanbanDataByStage[stage]?.total || 0}
-                      jobs={jobs} 
+                      jobs={jobs}
+                      applications={applications}
                       onDragEnd={onDragEnd} 
                       onEdit={onEdit} 
                       onCloseStatus={onCloseStatus} 
@@ -2915,7 +2959,7 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
   );
 };
 
-const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, jobs, onDragEnd, onEdit, onCloseStatus, selectedIds, onSelect, showColorPicker }) => {
+const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, jobs, applications = [], onDragEnd, onEdit, onCloseStatus, selectedIds, onSelect, showColorPicker }) => {
   const [columnColor, setColumnColor] = useState(() => {
     const saved = localStorage.getItem(`kanban-color-${stage}`);
     return saved || STATUS_COLORS[stage];
@@ -3977,8 +4021,13 @@ const CandidatesList = ({ candidates, jobs, onAdd, onEdit, onDelete }) => {
 
 const InputField = ({ label, field, value, onChange, type="text" }) => (
   <div className="mb-3">
-    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">{label}</label>
-    <input type={type} className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2.5 rounded-lg text-sm text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={value||''} onChange={e => onChange(field, e.target.value)} />
+    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1.5">{label}</label>
+    <input
+      type={type}
+      className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-2.5 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+      value={value || ''}
+      onChange={e => onChange(field, e.target.value)}
+    />
   </div>
 );
 
@@ -4866,9 +4915,9 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 dark:bg-black/80 p-4 backdrop-blur-sm">
-      <div className="bg-brand-card dark:bg-brand-card rounded-xl w-full max-w-4xl h-[90vh] flex flex-col border border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700 text-white dark:text-white">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700 flex justify-between bg-brand-card dark:bg-brand-card opacity-50">
-          <div><h3 className="font-bold text-xl">{d.id?'Editar':'Novo'} Candidato</h3></div>
+      <div className="bg-brand-card dark:bg-brand-card rounded-xl w-full max-w-4xl h-[90vh] flex flex-col border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between bg-brand-card dark:bg-brand-card">
+          <div><h3 className="font-bold text-xl text-white">{d.id?'Editar':'Novo'} Candidato</h3></div>
           <button onClick={onClose}><X/></button>
         </div>
         
@@ -4905,7 +4954,7 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
             </button>
           ))}
         </div>
-        <div className="p-8 overflow-y-auto flex-1 bg-white dark:bg-gray-900 dark:bg-white dark:bg-gray-900">
+        <div className="p-8 overflow-y-auto flex-1 bg-white dark:bg-gray-900">
           {activeSection === 'pessoal' && (
             <>
               {/* Menu de Avanço de Etapa - Destaque */}
@@ -4945,8 +4994,8 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
                 <InputField label="Email Secundário" field="email_secondary" value={d.email_secondary} onChange={handleInputChange}/>
                 <InputField label="Telefone/Celular" field="phone" value={d.phone} onChange={handleInputChange}/>
               <div className="mb-3">
-                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Cidade</label>
-                <select className="w-full bg-white dark:bg-gray-900 dark:bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700 p-2.5 rounded text-white dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={d.city || ''} onChange={e=>handleInputChange('city', e.target.value)}>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1.5">Cidade</label>
+                <select className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-2.5 rounded text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={d.city || ''} onChange={e=>handleInputChange('city', e.target.value)}>
                   <option value="">Selecione...</option>
                   <optgroup label="Cidades Principais">
                     {getMainCitiesOptions().map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
@@ -4962,8 +5011,8 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
               <InputField label="Data de Nascimento" field="birthDate" type="date" value={d.birthDate} onChange={handleInputChange}/>
               <InputField label="Idade" field="age" type="number" value={d.age} onChange={handleInputChange}/>
               <div className="mb-3">
-                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Estado Civil</label>
-                <select className="w-full bg-white dark:bg-gray-900 dark:bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700 p-2.5 rounded text-white dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={d.maritalStatus || ''} onChange={e=>setD({...d, maritalStatus:e.target.value})}>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1.5">Estado Civil</label>
+                <select className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-2.5 rounded text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={d.maritalStatus || ''} onChange={e=>setD({...d, maritalStatus:e.target.value})}>
                   <option value="">Selecione...</option>
                   {options.marital && options.marital.map(m => <option key={m.id} value={m.name}>{m.name}</option>)}
                 </select>
@@ -4971,8 +5020,8 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
               <InputField label="Quantidade de Filhos" field="childrenCount" type="number" value={d.childrenCount} onChange={handleInputChange}/>
               <UrlField label="URL da Foto" field="photoUrl" value={d.photoUrl} onChange={handleInputChange} placeholder="Cole a URL da foto aqui..."/>
               <div className="mb-3">
-                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Possui CNH Tipo B?</label>
-                <select className="w-full bg-white dark:bg-gray-900 dark:bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700 p-2.5 rounded text-white dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={d.hasLicense || ''} onChange={e=>setD({...d, hasLicense:e.target.value})}>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1.5">Possui CNH Tipo B?</label>
+                <select className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-2.5 rounded text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={d.hasLicense || ''} onChange={e=>setD({...d, hasLicense:e.target.value})}>
                   <option value="">Selecione...</option>
                   <option value="Sim">Sim</option>
                   <option value="Não">Não</option>
@@ -4985,8 +5034,8 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
             <div className="grid grid-cols-2 gap-6">
               <InputField label="Formação" field="education" value={d.education} onChange={handleInputChange}/>
               <div className="mb-3">
-                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Nível de Escolaridade</label>
-                <select className="w-full bg-white dark:bg-gray-900 dark:bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700 p-2.5 rounded text-white dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={d.schoolingLevel || ''} onChange={e=>setD({...d, schoolingLevel:e.target.value})}>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1.5">Nível de Escolaridade</label>
+                <select className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-2.5 rounded text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={d.schoolingLevel || ''} onChange={e=>setD({...d, schoolingLevel:e.target.value})}>
                   <option value="">Selecione...</option>
                   {options.schooling && options.schooling.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                 </select>
@@ -4994,16 +5043,16 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
               <InputField label="Instituição de Ensino" field="institution" value={d.institution} onChange={handleInputChange}/>
               <InputField label="Data de Formatura" field="graduationDate" type="date" value={d.graduationDate} onChange={handleInputChange}/>
               <div className="mb-3">
-                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Está Cursando Atualmente?</label>
-                <select className="w-full bg-white dark:bg-gray-900 dark:bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700 p-2.5 rounded text-white dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={d.isStudying || ''} onChange={e=>setD({...d, isStudying:e.target.value})}>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1.5">Está Cursando Atualmente?</label>
+                <select className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-2.5 rounded text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={d.isStudying || ''} onChange={e=>setD({...d, isStudying:e.target.value})}>
                   <option value="">Selecione...</option>
                   <option value="Sim">Sim</option>
                   <option value="Não">Não</option>
                 </select>
               </div>
               <div className="mb-3">
-                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Área de Interesse</label>
-                <select className="w-full bg-white dark:bg-gray-900 dark:bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700 p-2.5 rounded text-white dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={d.interestAreas || ''} onChange={e=>handleInputChange('interestAreas', e.target.value)}>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1.5">Área de Interesse</label>
+                <select className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-2.5 rounded text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={d.interestAreas || ''} onChange={e=>handleInputChange('interestAreas', e.target.value)}>
                   <option value="">Selecione...</option>
                   <optgroup label="Áreas Principais">
                     {getMainInterestAreasOptions().map(i => <option key={i.id} value={i.name}>{i.name}</option>)}
@@ -5017,12 +5066,12 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
                 <p className="text-xs text-slate-400 mt-1">Digite ou selecione - será normalizado automaticamente</p>
               </div>
               <div className="mb-3 col-span-2">
-                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Experiências Anteriores</label>
-                <textarea className="w-full bg-white dark:bg-gray-900 dark:bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700 p-2.5 rounded text-white dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-24" value={d.experience || ''} onChange={e=>setD({...d, experience:e.target.value})} placeholder="Descreva as experiências profissionais..."/>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1.5">Experiências Anteriores</label>
+                <textarea className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-2.5 rounded text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-24" value={d.experience || ''} onChange={e=>setD({...d, experience:e.target.value})} placeholder="Descreva as experiências profissionais..."/>
               </div>
               <div className="mb-3 col-span-2">
-                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Cursos e Certificações</label>
-                <textarea className="w-full bg-white dark:bg-gray-900 dark:bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700 p-2.5 rounded text-white dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-20" value={d.courses || ''} onChange={e=>setD({...d, courses:e.target.value})} placeholder="Liste cursos e certificações..."/>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1.5">Cursos e Certificações</label>
+                <textarea className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-2.5 rounded text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-20" value={d.courses || ''} onChange={e=>setD({...d, courses:e.target.value})} placeholder="Liste cursos e certificações..."/>
               </div>
               <UrlField label="Link CV" field="cvUrl" value={d.cvUrl} onChange={handleInputChange} placeholder="Cole a URL do currículo aqui..."/>
               <UrlField label="Link Portfolio" field="portfolioUrl" value={d.portfolioUrl} onChange={handleInputChange} placeholder="Cole a URL do portfólio aqui..."/>
@@ -5102,8 +5151,8 @@ const CandidateModal = ({ candidate, onClose, onSave, options, isSaving, onAdvan
                 </div>
               </div>
               <div className="mb-3">
-                <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 uppercase mb-1.5">Onde encontrou (Fonte)</label>
-                <select className="w-full bg-white dark:bg-gray-900 dark:bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 dark:border-gray-200 dark:border-gray-700 p-2.5 rounded text-white dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={d.source || ''} onChange={e=>handleInputChange('source', e.target.value)}>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase mb-1.5">Onde encontrou (Fonte)</label>
+                <select className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-2.5 rounded text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={d.source || ''} onChange={e=>handleInputChange('source', e.target.value)}>
                   <option value="">Selecione...</option>
                   <optgroup label="Origens Principais">
                     {getMainSourcesOptions().map(o => <option key={o.id} value={o.name}>{o.name}</option>)}
