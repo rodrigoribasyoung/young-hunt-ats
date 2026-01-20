@@ -171,10 +171,8 @@ function mapearFormularioParaCandidato(responses) {
   // Tags
   candidato.tags = ["Novo Inscrito"];
   
-  // Metadados de origem e criação
-  candidato.origin = "forms_automation"; // Origem: automação do Google Forms (gatilho submitForm)
-  candidato.createdBy = "system"; // Sistema (automação)
-  candidato.responsibleUser = ""; // Vazio para automação, será preenchido manualmente se necessário
+  // Metadados de origem e criação (já definidos acima, mas garantindo que estão corretos)
+  // origin e createdBy já foram definidos acima na linha 120-121
   
   return candidato;
 }
@@ -281,7 +279,17 @@ function enviarCandidatoParaFirebase(candidato) {
       if (value === null || value === undefined || value === "") continue;
       
       // Converte para tipo correto do Firestore
-      if (Array.isArray(value)) {
+      if (key === 'original_timestamp' || key === 'createdAt') {
+        // Timestamp do Firestore - já está no formato correto
+        if (value.timestampValue) {
+          fields[key] = { timestampValue: value.timestampValue };
+        } else if (typeof value === 'string') {
+          // Se ainda for string, converte
+          fields[key] = { timestampValue: value };
+        } else {
+          fields[key] = { timestampValue: new Date().toISOString() };
+        }
+      } else if (Array.isArray(value)) {
         fields[key] = { 
           arrayValue: { 
             values: value.map(v => ({ stringValue: String(v) })) 
@@ -291,6 +299,9 @@ function enviarCandidatoParaFirebase(candidato) {
         fields[key] = { integerValue: value };
       } else if (typeof value === 'boolean') {
         fields[key] = { booleanValue: value };
+      } else if (typeof value === 'object' && value.timestampValue) {
+        // Objeto timestamp já formatado
+        fields[key] = { timestampValue: value.timestampValue };
       } else {
         fields[key] = { stringValue: String(value) };
       }

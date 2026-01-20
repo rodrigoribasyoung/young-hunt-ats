@@ -5,7 +5,7 @@ import {
   FileText, MapPin, Filter, Trophy, Menu, X, LogOut, Loader2, Edit3, Trash2,
   Building2, Mail, Check, Ban, UserMinus, CheckSquare, Square, Kanban, List,
   CalendarCheck, AlertCircle, UserPlus, Moon, Sun, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, ExternalLink,
-  MessageSquare, History, ArrowRight, Palette, Copy, Info, BarChart3, HelpCircle
+  MessageSquare, History, ArrowRight, Palette, Copy, Info, BarChart3, HelpCircle, Clock
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -3314,23 +3314,21 @@ export default function App() {
         onAddApplicationNote={addApplicationNote}
         onEditCandidate={openCandidateProfile}
       />
-      {dashboardModalCandidates && (
-        <DashboardCandidatesModal 
-          isOpen={true} 
-          onClose={() => {
-            setDashboardModalCandidates(null);
-            setDashboardModalTitle('');
-          }} 
-          title={dashboardModalTitle || 'Candidatos do Dashboard'}
-          candidates={dashboardModalCandidates}
-          onViewProfile={openCandidateProfile}
-          onViewPipeline={(candidate) => {
-            setHighlightedCandidateId(candidate.id);
-            setActiveTab('pipeline');
-            // Scroll para o candidato destacado será feito no PipelineView
-          }}
-        />
-      )}
+      <DashboardCandidatesModal 
+        isOpen={!!dashboardModalCandidates} 
+        onClose={() => {
+          setDashboardModalCandidates(null);
+          setDashboardModalTitle('');
+        }} 
+        title={dashboardModalTitle || 'Candidatos do Dashboard'}
+        candidates={dashboardModalCandidates || []}
+        onViewProfile={openCandidateProfile}
+        onViewPipeline={(candidate) => {
+          setHighlightedCandidateId(candidate.id);
+          setActiveTab('pipeline');
+          // Scroll para o candidato destacado será feito no PipelineView
+        }}
+      />
       
       {/* Modal de Agendamento de Entrevista */}
       {interviewModalData && (
@@ -3718,7 +3716,7 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                        <th className="p-4">Área</th>
                        <th className="p-4">CNH</th>
                        <th className="p-4">Fonte</th>
-                       <th className="p-4">Cadastro</th>
+                       <th className="p-4">Data de Criação</th>
                        <th className="p-4">Ações</th>
                      </tr>
                    </thead>
@@ -3839,9 +3837,38 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                            <td className="p-4 text-xs break-words truncate max-w-[150px] text-gray-700 dark:text-gray-300" title={c.interestAreas}>{c.interestAreas || 'N/A'}</td>
                            <td className="p-4 text-xs text-gray-700 dark:text-gray-300">{c.hasLicense === 'Sim' ? '✓' : c.hasLicense === 'Não' ? '✗' : 'N/A'}</td>
                            <td className="p-4 text-xs break-words truncate max-w-[120px] text-gray-700 dark:text-gray-300" title={c.source}>{c.source || 'N/A'}</td>
-                           <td className="p-4 text-xs">
+                           <td className="p-4 text-xs text-gray-700 dark:text-gray-300">
                              {(() => {
-                               const ts = c.original_timestamp?.seconds || c.original_timestamp?._seconds || c.createdAt?.seconds || c.createdAt?._seconds || 0;
+                               const getTs = (tsField) => {
+                                 if (!tsField) return null;
+                                 if (typeof tsField === 'string') {
+                                   const d = new Date(tsField);
+                                   return isNaN(d.getTime()) ? null : d.getTime() / 1000;
+                                 }
+                                 if (tsField.toDate && typeof tsField.toDate === 'function') {
+                                   try {
+                                     const date = tsField.toDate();
+                                     return isNaN(date.getTime()) ? null : date.getTime() / 1000;
+                                   } catch (e) {}
+                                 }
+                                 if (tsField.seconds !== undefined) return tsField.seconds;
+                                 if (tsField._seconds !== undefined) return tsField._seconds;
+                                 if (tsField.timestampValue) {
+                                   if (typeof tsField.timestampValue === 'string') {
+                                     const d = new Date(tsField.timestampValue);
+                                     return isNaN(d.getTime()) ? null : d.getTime() / 1000;
+                                   }
+                                   if (tsField.timestampValue.toDate) {
+                                     try {
+                                       const date = tsField.timestampValue.toDate();
+                                       return isNaN(date.getTime()) ? null : date.getTime() / 1000;
+                                     } catch (e) {}
+                                   }
+                                   if (tsField.timestampValue.seconds !== undefined) return tsField.timestampValue.seconds;
+                                 }
+                                 return null;
+                               };
+                               const ts = getTs(c.original_timestamp) || getTs(c.createdAt);
                                if (!ts) return 'N/A';
                                const date = new Date(ts * 1000);
                                return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -4089,6 +4116,45 @@ const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, displa
               <div className="text-xs text-slate-400 truncate flex gap-1"><Mail size={10}/> {c.email || 'N/D'}</div>
               <div className="text-xs text-slate-400 truncate flex gap-1">📞 {c.phone || 'N/D'}</div>
               {c.score && <div className="text-xs text-blue-600 dark:text-blue-400 font-bold">Match: {c.score}%</div>}
+              {(() => {
+                const getTs = (tsField) => {
+                  if (!tsField) return null;
+                  if (typeof tsField === 'string') {
+                    const d = new Date(tsField);
+                    return isNaN(d.getTime()) ? null : d.getTime() / 1000;
+                  }
+                  if (tsField.toDate && typeof tsField.toDate === 'function') {
+                    try {
+                      const date = tsField.toDate();
+                      return isNaN(date.getTime()) ? null : date.getTime() / 1000;
+                    } catch (e) {}
+                  }
+                  if (tsField.seconds !== undefined) return tsField.seconds;
+                  if (tsField._seconds !== undefined) return tsField._seconds;
+                  if (tsField.timestampValue) {
+                    if (typeof tsField.timestampValue === 'string') {
+                      const d = new Date(tsField.timestampValue);
+                      return isNaN(d.getTime()) ? null : d.getTime() / 1000;
+                    }
+                    if (tsField.timestampValue.toDate) {
+                      try {
+                        const date = tsField.timestampValue.toDate();
+                        return isNaN(date.getTime()) ? null : date.getTime() / 1000;
+                      } catch (e) {}
+                    }
+                    if (tsField.timestampValue.seconds !== undefined) return tsField.timestampValue.seconds;
+                  }
+                  return null;
+                };
+                const ts = getTs(c.original_timestamp) || getTs(c.createdAt);
+                if (!ts) return null;
+                const date = new Date(ts * 1000);
+                return (
+                  <div className="text-xs text-gray-500 dark:text-gray-500 flex items-center gap-1">
+                    <Clock size={10}/> {date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                  </div>
+                );
+              })()}
             </div>
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-brand-card shadow-lg rounded border border-gray-200 dark:border-gray-700 z-30">
               <button onClick={(e)=>{e.stopPropagation();onEdit(c)}} className="p-1.5 hover:text-blue-400 hover:bg-blue-500/20" title="Editar">
@@ -4721,55 +4787,37 @@ const JobsList = ({ jobs, candidates, onAdd, onEdit, onToggleStatus, onViewCandi
   
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      {/* Header com botão centralizado */}
+      <div className="flex flex-col items-center gap-4">
         <h2 className="text-2xl font-bold text-white">Vagas</h2>
-        <button onClick={onAdd} className="bg-blue-600 text-white px-4 py-2 rounded flex items-center gap-2 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition-colors font-medium">
-          <Plus size={18}/> Nova
+        <button 
+          onClick={onAdd} 
+          className="bg-blue-600 text-white px-6 py-3 rounded-lg flex items-center gap-2 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition-colors font-medium shadow-lg hover:shadow-xl"
+        >
+          <Plus size={20}/> Abrir Vaga
         </button>
       </div>
       
-      {/* Tabs */}
-      <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 overflow-x-auto custom-scrollbar">
-        <button
-          onClick={() => setActiveTab('status')}
-          className={`px-4 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${
-            activeTab === 'status'
-              ? 'text-blue-600 dark:text-blue-400 border-brand-orange'
-              : 'text-slate-500 border-transparent hover:text-slate-300'
-          }`}
+      {/* Dropdown de visualização */}
+      <div className="flex gap-3 items-center">
+        <label className="text-sm font-medium text-gray-300">Visualizar por:</label>
+        <select
+          className="bg-brand-card border border-gray-200 dark:border-gray-700 rounded px-4 py-2 text-sm text-white outline-none focus:border-brand-cyan min-w-[180px]"
+          value={activeTab}
+          onChange={e => {
+            setActiveTab(e.target.value);
+            // Resetar filtros ao mudar de aba
+            setStatusFilter('all');
+            setCityFilter('all');
+            setCompanyFilter('all');
+            setPeriodFilter('all');
+          }}
         >
-          Por Status
-        </button>
-        <button
-          onClick={() => setActiveTab('city')}
-          className={`px-4 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${
-            activeTab === 'city'
-              ? 'text-blue-600 dark:text-blue-400 border-brand-orange'
-              : 'text-slate-500 border-transparent hover:text-slate-300'
-          }`}
-        >
-          Por Cidade
-        </button>
-        <button
-          onClick={() => setActiveTab('company')}
-          className={`px-4 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${
-            activeTab === 'company'
-              ? 'text-blue-600 dark:text-blue-400 border-brand-orange'
-              : 'text-slate-500 border-transparent hover:text-slate-300'
-          }`}
-        >
-          Por Empresa
-        </button>
-        <button
-          onClick={() => setActiveTab('period')}
-          className={`px-4 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${
-            activeTab === 'period'
-              ? 'text-blue-600 dark:text-blue-400 border-brand-orange'
-              : 'text-slate-500 border-transparent hover:text-slate-300'
-          }`}
-        >
-          Por Período
-        </button>
+          <option value="status">Por Status</option>
+          <option value="city">Por Cidade</option>
+          <option value="company">Por Empresa</option>
+          <option value="period">Por Período</option>
+        </select>
       </div>
       
       {/* Filtros por aba */}

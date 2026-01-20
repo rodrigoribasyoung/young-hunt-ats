@@ -524,7 +524,26 @@ export default function CandidateProfilePage({
                     ) : onStatusChange ? (
                       <select
                         value={candidate.status || 'Inscrito'}
-                        onChange={(e) => onStatusChange(candidate.id, e.target.value)}
+                        onChange={async (e) => {
+                          const newStatus = e.target.value;
+                          if (newStatus === candidate.status) return;
+                          
+                          // Validações similares ao handleDragEnd
+                          const PIPELINE_STAGES = ['Inscrito', 'Considerado', 'Entrevista', 'Seleção', 'Selecionado', 'Contratado', 'Reprovado', 'Desistência'];
+                          const CLOSING_STATUSES = ['Contratado', 'Reprovado', 'Desistência'];
+                          const stagesRequiringApplication = PIPELINE_STAGES.slice(PIPELINE_STAGES.indexOf('Considerado'));
+                          
+                          // Verificar se precisa de candidatura
+                          if (stagesRequiringApplication.includes(newStatus)) {
+                            if (candidateApplications.length === 0) {
+                              alert('É necessário vincular o candidato a uma vaga antes de avançar para esta etapa. Use a seção "Candidaturas" para vincular a uma vaga.');
+                              return;
+                            }
+                          }
+                          
+                          // Chamar onStatusChange
+                          await onStatusChange(candidate.id, newStatus);
+                        }}
                         className={`px-3 py-2 rounded-lg text-sm font-medium border-2 transition-colors cursor-pointer ${
                           STATUS_COLORS[candidate.status] || 'bg-slate-600 text-white border-slate-600'
                         } hover:opacity-80`}
