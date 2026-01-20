@@ -3729,20 +3729,56 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                        const primaryApplication = candidateApplications[0]; // Primeira candidatura como principal
                        const isNew = (() => {
                          const getTs = (tsField) => {
-                           if (!tsField) return 0;
+                           if (!tsField) return null;
+                           
+                           // Se for string ISO, converte diretamente
                            if (typeof tsField === 'string') {
                              const d = new Date(tsField);
-                             return isNaN(d.getTime()) ? 0 : d.getTime() / 1000;
+                             return isNaN(d.getTime()) ? null : d.getTime() / 1000;
                            }
-                           if (tsField.seconds || tsField._seconds) return tsField.seconds || tsField._seconds;
-                           if (tsField.toDate) return tsField.toDate().getTime() / 1000;
+                           
+                           // Se for objeto Timestamp do Firebase SDK (tem seconds e toDate)
+                           if (tsField.toDate && typeof tsField.toDate === 'function') {
+                             try {
+                               const date = tsField.toDate();
+                               return isNaN(date.getTime()) ? null : date.getTime() / 1000;
+                             } catch (e) {
+                               // Fallback para seconds se toDate falhar
+                             }
+                           }
+                           
+                           // Se tiver seconds (Timestamp do Firebase SDK)
+                           if (tsField.seconds !== undefined) {
+                             return typeof tsField.seconds === 'number' ? tsField.seconds : null;
+                           }
+                           
+                           // Se tiver _seconds (formato alternativo)
+                           if (tsField._seconds !== undefined) {
+                             return typeof tsField._seconds === 'number' ? tsField._seconds : null;
+                           }
+                           
+                           // Se tiver timestampValue (formato REST API)
                            if (tsField.timestampValue) {
-                             const d = new Date(tsField.timestampValue);
-                             return isNaN(d.getTime()) ? 0 : d.getTime() / 1000;
+                             if (typeof tsField.timestampValue === 'string') {
+                               const d = new Date(tsField.timestampValue);
+                               return isNaN(d.getTime()) ? null : d.getTime() / 1000;
+                             }
+                             // Se timestampValue for um objeto Timestamp
+                             if (tsField.timestampValue.toDate) {
+                               try {
+                                 const date = tsField.timestampValue.toDate();
+                                 return isNaN(date.getTime()) ? null : date.getTime() / 1000;
+                               } catch (e) {}
+                             }
+                             if (tsField.timestampValue.seconds !== undefined) {
+                               return typeof tsField.timestampValue.seconds === 'number' ? tsField.timestampValue.seconds : null;
+                             }
                            }
-                           return 0;
+                           
+                           return null;
                          };
                          const ts = getTs(c.original_timestamp) || getTs(c.createdAt);
+                         if (!ts || ts === 0) return false;
                          const daysAgo = (Date.now() / 1000 - ts) / (24 * 60 * 60);
                          return daysAgo <= 7; // Novo se cadastrado nos últimos 7 dias
                        })();
