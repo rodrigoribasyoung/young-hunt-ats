@@ -1902,19 +1902,21 @@ export default function App() {
 
   // Inicializar URL se necessário
   useEffect(() => {
-    // Redirecionar rota raiz para dashboard
+    // Redirecionar rota raiz para dashboard (apenas uma vez)
     if (location.pathname === '/' || location.pathname === '') {
       navigate('/dashboard', { replace: true });
     }
-    
-    // Inicializar settingsTab na URL se estiver na página de settings
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  
+  // Inicializar settingsTab na URL se estiver na página de settings
+  useEffect(() => {
     if (activeTab === 'settings' && !route.settingsTab) {
       const params = new URLSearchParams(location.search);
       params.set('settingsTab', 'campos');
       navigate(`${location.pathname}?${params.toString()}`, { replace: true });
       setRoute(prev => ({ ...prev, settingsTab: 'campos' }));
     }
-  }, []);
+  }, [activeTab, route.settingsTab, location.pathname, location.search, navigate]);
 
   const setActiveTab = (tab) => {
     // Navegar para a slug direta
@@ -2056,10 +2058,19 @@ export default function App() {
   };
 
   useEffect(() => { 
-    return onAuthStateChanged(auth, (u) => { 
-      setUser(u); 
-      setAuthLoading(false); 
-    }); 
+    try {
+      const unsubscribe = onAuthStateChanged(auth, (u) => { 
+        setUser(u); 
+        setAuthLoading(false); 
+      }, (error) => {
+        console.error('[Auth] Erro ao verificar estado de autenticação:', error);
+        setAuthLoading(false);
+      });
+      return unsubscribe;
+    } catch (error) {
+      console.error('[Auth] Erro ao configurar listener de autenticação:', error);
+      setAuthLoading(false);
+    }
   }, []);
   const handleEmailLogin = async (email, password) => {
     try {

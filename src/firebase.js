@@ -15,12 +15,26 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-// Inicializa Firebase App (idempotente - pode ser chamado múltiplas vezes)
-const app = initializeApp(firebaseConfig);
+// Validação das variáveis de ambiente
+if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+  console.error('[Firebase] Erro: Variáveis de ambiente não configuradas corretamente.');
+  console.error('[Firebase] Verifique se todas as variáveis VITE_FIREBASE_* estão definidas.');
+}
 
-// Inicializa serviços
-const auth = getAuth(app);
-const db = getFirestore(app);
+// Inicializa Firebase App (idempotente - pode ser chamado múltiplas vezes)
+let app;
+let auth;
+let db;
+
+try {
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
+} catch (error) {
+  console.error('[Firebase] Erro ao inicializar Firebase:', error);
+  // Em caso de erro, ainda exporta objetos vazios para evitar crash
+  throw new Error('Falha ao inicializar Firebase. Verifique as variáveis de ambiente.');
+}
 
 // Exporta para uso em toda a aplicação
 export { app, auth, db };
