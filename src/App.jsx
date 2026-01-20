@@ -3652,6 +3652,7 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                       displayCount={kanbanDataByStage[stage]?.displayCount || kanbanItemsPerPage}
                       jobs={jobs}
                       applications={applications}
+                      allJobs={jobs}
                       onDragEnd={onDragEnd} 
                       onEdit={onEdit} 
                       onCloseStatus={onCloseStatus} 
