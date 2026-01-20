@@ -2756,16 +2756,51 @@ export default function App() {
     // Função auxiliar para converter timestamp para segundos (suporta múltiplos formatos)
     const getTimestampSeconds = (tsField) => {
       if (!tsField) return null;
+      
+      // Se for string ISO, converte diretamente
       if (typeof tsField === 'string') {
         const date = new Date(tsField);
         return isNaN(date.getTime()) ? null : date.getTime() / 1000;
       }
-      if (tsField.seconds || tsField._seconds) return tsField.seconds || tsField._seconds;
-      if (tsField.toDate) return tsField.toDate().getTime() / 1000;
-      if (tsField.timestampValue) {
-        const date = new Date(tsField.timestampValue);
-        return isNaN(date.getTime()) ? null : date.getTime() / 1000;
+      
+      // Se for objeto Timestamp do Firebase SDK (tem seconds e toDate)
+      if (tsField.toDate && typeof tsField.toDate === 'function') {
+        try {
+          const date = tsField.toDate();
+          return isNaN(date.getTime()) ? null : date.getTime() / 1000;
+        } catch (e) {
+          // Fallback para seconds se toDate falhar
+        }
       }
+      
+      // Se tiver seconds (Timestamp do Firebase SDK)
+      if (tsField.seconds !== undefined) {
+        return typeof tsField.seconds === 'number' ? tsField.seconds : null;
+      }
+      
+      // Se tiver _seconds (formato alternativo)
+      if (tsField._seconds !== undefined) {
+        return typeof tsField._seconds === 'number' ? tsField._seconds : null;
+      }
+      
+      // Se tiver timestampValue (formato REST API)
+      if (tsField.timestampValue) {
+        if (typeof tsField.timestampValue === 'string') {
+          const date = new Date(tsField.timestampValue);
+          return isNaN(date.getTime()) ? null : date.getTime() / 1000;
+        }
+        // Se timestampValue for um objeto Timestamp
+        if (tsField.timestampValue.toDate) {
+          try {
+            const date = tsField.timestampValue.toDate();
+            return isNaN(date.getTime()) ? null : date.getTime() / 1000;
+          } catch (e) {}
+        }
+        if (tsField.timestampValue.seconds !== undefined) {
+          return typeof tsField.timestampValue.seconds === 'number' ? tsField.timestampValue.seconds : null;
+        }
+      }
+      
       return null;
     };
     
@@ -3890,21 +3925,56 @@ const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, displa
           // Verificar se candidato é novo (menos de 7 dias)
           const isNew = (() => {
             const getTs = (tsField) => {
-              if (!tsField) return 0;
+              if (!tsField) return null;
+              
+              // Se for string ISO, converte diretamente
               if (typeof tsField === 'string') {
                 const d = new Date(tsField);
-                return isNaN(d.getTime()) ? 0 : d.getTime() / 1000;
+                return isNaN(d.getTime()) ? null : d.getTime() / 1000;
               }
-              if (tsField.seconds || tsField._seconds) return tsField.seconds || tsField._seconds;
-              if (tsField.toDate) return tsField.toDate().getTime() / 1000;
+              
+              // Se for objeto Timestamp do Firebase SDK (tem seconds e toDate)
+              if (tsField.toDate && typeof tsField.toDate === 'function') {
+                try {
+                  const date = tsField.toDate();
+                  return isNaN(date.getTime()) ? null : date.getTime() / 1000;
+                } catch (e) {
+                  // Fallback para seconds se toDate falhar
+                }
+              }
+              
+              // Se tiver seconds (Timestamp do Firebase SDK)
+              if (tsField.seconds !== undefined) {
+                return typeof tsField.seconds === 'number' ? tsField.seconds : null;
+              }
+              
+              // Se tiver _seconds (formato alternativo)
+              if (tsField._seconds !== undefined) {
+                return typeof tsField._seconds === 'number' ? tsField._seconds : null;
+              }
+              
+              // Se tiver timestampValue (formato REST API)
               if (tsField.timestampValue) {
-                const d = new Date(tsField.timestampValue);
-                return isNaN(d.getTime()) ? 0 : d.getTime() / 1000;
+                if (typeof tsField.timestampValue === 'string') {
+                  const d = new Date(tsField.timestampValue);
+                  return isNaN(d.getTime()) ? null : d.getTime() / 1000;
+                }
+                // Se timestampValue for um objeto Timestamp
+                if (tsField.timestampValue.toDate) {
+                  try {
+                    const date = tsField.timestampValue.toDate();
+                    return isNaN(date.getTime()) ? null : date.getTime() / 1000;
+                  } catch (e) {}
+                }
+                if (tsField.timestampValue.seconds !== undefined) {
+                  return typeof tsField.timestampValue.seconds === 'number' ? tsField.timestampValue.seconds : null;
+                }
               }
-              return 0;
+              
+              return null;
             };
             const ts = getTs(c.original_timestamp) || getTs(c.createdAt);
-            if (!ts) return false;
+            if (!ts || ts === 0) return false;
             const daysAgo = (Date.now() / 1000 - ts) / (24 * 60 * 60);
             return daysAgo <= 7;
           })();
