@@ -1561,9 +1561,20 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
              // Prefer options from system lists, fallback to deriving from candidates
              let optionsList = [];
              if(field.value === 'city') {
-               optionsList = (options.cities && options.cities.length>0) 
-                 ? options.cities.map(c=>({id:c.id,name:c.name})) 
-                 : Array.from(new Set(candidates.map(x=>x.city).filter(Boolean))).map((n,i)=>({id:i,name:n}));
+               // Prioriza cidades dos candidatos
+               const candidateCities = Array.from(new Set(candidates.map(x => x.city).filter(Boolean))).map((n, i) => ({id: `candidate_${i}`, name: n}));
+               const optionCities = (options.cities && options.cities.length > 0) 
+                 ? options.cities.map(c => ({id: c.id, name: c.name})) 
+                 : [];
+               // Combina, priorizando cidades dos candidatos e removendo duplicatas
+               const allOptionsMap = new Map();
+               candidateCities.forEach(c => allOptionsMap.set(c.name.toLowerCase(), c));
+               optionCities.forEach(c => {
+                 if (!allOptionsMap.has(c.name.toLowerCase())) {
+                   allOptionsMap.set(c.name.toLowerCase(), c);
+                 }
+               });
+               optionsList = Array.from(allOptionsMap.values());
                optionsList = sortAlphabetically(optionsList);
                optionsList = filterBySearch(optionsList, searchTexts.city);
              }
@@ -1600,131 +1611,148 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
              const needsSearch = ['city', 'interestAreas', 'source', 'schoolingLevel'].includes(field.value);
 
              return (
-               <div key={field.value} className="space-y-2">
-                 <div className="flex justify-between items-center">
-                 <label className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase">{field.label.replace(':', '')}</label>
-                   {hasOptions && (
-                     <button
-                       onClick={() => toggleExpanded(field.value)}
-                       className="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
-                     >
-                       {expandedFilters[field.value] ? 'Recolher' : 'Expandir'}
-                     </button>
-                   )}
-                 </div>
-                 {needsSearch && (
-                   <div className="mb-2">
-                     <input
-                       type="text"
-                       className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-2 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                       placeholder={`Buscar ${field.label.replace(':', '').toLowerCase()}...`}
-                       value={searchTexts[field.value] || ''}
-                       onChange={e => {
-                         const searchValue = e.target.value;
-                         setSearchTexts({...searchTexts, [field.value]: searchValue});
-                       }}
-                       onKeyDown={(e) => {
-                         // Ao pressionar Enter, pré-seleciona todos os resultados filtrados
-                         if (e.key === 'Enter' && searchTexts[field.value] && optionsList.length > 0) {
-                           e.preventDefault();
-                           handleSelectAllFiltered(field.value, optionsList);
-                         }
-                       }}
-                     />
-                     {searchTexts[field.value] && optionsList.length > 0 && (
-                       <div className="mt-2 flex gap-2">
+               <div key={field.value} className="space-y-3 pb-4 border-b border-gray-200 dark:border-gray-700">
+                 <label className="text-sm font-semibold text-gray-900 dark:text-white block">{field.label.replace(':', '')}</label>
+                 
+                 {needsSearch ? (
+                   <>
+                     <div className="relative">
+                       <input
+                         type="text"
+                         className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                         placeholder={`Digite para buscar ${field.label.replace(':', '').toLowerCase()}...`}
+                         value={searchTexts[field.value] || ''}
+                         onChange={e => {
+                           const searchValue = e.target.value;
+                           setSearchTexts({...searchTexts, [field.value]: searchValue});
+                         }}
+                         onKeyDown={(e) => {
+                           if (e.key === 'Enter' && searchTexts[field.value] && optionsList.length > 0) {
+                             e.preventDefault();
+                             handleSelectAllFiltered(field.value, optionsList);
+                           }
+                         }}
+                       />
+                       {searchTexts[field.value] && (
                          <button
-                           onClick={() => handleSelectAllFiltered(field.value, optionsList)}
-                           className={`flex-1 px-3 py-1.5 text-white text-xs font-medium rounded transition-colors ${
-                             areAllFilteredSelected(field.value, optionsList)
-                               ? 'bg-green-600 hover:bg-green-700'
-                               : 'bg-blue-600 hover:bg-blue-700'
-                           }`}
+                           onClick={() => setSearchTexts({...searchTexts, [field.value]: ''})}
+                           className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                          >
-                           {areAllFilteredSelected(field.value, optionsList) ? '✓ Todos Selecionados' : `Marcar Todos (${optionsList.length})`}
+                           <X size={16} />
                          </button>
-                         <button
-                           onClick={() => handleDeselectAllFiltered(field.value, optionsList)}
-                           className="flex-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded transition-colors"
-                         >
-                           Desmarcar Todos
-                         </button>
-                       </div>
+                       )}
+                     </div>
+                     
+                     {optionsList.length > 0 && (
+                       <>
+                         <div className="flex gap-2 mb-2">
+                           <button
+                             onClick={() => handleSelectAllFiltered(field.value, optionsList)}
+                             className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+                               areAllFilteredSelected(field.value, optionsList)
+                                 ? 'bg-green-500 hover:bg-green-600 text-white'
+                                 : 'bg-blue-500 hover:bg-blue-600 text-white'
+                             }`}
+                           >
+                             {areAllFilteredSelected(field.value, optionsList) ? '✓ Todos' : `Marcar Todos (${optionsList.length})`}
+                           </button>
+                           <button
+                             onClick={() => handleDeselectAllFiltered(field.value, optionsList)}
+                             className="px-3 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-xs font-medium rounded-lg transition-colors"
+                           >
+                             Desmarcar
+                           </button>
+                         </div>
+                         
+                         <div className="max-h-64 overflow-y-auto bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-2 space-y-1">
+                           <label className="flex items-center gap-2 p-2 hover:bg-white dark:hover:bg-gray-800 rounded cursor-pointer transition-colors">
+                             <input
+                               type="checkbox"
+                               checked={filters[field.value] === 'all' || !filters[field.value] || (Array.isArray(filters[field.value]) && filters[field.value].length === 0)}
+                               onChange={() => setFilters({...filters, [field.value]: 'all'})}
+                               className="accent-blue-600 dark:accent-blue-500 w-4 h-4"
+                             />
+                             <span className="text-sm text-gray-900 dark:text-white font-medium">Todos</span>
+                           </label>
+                           {optionsList.map(o => (
+                             <label key={o.id || o.name} className="flex items-center gap-2 p-2 hover:bg-white dark:hover:bg-gray-800 rounded cursor-pointer transition-colors">
+                               <input
+                                 type="checkbox"
+                                 checked={isSelected(field.value, o.name)}
+                                 onChange={() => handleMultiSelect(field.value, o.name)}
+                                 className="accent-blue-600 dark:accent-blue-500 w-4 h-4"
+                               />
+                               <span className="text-sm text-gray-900 dark:text-white">{o.name}</span>
+                             </label>
+                           ))}
+                         </div>
+                       </>
                      )}
+                     {searchTexts[field.value] && optionsList.length === 0 && (
+                       <p className="text-xs text-gray-500 dark:text-gray-400 italic">Nenhum resultado encontrado</p>
+                     )}
+                   </>
+                 ) : hasOptions ? (
+                   <div className="max-h-64 overflow-y-auto bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-2 space-y-1">
+                     <label className="flex items-center gap-2 p-2 hover:bg-white dark:hover:bg-gray-800 rounded cursor-pointer transition-colors">
+                       <input
+                         type="checkbox"
+                         checked={filters[field.value] === 'all' || !filters[field.value] || (Array.isArray(filters[field.value]) && filters[field.value].length === 0)}
+                         onChange={() => setFilters({...filters, [field.value]: 'all'})}
+                         className="accent-blue-600 dark:accent-blue-500 w-4 h-4"
+                       />
+                       <span className="text-sm text-gray-900 dark:text-white font-medium">Todos</span>
+                     </label>
+                     {optionsList.map(o => (
+                       <label key={o.id || o.name} className="flex items-center gap-2 p-2 hover:bg-white dark:hover:bg-gray-800 rounded cursor-pointer transition-colors">
+                         <input
+                           type="checkbox"
+                           checked={isSelected(field.value, o.name)}
+                           onChange={() => handleMultiSelect(field.value, o.name)}
+                           className="accent-blue-600 dark:accent-blue-500 w-4 h-4"
+                         />
+                         <span className="text-sm text-gray-900 dark:text-white">{o.name}</span>
+                       </label>
+                     ))}
                    </div>
-                 )}
-                 {hasOptions ? (
-                   expandedFilters[field.value] ? (
-                     <div className="max-h-48 overflow-y-auto bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-2 space-y-1">
-                       <label className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
-                         <input
-                           type="checkbox"
-                           checked={filters[field.value] === 'all' || !filters[field.value] || (Array.isArray(filters[field.value]) && filters[field.value].length === 0)}
-                           onChange={() => setFilters({...filters, [field.value]: 'all'})}
-                           className="accent-blue-600 dark:accent-blue-500"
-                         />
-                         <span className="text-sm text-white">Todos</span>
-                       </label>
-                       {optionsList.map(o => (
-                         <label key={o.id || o.name} className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
-                           <input
-                             type="checkbox"
-                             checked={isSelected(field.value, o.name)}
-                             onChange={() => handleMultiSelect(field.value, o.name)}
-                             className="accent-blue-600 dark:accent-blue-500"
-                           />
-                           <span className="text-sm text-white">{o.name}</span>
-                         </label>
-                       ))}
-                     </div>
-                   ) : (
-                     <select 
-                       className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-3 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
-                       value={Array.isArray(filters[field.value]) ? filters[field.value][0] || 'all' : (filters[field.value] || 'all')} 
-                       onChange={e => setFilters({...filters, [field.value]: e.target.value === 'all' ? 'all' : [e.target.value]})}
-                     >
-                     <option value="all">Todos</option>
-                     {optionsList.map(o => <option key={o.id || o.name} value={o.name}>{o.name}</option>)}
-                   </select>
-                   )
                  ) : isBoolean ? (
-                   expandedFilters[field.value] ? (
-                     <div className="max-h-32 overflow-y-auto bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-2 space-y-1">
-                       <label className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
-                         <input
-                           type="checkbox"
-                           checked={filters[field.value] === 'all' || !filters[field.value] || (Array.isArray(filters[field.value]) && filters[field.value].length === 0)}
-                           onChange={() => setFilters({...filters, [field.value]: 'all'})}
-                           className="accent-blue-600 dark:accent-blue-500"
-                         />
-                         <span className="text-sm text-white">Todos</span>
-                       </label>
-                       <label className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
-                         <input
-                           type="checkbox"
-                           checked={isSelected(field.value, 'Sim')}
-                           onChange={() => handleMultiSelect(field.value, 'Sim')}
-                           className="accent-blue-600 dark:accent-blue-500"
-                         />
-                         <span className="text-sm text-white">Sim</span>
-                       </label>
-                       <label className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
-                         <input
-                           type="checkbox"
-                           checked={isSelected(field.value, 'Não')}
-                           onChange={() => handleMultiSelect(field.value, 'Não')}
-                           className="accent-blue-600 dark:accent-blue-500"
-                         />
-                         <span className="text-sm text-white">Não</span>
-                       </label>
-                     </div>
-                   ) : (
-                     <select className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-3 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={Array.isArray(filters[field.value]) ? filters[field.value][0] || 'all' : (filters[field.value] || 'all')} onChange={e => setFilters({...filters, [field.value]: e.target.value === 'all' ? 'all' : [e.target.value]})}>
-                     <option value="all">Todos</option><option value="Sim">Sim</option><option value="Não">Não</option>
-                   </select>
-                   )
+                   <div className="space-y-2">
+                     <label className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded cursor-pointer transition-colors">
+                       <input
+                         type="checkbox"
+                         checked={filters[field.value] === 'all' || !filters[field.value] || (Array.isArray(filters[field.value]) && filters[field.value].length === 0)}
+                         onChange={() => setFilters({...filters, [field.value]: 'all'})}
+                         className="accent-blue-600 dark:accent-blue-500 w-4 h-4"
+                       />
+                       <span className="text-sm text-gray-900 dark:text-white font-medium">Todos</span>
+                     </label>
+                     <label className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded cursor-pointer transition-colors">
+                       <input
+                         type="checkbox"
+                         checked={isSelected(field.value, 'Sim')}
+                         onChange={() => handleMultiSelect(field.value, 'Sim')}
+                         className="accent-blue-600 dark:accent-blue-500 w-4 h-4"
+                       />
+                       <span className="text-sm text-gray-900 dark:text-white">Sim</span>
+                     </label>
+                     <label className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded cursor-pointer transition-colors">
+                       <input
+                         type="checkbox"
+                         checked={isSelected(field.value, 'Não')}
+                         onChange={() => handleMultiSelect(field.value, 'Não')}
+                         className="accent-blue-600 dark:accent-blue-500 w-4 h-4"
+                       />
+                       <span className="text-sm text-gray-900 dark:text-white">Não</span>
+                     </label>
+                   </div>
                  ) : (
-                   <input type="text" className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-3 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder={`Filtrar...`} value={filters[field.value] || ''} onChange={e => setFilters({...filters, [field.value]: e.target.value})}/>
+                   <input 
+                     type="text" 
+                     className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all" 
+                     placeholder={`Filtrar...`} 
+                     value={filters[field.value] || ''} 
+                     onChange={e => setFilters({...filters, [field.value]: e.target.value})}
+                   />
                  )}
                </div>
              );
@@ -1746,89 +1774,85 @@ const FilterSidebar = ({ isOpen, onClose, filters, setFilters, clearFilters, opt
             if (tagsList.length === 0) return null;
 
             return (
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <label className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase">Tags</label>
-                  <button
-                    onClick={() => toggleExpanded('tags')}
-                    className="text-xs text-gray-600 dark:text-gray-400 hover:text-white"
-                  >
-                    {expandedFilters.tags ? 'Recolher' : 'Expandir'}
-                  </button>
+              <div className="space-y-3 pb-4 border-b border-gray-200 dark:border-gray-700">
+                <label className="text-sm font-semibold text-gray-900 dark:text-white block">Tags</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                    placeholder="Digite para buscar tags..."
+                    value={searchTexts.tags || ''}
+                    onChange={e => {
+                      const searchValue = e.target.value;
+                      setSearchTexts({...searchTexts, tags: searchValue});
+                      
+                      // Pré-selecionar automaticamente os resultados filtrados
+                      if (searchValue && filteredTags.length > 0) {
+                        const matchingNames = filteredTags.map(t => t.name);
+                        const currentValues = Array.isArray(filters.tags) ? filters.tags : (filters.tags && filters.tags !== 'all' ? [filters.tags] : []);
+                        const newValues = [...new Set([...currentValues, ...matchingNames])];
+                        setFilters({
+                          ...filters,
+                          tags: newValues.length > 0 ? newValues : 'all'
+                        });
+                      }
+                    }}
+                  />
+                  {searchTexts.tags && (
+                    <button
+                      onClick={() => setSearchTexts({...searchTexts, tags: ''})}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
                 </div>
-                <input
-                  type="text"
-                  className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-2 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 mb-2"
-                  placeholder="Buscar tags..."
-                  value={searchTexts.tags || ''}
-                  onChange={e => {
-                    const searchValue = e.target.value;
-                    setSearchTexts({...searchTexts, tags: searchValue});
-                    
-                    // Pré-selecionar automaticamente os resultados filtrados
-                    if (searchValue && filteredTags.length > 0) {
-                      const matchingNames = filteredTags.map(t => t.name);
-                      const currentValues = Array.isArray(filters.tags) ? filters.tags : (filters.tags && filters.tags !== 'all' ? [filters.tags] : []);
-                      const newValues = [...new Set([...currentValues, ...matchingNames])];
-                      setFilters({
-                        ...filters,
-                        tags: newValues.length > 0 ? newValues : 'all'
-                      });
-                    }
-                  }}
-                />
-                {searchTexts.tags && filteredTags.length > 0 && (
-                  <div className="mb-2 flex gap-2">
-                    <button
-                      onClick={() => handleSelectAllFiltered('tags', filteredTags)}
-                      className={`flex-1 px-3 py-1.5 text-white text-xs font-medium rounded transition-colors ${
-                        areAllFilteredSelected('tags', filteredTags)
-                          ? 'bg-green-600 hover:bg-green-700'
-                          : 'bg-blue-600 hover:bg-blue-700'
-                      }`}
-                    >
-                      {areAllFilteredSelected('tags', filteredTags) ? '✓ Todos Selecionados' : `Marcar Todos (${filteredTags.length})`}
-                    </button>
-                    <button
-                      onClick={() => handleDeselectAllFiltered('tags', filteredTags)}
-                      className="flex-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded transition-colors"
-                    >
-                      Desmarcar Todos
-                    </button>
-                  </div>
-                )}
-                {expandedFilters.tags ? (
-                  <div className="max-h-48 overflow-y-auto bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-2 space-y-1">
-                    <label className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={filters.tags === 'all' || !filters.tags || (Array.isArray(filters.tags) && filters.tags.length === 0)}
-                        onChange={() => setFilters({...filters, tags: 'all'})}
-                        className="accent-blue-600 dark:accent-blue-500"
-                      />
-                      <span className="text-sm text-white">Todas as tags</span>
-                    </label>
-                    {filteredTags.map(tag => (
-                      <label key={tag.id} className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
+                {filteredTags.length > 0 && (
+                  <>
+                    <div className="flex gap-2 mb-2">
+                      <button
+                        onClick={() => handleSelectAllFiltered('tags', filteredTags)}
+                        className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+                          areAllFilteredSelected('tags', filteredTags)
+                            ? 'bg-green-500 hover:bg-green-600 text-white'
+                            : 'bg-blue-500 hover:bg-blue-600 text-white'
+                        }`}
+                      >
+                        {areAllFilteredSelected('tags', filteredTags) ? '✓ Todos' : `Marcar Todos (${filteredTags.length})`}
+                      </button>
+                      <button
+                        onClick={() => handleDeselectAllFiltered('tags', filteredTags)}
+                        className="px-3 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-xs font-medium rounded-lg transition-colors"
+                      >
+                        Desmarcar
+                      </button>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-2 space-y-1">
+                      <label className="flex items-center gap-2 p-2 hover:bg-white dark:hover:bg-gray-800 rounded cursor-pointer transition-colors">
                         <input
                           type="checkbox"
-                          checked={isSelected('tags', tag.name)}
-                          onChange={() => handleMultiSelect('tags', tag.name)}
-                          className="accent-blue-600 dark:accent-blue-500"
+                          checked={filters.tags === 'all' || !filters.tags || (Array.isArray(filters.tags) && filters.tags.length === 0)}
+                          onChange={() => setFilters({...filters, tags: 'all'})}
+                          className="accent-blue-600 dark:accent-blue-500 w-4 h-4"
                         />
-                        <span className="text-sm text-white truncate">{tag.name}</span>
+                        <span className="text-sm text-gray-900 dark:text-white font-medium">Todas as Tags</span>
                       </label>
-                    ))}
-                  </div>
-                ) : (
-                  <select 
-                    className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-3 text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
-                    value={Array.isArray(filters.tags) ? filters.tags[0] || 'all' : (filters.tags || 'all')} 
-                    onChange={e => setFilters({...filters, tags: e.target.value === 'all' ? 'all' : [e.target.value]})}
-                  >
-                    <option value="all">Todas as tags</option>
-                    {tagsList.map(tag => <option key={tag.id} value={tag.name}>{tag.name}</option>)}
-                  </select>
+                      {filteredTags.map(t => (
+                        <label key={t.id || t.name} className="flex items-center gap-2 p-2 hover:bg-white dark:hover:bg-gray-800 rounded cursor-pointer transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={isSelected('tags', t.name)}
+                            onChange={() => handleMultiSelect('tags', t.name)}
+                            className="accent-blue-600 dark:accent-blue-500 w-4 h-4"
+                          />
+                          <span className="text-sm text-gray-900 dark:text-white">{t.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </>
+                )}
+                {searchTexts.tags && filteredTags.length === 0 && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 italic">Nenhum resultado encontrado</p>
                 )}
               </div>
             );
@@ -3586,10 +3610,10 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
   }, [processedData, kanbanItemsPerPage, kanbanDisplayCounts]);
 
   // Função para carregar mais itens em uma coluna
-  const loadMoreInStage = (stage) => {
+  const loadMoreInStage = (stage, amount = kanbanItemsPerPage) => {
     setKanbanDisplayCounts(prev => ({
       ...prev,
-      [stage]: (prev[stage] || kanbanItemsPerPage) + kanbanItemsPerPage
+      [stage]: (prev[stage] || kanbanItemsPerPage) + amount
     }));
   };
 
@@ -3719,12 +3743,13 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                       allJobs={jobs}
                       onDragEnd={onDragEnd} 
                       onEdit={onEdit} 
-                      onCloseStatus={onCloseStatus} 
-                      selectedIds={selectedIds} 
+                      onCloseStatus={onCloseStatus}
+                      selectedIds={selectedIds}
                       onSelect={handleSelect}
                       showColorPicker={showColorPicker}
-                      onLoadMore={() => loadMoreInStage(stage)}
+                      onLoadMore={(amount) => loadMoreInStage(stage, amount)}
                       onReset={() => resetStageCount(stage)}
+                      kanbanItemsPerPage={kanbanItemsPerPage}
                     />
                  ))}
                 </div>
@@ -3735,7 +3760,7 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                    <thead className="bg-brand-card text-white font-bold sticky top-0 z-10 shadow-sm">
                      <tr>
                        <th className="p-4 w-10"><input type="checkbox" className="accent-blue-600 dark:accent-blue-500" checked={selectedIds.length>0 && selectedIds.length===processedData.length} onChange={handleSelectAll}/></th>
-                       <th className="p-4 w-16">NOVO</th>
+                       <th className="p-4 w-12"></th>
                        <th className="p-4">Nome</th>
                        <th className="p-4 min-w-[160px]">Status</th>
                        <th className="p-4">Candidatura</th>
@@ -3821,9 +3846,6 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
                            <td className="p-4">
                              <div className="flex items-center gap-2">
                                <span className="font-bold text-white dark:text-white cursor-pointer break-words" onClick={() => onEdit(c)}>{c.fullName || 'Sem nome'}</span>
-                               {isNew && (
-                                 <span className="px-2 py-0.5 bg-green-500 text-white text-xs font-bold rounded-full animate-pulse">NOVO</span>
-                               )}
                              </div>
                            </td>
                            <td className="p-4 min-w-[160px]">
@@ -3957,7 +3979,7 @@ const PipelineView = ({ candidates, jobs, onDragEnd, onEdit, onCloseStatus, comp
   );
 };
 
-const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, displayCount, jobs, applications = [], onDragEnd, onEdit, onCloseStatus, selectedIds, onSelect, showColorPicker, onLoadMore, onReset, highlightedCandidateId = null, allJobs = [] }) => {
+const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, displayCount, jobs, applications = [], onDragEnd, onEdit, onCloseStatus, selectedIds, onSelect, showColorPicker, onLoadMore, onReset, highlightedCandidateId = null, allJobs = [], kanbanItemsPerPage = 10 }) => {
   const [columnColor, setColumnColor] = useState(() => {
     const saved = localStorage.getItem(`kanban-color-${stage}`);
     return saved || STATUS_COLORS[stage];
@@ -3984,7 +4006,7 @@ const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, displa
   ];
   
    return (
-      <div className="w-[240px] flex-shrink-0 flex flex-col bg-brand-card/40 border border-gray-200 dark:border-gray-700 rounded-xl h-full backdrop-blur-sm" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
+      <div className="w-[320px] flex-shrink-0 flex flex-col bg-brand-card/40 border border-gray-200 dark:border-gray-700 rounded-xl h-full backdrop-blur-sm" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
          <div className={`p-2 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center rounded-t-xl ${columnColor} relative`}>
            <span className="font-bold text-xs uppercase break-words">{stage}</span>
            <span className="bg-black/20 px-2 py-0.5 rounded text-xs font-mono">{total}</span>
@@ -4076,17 +4098,8 @@ const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, displa
           <div key={c.id} id={`candidate-${c.id}`} draggable onDragStart={(e) => handleDragStart(e, c.id)} onClick={() => onEdit(c)} className={`bg-brand-card p-3 rounded-lg border hover:border-brand-cyan cursor-grab shadow-sm group relative ${selectedIds.includes(c.id) ? 'border-brand-orange bg-brand-orange/5' : 'border-gray-200 dark:border-gray-700'} ${isNew ? 'border-l-4 border-l-green-500' : ''} ${highlightedCandidateId === c.id ? 'ring-4 ring-yellow-400 ring-opacity-75 animate-pulse border-yellow-400' : ''}`}>
             <div className={`absolute top-2 left-2 z-20 ${selectedIds.includes(c.id)?'opacity-100':'opacity-0 group-hover:opacity-100'}`} onClick={e=>e.stopPropagation()}><input type="checkbox" className="accent-blue-600 dark:accent-blue-500" checked={selectedIds.includes(c.id)} onChange={()=>onSelect(c.id)}/></div>
             
-            {/* Flag NOVO fixa */}
-            {isNew && (
-              <div className="absolute top-2 left-8 z-10">
-                <span className="px-1.5 py-0.5 bg-green-500 text-white text-[10px] font-bold rounded-full animate-pulse">
-                  NOVO
-                </span>
-              </div>
-            )}
-            
             {/* Cabeçalho com resumo */}
-            <div className={`mb-2 border-b border-gray-200 dark:border-gray-700/50 pb-2 ${isNew ? 'pl-12' : 'pl-6'}`}>
+            <div className="mb-2 border-b border-gray-200 dark:border-gray-700/50 pb-2 pl-6">
               <h4 className="font-bold text-gray-900 dark:text-white text-sm break-words mb-1">{c.fullName}</h4>
               <div className="text-xs space-y-0.5">
                 {primaryJob && (
@@ -4143,7 +4156,7 @@ const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, displa
               </div>
             </div>
             
-            <div className={`grid grid-cols-1 gap-1 ${isNew ? 'pl-12' : 'pl-6'}`}>
+            <div className="grid grid-cols-1 gap-1 pl-6">
               <div className="text-xs text-slate-400 truncate flex gap-1"><Mail size={10}/> {c.email || 'N/D'}</div>
               <div className="text-xs text-slate-400 truncate flex gap-1">📞 {c.phone || 'N/D'}</div>
               {c.score && <div className="text-xs text-blue-600 dark:text-blue-400 font-bold">Match: {c.score}%</div>}
@@ -4181,7 +4194,8 @@ const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, displa
                 if (!ts) return null;
                 const date = new Date(ts * 1000);
                 return (
-                  <div className="text-xs text-gray-500 dark:text-gray-500 flex items-center gap-1">
+                  <div className="text-xs text-gray-500 dark:text-gray-500 flex items-center gap-1.5">
+                    {isNew && <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" title="Candidato novo (últimos 7 dias)"></div>}
                     <Clock size={10}/> {date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                   </div>
                 );
@@ -4203,22 +4217,51 @@ const KanbanColumn = ({ stage, allCandidates, displayedCandidates, total, displa
           <div className="text-center py-8 text-slate-500 text-xs">Nenhum candidato nesta etapa</div>
         )}
         </div>
-        {/* Botão "Ver mais" se houver mais itens para mostrar */}
+        {/* Botões de paginação */}
         {displayedCandidates.length < total && (
-          <div className="p-2 border-t border-gray-200 dark:border-gray-700">
+          <div className="p-2 border-t border-gray-200 dark:border-gray-700 space-y-1">
+            <div className="flex gap-1">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onLoadMore(10);
+                }}
+                className="flex-1 px-2 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+              >
+                +10
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onLoadMore(25);
+                }}
+                className="flex-1 px-2 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+              >
+                +25
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onLoadMore(50);
+                }}
+                className="flex-1 px-2 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+              >
+                +50
+              </button>
+            </div>
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onLoadMore();
+                onLoadMore(total - displayedCandidates.length);
               }}
-              className="w-full px-3 py-2 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              className="w-full px-3 py-1.5 text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded transition-colors"
             >
-              Ver mais ({total - displayedCandidates.length} restantes)
+              Ver tudo ({total - displayedCandidates.length} restantes)
             </button>
           </div>
         )}
         {/* Botão "Mostrar menos" se houver mais itens exibidos que o padrão */}
-        {displayCount > (displayCount || 10) && displayedCandidates.length >= displayCount && (
+        {displayCount > (kanbanItemsPerPage || 10) && displayedCandidates.length >= displayCount && (
           <div className="p-2 border-t border-gray-200 dark:border-gray-700">
             <button
               onClick={(e) => {
@@ -4526,7 +4569,7 @@ const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = []
               <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700 w-10">
                 <input type="checkbox" className="accent-blue-600 dark:accent-blue-500" />
               </th>
-              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700 w-16">NOVO</th>
+              <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700 w-12"></th>
               <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Nome</th>
               <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700 min-w-[160px]">Status</th>
               <th className="p-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase border-b border-gray-200 dark:border-gray-700">Email</th>
@@ -4560,9 +4603,7 @@ const TalentBankView = ({ candidates, jobs, companies, onEdit, applications = []
                   </td>
                   <td className="p-3 text-center">
                     {isNew && (
-                      <span className="px-2 py-0.5 bg-green-500 text-white text-xs font-bold rounded-full animate-pulse inline-block">
-                        NOVO
-                      </span>
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mx-auto" title="Candidato novo (últimos 7 dias)"></div>
                     )}
                   </td>
                   <td className="p-3">
