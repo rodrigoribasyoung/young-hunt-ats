@@ -24,7 +24,6 @@ const SPREADSHEET_ID = "1DKJSelwLZkBag-1ORe-IXT2TVI0XpRpj-CIgR0oaIf0";
  * NÃO modifica a planilha - envia diretamente para o Firebase
  */
 function onFormSubmit(e) {
-  // Log de debug para entender o que está sendo recebido
   Logger.log("🔍 DEBUG: onFormSubmit chamado");
   Logger.log(`   Tipo do evento: ${typeof e}`);
   Logger.log(`   Evento existe: ${!!e}`);
@@ -34,40 +33,104 @@ function onFormSubmit(e) {
     Logger.log(`   e.namedValues existe: ${!!e.namedValues}`);
     Logger.log(`   e.values existe: ${!!e.values}`);
     Logger.log(`   e.range existe: ${!!e.range}`);
+    Logger.log(`   e.response existe: ${!!e.response}`);
+    Logger.log(`   e.source existe: ${!!e.source}`);
   }
   
-  // Verifica se o evento é válido
   if (!e) {
     Logger.log("⚠️  ERRO: Evento não recebido (null ou undefined)");
-    Logger.log("   Esta função deve ser acionada automaticamente pelo gatilho do Google Forms.");
-    Logger.log("   Verifique se o gatilho está configurado corretamente:");
-    Logger.log("   - Função: onFormSubmit");
-    Logger.log("   - Origem: Do formulário");
-    Logger.log("   - Tipo: Ao enviar o formulário");
+    Logger.log("   Verifique se o gatilho está configurado corretamente.");
     return;
   }
   
-  // Verifica se tem namedValues (formato do Google Forms)
-  if (!e.namedValues) {
-    Logger.log("⚠️  ERRO: Evento inválido - não contém 'namedValues'");
-    Logger.log("   Isso geralmente acontece quando:");
-    Logger.log("   1. A função é executada manualmente");
-    Logger.log("   2. Um gatilho time-based está chamando esta função incorretamente");
-    Logger.log("   3. O evento não é do tipo 'onFormSubmit' do Google Forms");
-    Logger.log("");
-    Logger.log("   SOLUÇÃO: Verifique os gatilhos em: Editar → Gatilhos do projeto atual");
-    Logger.log("   Deve haver APENAS um gatilho:");
+  // Tenta obter dados do formulário de diferentes formas
+  var responses = null;
+  
+  // Formato 1: e.namedValues (formato tradicional do Forms)
+  if (e.namedValues) {
+    Logger.log("✅ Usando formato e.namedValues");
+    responses = e.namedValues;
+  }
+  // Formato 2: e.response (novo formato do Forms)
+  else if (e.response) {
+    Logger.log("✅ Usando formato e.response");
+    try {
+      var formResponse = e.response;
+      responses = {};
+      var itemResponses = formResponse.getItemResponses();
+      
+      Logger.log(`   Total de respostas encontradas: ${itemResponses.length}`);
+      
+      for (var i = 0; i < itemResponses.length; i++) {
+        try {
+          var itemResponse = itemResponses[i];
+          var item = itemResponse.getItem();
+          var title = item.getTitle();
+          var response = itemResponse.getResponse();
+          
+          // Converte resposta para array (formato esperado)
+          if (Array.isArray(response)) {
+            responses[title] = response;
+          } else if (response !== null && response !== undefined) {
+            responses[title] = [String(response)];
+          } else {
+            responses[title] = [""];
+          }
+          
+          Logger.log(`   Campo ${i + 1}: "${title}" = ${responses[title].join(', ')}`);
+        } catch (itemErr) {
+          Logger.log(`   ⚠️  Erro ao processar item ${i + 1}: ${itemErr.message}`);
+        }
+      }
+      
+      // Adiciona Carimbo de data/hora se não estiver presente
+      if (!responses['Carimbo de data/hora']) {
+        try {
+          var timestamp = formResponse.getTimestamp();
+          responses['Carimbo de data/hora'] = [timestamp ? timestamp.toISOString() : new Date().toISOString()];
+          Logger.log(`   Carimbo de data/hora adicionado: ${responses['Carimbo de data/hora'][0]}`);
+        } catch (tsErr) {
+          Logger.log(`   ⚠️  Erro ao obter timestamp: ${tsErr.message}`);
+          responses['Carimbo de data/hora'] = [new Date().toISOString()];
+        }
+      }
+      
+      Logger.log(`   ✅ Total de campos extraídos: ${Object.keys(responses).length}`);
+    } catch (err) {
+      Logger.log(`❌ Erro ao extrair dados de e.response: ${err.message}`);
+      Logger.log(`   Stack: ${err.stack}`);
+      Logger.log(`   Tipo de e.response: ${typeof e.response}`);
+      if (e.response && e.response.toString) {
+        Logger.log(`   e.response.toString(): ${e.response.toString()}`);
+      }
+      return;
+    }
+  }
+  // Formato 3: e.source (se script está vinculado à planilha)
+  else if (e.source) {
+    Logger.log("⚠️  Script parece estar vinculado à planilha, não ao formulário.");
+    Logger.log("   Para funcionar corretamente, o script deve estar vinculado ao Google Forms.");
+    Logger.log("   Solução:");
+    Logger.log("   1. Abra o Google Forms");
+    Logger.log("   2. Clique em Extensões → Apps Script");
+    Logger.log("   3. Cole o código neste projeto vinculado ao Forms");
+    Logger.log("   4. Configure o gatilho: onFormSubmit → Do formulário → Ao enviar o formulário");
+    return;
+  }
+  else {
+    Logger.log("❌ ERRO: Evento não contém namedValues, response nem source.");
+    Logger.log("   Propriedades disponíveis: " + Object.keys(e).join(', '));
+    Logger.log("   Verifique se o gatilho está configurado corretamente:");
     Logger.log("   - Função: onFormSubmit");
-    Logger.log("   - Origem: Do formulário");
+    Logger.log("   - Origem: Do formulário (NÃO da planilha)");
     Logger.log("   - Tipo: Ao enviar o formulário");
     return;
   }
 
   try {
     Logger.log("📝 Novo formulário recebido - Processando...");
-    Logger.log(`   Total de campos recebidos: ${Object.keys(e.namedValues).length}`);
+    Logger.log(`   Total de campos recebidos: ${Object.keys(responses).length}`);
     
-    const responses = e.namedValues;
     const candidato = mapearFormularioParaCandidato(responses);
     
     if (!candidato || !candidato.fullName) {
@@ -1379,5 +1442,69 @@ function validarMapeamentoCampos() {
     Logger.log("   ... e mais " + (formLabels.length - 10) + " campos. Consulte FORM_TO_FIREBASE no código.");
   }
 
+  Logger.log("=".repeat(60));
+}
+
+/**
+ * Função auxiliar para diagnosticar o formato do evento recebido.
+ * Execute esta função manualmente passando um evento simulado ou use nos logs.
+ */
+function diagnosticarEvento(e) {
+  Logger.log("=".repeat(60));
+  Logger.log("🔍 DIAGNÓSTICO DO EVENTO");
+  Logger.log("=".repeat(60));
+  
+  if (!e) {
+    Logger.log("❌ Evento é null ou undefined");
+    return;
+  }
+  
+  Logger.log("Tipo: " + typeof e);
+  Logger.log("Propriedades: " + Object.keys(e).join(', '));
+  
+  if (e.namedValues) {
+    Logger.log("✅ e.namedValues existe");
+    Logger.log("   Chaves: " + Object.keys(e.namedValues).slice(0, 5).join(', ') + "...");
+  } else {
+    Logger.log("❌ e.namedValues não existe");
+  }
+  
+  if (e.response) {
+    Logger.log("✅ e.response existe");
+    try {
+      Logger.log("   Tipo: " + typeof e.response);
+      if (e.response.getItemResponses) {
+        Logger.log("   ✅ É FormResponse (tem getItemResponses)");
+        var itemResponses = e.response.getItemResponses();
+        Logger.log("   Total de respostas: " + itemResponses.length);
+        if (itemResponses.length > 0) {
+          var first = itemResponses[0];
+          Logger.log("   Primeira resposta - Item: " + first.getItem().getTitle());
+          Logger.log("   Primeira resposta - Resposta: " + first.getResponse());
+        }
+      } else {
+        Logger.log("   ⚠️  Não é FormResponse (não tem getItemResponses)");
+      }
+    } catch (err) {
+      Logger.log("   ❌ Erro ao acessar e.response: " + err.message);
+    }
+  } else {
+    Logger.log("❌ e.response não existe");
+  }
+  
+  if (e.source) {
+    Logger.log("✅ e.source existe");
+    try {
+      Logger.log("   Tipo: " + typeof e.source);
+      if (e.source.getActiveSheet) {
+        Logger.log("   ⚠️  É Spreadsheet (script vinculado à planilha)");
+      } else if (e.source.getItems) {
+        Logger.log("   ✅ É Form (script vinculado ao formulário)");
+      }
+    } catch (err) {
+      Logger.log("   Erro ao verificar source: " + err.message);
+    }
+  }
+  
   Logger.log("=".repeat(60));
 }
