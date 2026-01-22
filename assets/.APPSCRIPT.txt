@@ -529,13 +529,25 @@ function normalizarSource(source) {
  * Execute esta função UMA VEZ para configurar
  */
 function setupTriggers() {
-  // Remove gatilhos existentes com os mesmos nomes para evitar duplicatas
+  // Remove TODOS os gatilhos existentes que chamam onFormSubmit (incluindo time-based)
   const triggers = ScriptApp.getProjectTriggers();
+  let removidos = 0;
+  
   triggers.forEach(function(trigger) {
-    if (trigger.getHandlerFunction() === 'onFormSubmit') {
+    const handlerFunction = trigger.getHandlerFunction();
+    const eventType = trigger.getEventType();
+    
+    // Remove qualquer gatilho que chame onFormSubmit, especialmente time-based
+    if (handlerFunction === 'onFormSubmit') {
+      Logger.log(`🗑️  Removendo gatilho incorreto: ${handlerFunction} (Tipo: ${eventType})`);
       ScriptApp.deleteTrigger(trigger);
+      removidos++;
     }
   });
+  
+  if (removidos > 0) {
+    Logger.log(`✅ ${removidos} gatilho(s) incorreto(s) removido(s).`);
+  }
   
   // IMPORTANTE: O gatilho precisa ser criado no contexto do Formulário
   // Se o script está vinculado ao Form, isso funcionará:
@@ -545,8 +557,10 @@ function setupTriggers() {
       .onFormSubmit()
       .create();
     
-    Logger.log("✅ Gatilho configurado com sucesso!");
-    Logger.log("   - Gatilho: onFormSubmit (executa automaticamente quando formulário é enviado)");
+    Logger.log("✅ Gatilho CORRETO configurado com sucesso!");
+    Logger.log("   - Função: onFormSubmit");
+    Logger.log("   - Tipo: Evento de envio do formulário");
+    Logger.log("   - Executa automaticamente quando formulário é enviado");
     Logger.log("   - Cada novo envio será enviado automaticamente para o Firebase");
   } catch (e) {
     Logger.log("⚠️  ATENÇÃO: Não foi possível criar gatilho automaticamente.");
@@ -559,6 +573,38 @@ function setupTriggers() {
     Logger.log("      - Tipo de evento: Ao enviar o formulário");
     Logger.log("   4. Salve");
     Logger.log(`   Erro: ${e.message}`);
+  }
+}
+
+/**
+ * Função para limpar gatilhos incorretos manualmente
+ * Execute esta função se houver gatilhos time-based chamando onFormSubmit
+ */
+function limparGatilhosIncorretos() {
+  const triggers = ScriptApp.getProjectTriggers();
+  let removidos = 0;
+  
+  Logger.log("🔍 Verificando gatilhos existentes...");
+  
+  triggers.forEach(function(trigger) {
+    const handlerFunction = trigger.getHandlerFunction();
+    const eventType = trigger.getEventType();
+    
+    Logger.log(`   - Função: ${handlerFunction}, Tipo: ${eventType}`);
+    
+    // Remove qualquer gatilho time-based que chame onFormSubmit
+    if (handlerFunction === 'onFormSubmit' && eventType === ScriptApp.EventType.CLOCK) {
+      Logger.log(`   ❌ Gatilho INCORRETO encontrado (time-based chamando onFormSubmit) - Removendo...`);
+      ScriptApp.deleteTrigger(trigger);
+      removidos++;
+    }
+  });
+  
+  if (removidos > 0) {
+    Logger.log(`✅ ${removidos} gatilho(s) incorreto(s) removido(s).`);
+    Logger.log("   Agora execute setupTriggers() para configurar o gatilho correto.");
+  } else {
+    Logger.log("✅ Nenhum gatilho incorreto encontrado.");
   }
 }
 
