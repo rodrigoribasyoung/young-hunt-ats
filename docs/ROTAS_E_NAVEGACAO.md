@@ -4,7 +4,16 @@ Este documento descreve todas as rotas e slugs disponíveis no sistema.
 
 ## 📍 Rotas Principais
 
-### Rotas de Páginas
+### Rotas Públicas (Sem Autenticação)
+
+| Rota | Descrição | Componente |
+|------|-----------|------------|
+| `/apply` | Formulário público de candidatos | `PublicCandidateForm` |
+| `/apply/thank-you` | Página de agradecimento após envio | `ThankYouPage` |
+
+**Nota:** Essas rotas são acessíveis sem login e permitem que candidatos externos se cadastrem.
+
+### Rotas de Páginas (Requerem Autenticação)
 
 | Rota | Slug | Descrição | Componente |
 |------|------|-----------|------------|

@@ -40,6 +40,8 @@ import ReportsPage from './components/ReportsPage';
 import HelpPage from './components/HelpPage';
 import CandidateProfilePage from './components/CandidateProfilePage';
 import DiagnosticPage from './components/DiagnosticPage';
+import PublicCandidateForm from './components/PublicCandidateForm';
+import ThankYouPage from './components/ThankYouPage';
 import { useTheme } from './ThemeContext';
 
 import { PIPELINE_STAGES, STATUS_COLORS, JOB_STATUSES, CSV_FIELD_MAPPING_OPTIONS, ALL_STATUSES, CLOSING_STATUSES, STAGE_REQUIRED_FIELDS, CANDIDATE_FIELDS, getFieldDisplayName, REJECTION_REASONS } from './constants';
@@ -2865,11 +2867,19 @@ export default function App() {
   }
 
   if (authLoading) return <div className="flex h-screen items-center justify-center bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400"><Loader2 className="animate-spin mr-2"/> Carregando...</div>;
-  if (!user) return <LoginScreen onLogin={handleGoogleLogin} onEmailLogin={handleEmailLogin} onForgotPassword={handleForgotPassword} />;
-
+  
+  // Rotas públicas (acessíveis sem autenticação)
   return (
     <Routes>
-      <Route path="/candidate/:id" element={
+      <Route path="/apply" element={<PublicCandidateForm />} />
+      <Route path="/apply/thank-you" element={<ThankYouPage />} />
+      
+      {/* Rotas protegidas - requerem autenticação */}
+      {!user ? (
+        <Route path="*" element={<LoginScreen onLogin={handleGoogleLogin} onEmailLogin={handleEmailLogin} onForgotPassword={handleForgotPassword} />} />
+      ) : (
+        <>
+          <Route path="/candidate/:id" element={
         <CandidateProfilePage
           candidates={candidates}
           jobs={jobs}
@@ -3338,6 +3348,8 @@ export default function App() {
       )}
     </div>
       } />
+        </>
+      )}
     </Routes>
   );
 }

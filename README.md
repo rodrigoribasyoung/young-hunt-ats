@@ -161,6 +161,7 @@ VITE_FIREBASE_APP_ID=seu_app_id
   - Script oficial: `assets/.APPSCRIPT.txt`
   - ⚠️ **Nota:** O arquivo `Code.gs` em `assets/legacy/` é **LEGADO** - não usar
 - [GUIA_CRIAR_USUARIO_ADMIN.md](./GUIA_CRIAR_USUARIO_ADMIN.md) - Como criar usuário administrador no Firebase
+- [docs/FIREBASE_SECURITY_FORM.md](./docs/FIREBASE_SECURITY_FORM.md) - **Configuração de segurança para formulário público**
 
 #### Importação e Normalização de Dados
 - [GUIA_IMPORTACAO_CSV.md](./GUIA_IMPORTACAO_CSV.md) - Guia de importação de dados via CSV/XLSX
@@ -193,6 +194,8 @@ src/
 ├── ThemeContext.jsx             # Context para tema dark/light
 ├── components/
 │   ├── CandidateProfilePage.jsx # Página de perfil do candidato (/candidate/:id)
+│   ├── PublicCandidateForm.jsx  # Formulário público de candidatos (/apply)
+│   ├── ThankYouPage.jsx          # Página de agradecimento após envio
 │   ├── SettingsPage.jsx         # Página de configurações
 │   ├── DataManager.jsx          # Gerenciamento de dados base
 │   ├── ApplicationsPage.jsx     # Página de candidaturas
@@ -252,6 +255,14 @@ Proprietário - Young Talents
 - GitHub Copilot (Desenvolvimento)
 
 ## 🔧 Melhorias e Correções Recentes
+
+### ✨ Funcionalidades Adicionadas (v2.2.0)
+- ✅ **Formulário Público de Candidatos**: Formulário público (`/apply`) que substitui Google Forms + AppScript
+  - Envio direto para Firebase sem dependência de scripts externos
+  - Validação e normalização integradas
+  - Verificação de duplicatas antes de enviar
+  - Design responsivo e acessível
+  - Página de agradecimento após envio
 
 ### ✨ Funcionalidades Adicionadas (v2.1.0)
 - ✅ **Página de Perfil do Candidato**: Página dedicada (`/candidate/:id`) com dashboard, abas e histórico completo
