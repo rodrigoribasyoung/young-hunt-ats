@@ -166,6 +166,7 @@ VITE_FIREBASE_APP_ID=seu_app_id
 #### Importação e Normalização de Dados
 - [GUIA_IMPORTACAO_CSV.md](./GUIA_IMPORTACAO_CSV.md) - Guia de importação de dados via CSV/XLSX
 - [GUIA_NORMALIZACAO_CIDADES.md](./GUIA_NORMALIZACAO_CIDADES.md) - Regras de normalização de cidades
+- [docs/DELETAR_COLEÇÃO_CANDIDATES.md](./docs/DELETAR_COLEÇÃO_CANDIDATES.md) - **Zerar a coleção candidates** no Firestore (antes de reimportar CSV)
 
 #### Deploy e Troubleshooting
 - [CONFIGURACAO_VERCEL.md](./CONFIGURACAO_VERCEL.md) - Configuração de variáveis de ambiente no Vercel
@@ -177,10 +178,11 @@ VITE_FIREBASE_APP_ID=seu_app_id
 ## 🛠️ Scripts Disponíveis
 
 \`\`\`bash
-npm run dev      # Servidor de desenvolvimento
-npm run build    # Build para produção
-npm run preview  # Preview do build
-npm run lint     # Verificar linting
+npm run dev             # Servidor de desenvolvimento
+npm run build           # Build para produção
+npm run preview         # Preview do build
+npm run lint            # Verificar linting
+npm run delete-candidates   # Excluir todos os docs da coleção candidates (Firestore) — ver docs/DELETAR_COLEÇÃO_CANDIDATES.md
 \`\`\`
 
 ## 📱 Estrutura do Projeto
@@ -260,7 +262,8 @@ Proprietário - Young Talents
 - ✅ **Formulário Público de Candidatos**: Formulário público (`/apply`) que substitui Google Forms + AppScript
   - Envio direto para Firebase sem dependência de scripts externos
   - Validação e normalização integradas
-  - Verificação de duplicatas antes de enviar
+  - **Recadastro permitido**: aviso se já está no Banco de Talentos, mas permite continuar para atualizar informações
+  - **Identidade Young**: logo, cor laranja (#fe5009), fonte Be Vietnam Pro
   - Design responsivo e acessível
   - Página de agradecimento após envio
 

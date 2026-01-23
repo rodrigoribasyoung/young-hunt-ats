@@ -89,16 +89,16 @@ exports.submitCandidate = functions.https.onCall(async (data, context) => {
     tags: ['Novo Inscrito', 'Formulário Público']
   };
   
-  // Verificar duplicatas
-  const existing = await admin.firestore()
-    .collection('candidates')
-    .where('email', '==', candidateData.email)
-    .limit(1)
-    .get();
-  
-  if (!existing.empty) {
-    throw new functions.https.HttpsError('already-exists', 'Candidato já cadastrado');
-  }
+  // Verificar duplicatas (opcional: o formulário público permite recadastro com aviso)
+  // Se quiser BLOQUEAR recadastro, descomente o bloco abaixo:
+  // const existing = await admin.firestore()
+  //   .collection('candidates')
+  //   .where('email', '==', candidateData.email)
+  //   .limit(1)
+  //   .get();
+  // if (!existing.empty) {
+  //   throw new functions.https.HttpsError('already-exists', 'Candidato já cadastrado');
+  // }
   
   // Criar documento
   const docRef = await admin.firestore()
@@ -129,14 +129,16 @@ const result = await submitCandidate(normalizedData);
 
 ## Verificação
 
-Após configurar as regras:
+Após configurar as regras no Firebase Console:
 
-1. Teste o formulário público em `/apply`
-2. Preencha e envie um formulário de teste
-3. Verifique no Firebase Console se o documento foi criado:
+1. **Teste o formulário público** em `/apply` — formulário, logo Young, steps e rodapé devem carregar
+2. **Teste a página de agradecimento** em `/apply/thank-you` — deve exibir mensagem de sucesso e "Voltar ao Início"
+3. **Preencha e envie** um formulário de teste (com as regras já publicadas)
+4. **Verifique no Firebase Console** se o documento foi criado:
    - Firestore Database > `candidates`
-   - Verifique se o campo `origin` é `'public_form'`
-   - Verifique se o campo `status` é `'Inscrito'`
+   - `origin` = `'public_form'`
+   - `status` = `'Inscrito'`
+   - Campos `fullName`, `email`, `phone`, `createdAt`, `original_timestamp` presentes
 
 ## Troubleshooting
 
@@ -146,10 +148,12 @@ Após configurar as regras:
 - Verifique se o campo `origin` está sendo enviado como `'public_form'`
 - Verifique se todos os campos obrigatórios estão presentes
 
-### Erro: "Document already exists"
+### Recadastro / "Document already exists"
 
-- O email já está cadastrado (comportamento esperado)
-- O formulário já verifica duplicatas antes de enviar
+- O formulário **permite** que o mesmo e-mail se cadastre mais de uma vez
+- É exibido um aviso: "Você já faz parte do nosso Banco de Talentos. Pode continuar mesmo assim para atualizar suas informações."
+- Cada envio cria um **novo** documento em `candidates` (não há update de documento existente)
+- Se usar Cloud Function com checagem de duplicata, remova ou comente essa validação para permitir recadastro
 
 ### Erro: "Invalid data"
 
@@ -160,7 +164,9 @@ Após configurar as regras:
 
 ### Rate Limiting
 
-Adicione rate limiting no cliente ou servidor:
+**Implementado no cliente** em `PublicCandidateForm.jsx`: cooldown de 1 minuto após envio bem-sucedido (localStorage).
+
+Exemplo para servidor ou customização:
 
 ```javascript
 // No componente, antes de enviar:

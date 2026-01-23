@@ -8,7 +8,7 @@ import { normalizeSource, getMainSourcesOptions } from '../utils/sourceNormalize
 import { normalizeInterestAreasString, getMainInterestAreasOptions } from '../utils/interestAreaNormalizer';
 import { validateBirthDate } from '../utils/validation';
 import { getAllRSCities, searchRSCities } from '../utils/rsCities';
-import { Loader2, CheckCircle, AlertCircle, Send, ChevronRight, ChevronLeft, Upload, Link as LinkIcon, FileText, X, Check } from 'lucide-react';
+import { Loader2, CheckCircle, AlertCircle, Send, ChevronRight, ChevronLeft, Upload, Link as LinkIcon, FileText, X, Check, Info } from 'lucide-react';
 
 const PublicCandidateForm = () => {
   const navigate = useNavigate();
@@ -369,23 +369,29 @@ const PublicCandidateForm = () => {
       checkRequired: true,
       strictMode: false
     });
-
-    // Verificar duplicata de email
-    if (formData.email) {
-      const duplicateCheck = checkDuplicateEmail(formData.email, existingCandidates);
-      if (duplicateCheck.isDuplicate) {
-        validation.valid = false;
-        validation.errors.email = duplicateCheck.message;
-      }
-    }
-
+    // Duplicata: não bloqueia mais; apenas exibimos aviso e permitimos continuar
     setErrors(validation.errors);
     return validation.valid;
   };
 
+  // Detecta se o e-mail já está no Banco de Talentos (apenas para exibir aviso)
+  const isExistingCandidate = formData.email?.trim() &&
+    validateEmail(formData.email).valid &&
+    checkDuplicateEmail(formData.email, existingCandidates).isDuplicate;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
+    // Rate limiting (Segurança Adicional - FIREBASE_SECURITY_FORM.md)
+    const lastSubmit = localStorage.getItem('lastFormSubmit');
+    if (lastSubmit) {
+      const timeSinceLastSubmit = Date.now() - parseInt(lastSubmit, 10);
+      if (timeSinceLastSubmit < 60000) {
+        setErrors({ submit: 'Aguarde um momento antes de enviar novamente.' });
+        return;
+      }
+    }
+
     if (!validateForm()) {
       setCurrentStep(1); // Volta para o primeiro passo se houver erro
       return;
@@ -446,6 +452,7 @@ const PublicCandidateForm = () => {
       // Enviar para Firebase
       await addDoc(collection(db, 'candidates'), normalizedData);
 
+      localStorage.setItem('lastFormSubmit', Date.now().toString());
       setSubmitSuccess(true);
       
       // Redirecionar após 3 segundos
@@ -466,9 +473,10 @@ const PublicCandidateForm = () => {
 
   if (submitSuccess) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-gray-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4 font-young">
         <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 text-center">
-          <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+          <img src="/logo-young-empreendimentos.png" alt="Young Empreendimentos" className="h-12 w-auto mx-auto mb-4" />
+          <CheckCircle className="w-16 h-16 text-young-orange mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
             Formulário Enviado com Sucesso!
           </h2>
@@ -478,6 +486,7 @@ const PublicCandidateForm = () => {
           <p className="text-sm text-gray-500 dark:text-gray-400">
             Redirecionando...
           </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-6">© 2025 Young Empreendimentos</p>
         </div>
       </div>
     );
@@ -491,7 +500,7 @@ const PublicCandidateForm = () => {
           <div key={step} className="flex items-center flex-1">
             <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
               step === currentStep 
-                ? 'bg-blue-600 border-blue-600 text-white' 
+                ? 'bg-young-orange border-young-orange text-white' 
                 : step < currentStep 
                   ? 'bg-green-500 border-green-500 text-white' 
                   : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400'
@@ -533,7 +542,7 @@ const PublicCandidateForm = () => {
             onClick={() => handleChange(typeField, 'url')}
             className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               currentType === 'url'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-young-orange text-white'
                 : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
             }`}
           >
@@ -545,7 +554,7 @@ const PublicCandidateForm = () => {
             onClick={() => handleChange(typeField, 'file')}
             className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               currentType === 'file'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-young-orange text-white'
                 : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
             }`}
           >
@@ -557,7 +566,7 @@ const PublicCandidateForm = () => {
             onClick={() => handleChange(typeField, 'drive')}
             className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               currentType === 'drive'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-young-orange text-white'
                 : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
             }`}
           >
@@ -574,7 +583,7 @@ const PublicCandidateForm = () => {
             value={formData[urlField] || ''}
             onChange={(e) => handleChange(urlField, e.target.value)}
             placeholder={`https://exemplo.com/${type === 'photo' ? 'foto.jpg' : type === 'cv' ? 'curriculo.pdf' : 'portfolio.pdf'}`}
-            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange ${
               errors[urlField] ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
             } bg-white dark:bg-gray-900 text-gray-900 dark:text-white`}
           />
@@ -592,7 +601,7 @@ const PublicCandidateForm = () => {
             <button
               type="button"
               onClick={() => fileInputRefs[type].current?.click()}
-              className="w-full px-4 py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 transition-colors text-gray-600 dark:text-gray-400"
+              className="w-full px-4 py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-young-orange transition-colors text-gray-600 dark:text-gray-400"
             >
               {formData[fileField] ? (
                 <span className="flex items-center justify-center gap-2">
@@ -629,7 +638,7 @@ const PublicCandidateForm = () => {
             value={formData[driveField] || ''}
             onChange={(e) => handleChange(driveField, e.target.value)}
             placeholder="Cole o link do Google Drive aqui"
-            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange ${
               errors[driveField] ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
             } bg-white dark:bg-gray-900 text-gray-900 dark:text-white`}
           />
@@ -645,10 +654,13 @@ const PublicCandidateForm = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-50 dark:from-gray-900 dark:to-gray-800 py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-gray-50 dark:from-gray-900 dark:to-gray-800 py-12 px-4 font-young">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
+          <div className="flex justify-center mb-6">
+            <img src="/logo-young-empreendimentos.png" alt="Young Empreendimentos" className="h-14 w-auto" />
+          </div>
           <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
             Banco de Talentos - Young Empreendimentos
           </h1>
@@ -673,6 +685,15 @@ const PublicCandidateForm = () => {
             </div>
           )}
 
+          {isExistingCandidate && (
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 flex items-start gap-3 mb-6">
+              <Info className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+              <p className="text-amber-800 dark:text-amber-200 text-sm">
+                Você já faz parte do nosso Banco de Talentos. Pode continuar mesmo assim para atualizar suas informações.
+              </p>
+            </div>
+          )}
+
           {/* Step 1: Identificação e Contato */}
           {currentStep === 1 && (
             <section>
@@ -692,7 +713,7 @@ const PublicCandidateForm = () => {
                     name="fullName"
                     value={formData.fullName}
                     onChange={(e) => handleChange('fullName', e.target.value)}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange ${
                       errors.fullName ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                     } bg-white dark:bg-gray-900 text-gray-900 dark:text-white`}
                     required
@@ -709,7 +730,7 @@ const PublicCandidateForm = () => {
                     name="email"
                     value={formData.email}
                     onChange={(e) => handleChange('email', e.target.value)}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange ${
                       errors.email || fieldErrors.email ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                     } bg-white dark:bg-gray-900 text-gray-900 dark:text-white`}
                     required
@@ -728,7 +749,7 @@ const PublicCandidateForm = () => {
                     name="email_secondary"
                     value={formData.email_secondary}
                     onChange={(e) => handleChange('email_secondary', e.target.value)}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange ${
                       errors.email_secondary || fieldErrors.email_secondary ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                     } bg-white dark:bg-gray-900 text-gray-900 dark:text-white`}
                   />
@@ -747,7 +768,7 @@ const PublicCandidateForm = () => {
                     value={formData.phone}
                     onChange={(e) => handleChange('phone', e.target.value)}
                     placeholder="(51) 99999-9999"
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange ${
                       errors.phone || fieldErrors.phone ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                     } bg-white dark:bg-gray-900 text-gray-900 dark:text-white`}
                     required
@@ -778,7 +799,7 @@ const PublicCandidateForm = () => {
                     onChange={(e) => handleDateChange('birthDate', e.target.value)}
                     placeholder="DD/MM/AAAA"
                     maxLength="10"
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange ${
                       errors.birthDate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                     } bg-white dark:bg-gray-900 text-gray-900 dark:text-white`}
                   />
@@ -807,7 +828,7 @@ const PublicCandidateForm = () => {
                     name="maritalStatus"
                     value={formData.maritalStatus}
                     onChange={(e) => handleChange('maritalStatus', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                   >
                     <option value="">Selecione...</option>
                     <option value="Solteiro(a)">Solteiro(a)</option>
@@ -826,7 +847,7 @@ const PublicCandidateForm = () => {
                     name="childrenCount"
                     value={formData.childrenCount}
                     onChange={(e) => handleChange('childrenCount', e.target.value)}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange ${
                       errors.childrenCount ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                     } bg-white dark:bg-gray-900 text-gray-900 dark:text-white`}
                   >
@@ -847,7 +868,7 @@ const PublicCandidateForm = () => {
                     name="hasLicense"
                     value={formData.hasLicense}
                     onChange={(e) => handleChange('hasLicense', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                   >
                     <option value="">Selecione...</option>
                     <option value="Sim">Sim</option>
@@ -872,7 +893,7 @@ const PublicCandidateForm = () => {
                           }}
                           placeholder="Digite para buscar..."
                           list="cities-list"
-                          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange ${
                             errors.city ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                           } bg-white dark:bg-gray-900 text-gray-900 dark:text-white`}
                         />
@@ -888,7 +909,7 @@ const PublicCandidateForm = () => {
                             setCitySearchTerm('');
                             handleChange('city', '');
                           }}
-                          className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                          className="text-sm text-young-orange hover:underline"
                         >
                           + Adicionar outra cidade
                         </button>
@@ -901,7 +922,7 @@ const PublicCandidateForm = () => {
                           value={formData.cityCustom}
                           onChange={(e) => handleChange('cityCustom', e.target.value)}
                           placeholder="Digite o nome da cidade"
-                          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                          className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange ${
                             errors.cityCustom ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                           } bg-white dark:bg-gray-900 text-gray-900 dark:text-white`}
                         />
@@ -945,7 +966,7 @@ const PublicCandidateForm = () => {
                     value={formData.education}
                     onChange={(e) => handleChange('education', e.target.value)}
                     placeholder="Ex: Engenharia de Software"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                   />
                 </div>
 
@@ -957,7 +978,7 @@ const PublicCandidateForm = () => {
                     name="schoolingLevel"
                     value={formData.schoolingLevel}
                     onChange={(e) => handleChange('schoolingLevel', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                   >
                     <option value="">Selecione...</option>
                     <option value="Ensino Fundamental">Ensino Fundamental</option>
@@ -981,7 +1002,7 @@ const PublicCandidateForm = () => {
                     value={formData.institution}
                     onChange={(e) => handleChange('institution', e.target.value)}
                     placeholder="Ex: Universidade Federal do Rio Grande do Sul"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                   />
                 </div>
 
@@ -996,7 +1017,7 @@ const PublicCandidateForm = () => {
                     onChange={(e) => handleDateChange('graduationDate', e.target.value)}
                     placeholder="DD/MM/AAAA"
                     maxLength="10"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                   />
                 </div>
 
@@ -1008,7 +1029,7 @@ const PublicCandidateForm = () => {
                     name="isStudying"
                     value={formData.isStudying}
                     onChange={(e) => handleChange('isStudying', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                   >
                     <option value="">Selecione...</option>
                     <option value="Sim">Sim</option>
@@ -1026,7 +1047,7 @@ const PublicCandidateForm = () => {
                     onChange={(e) => handleChange('experience', e.target.value)}
                     rows="4"
                     placeholder="Descreva suas experiências profissionais anteriores..."
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-white resize-none"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange bg-white dark:bg-gray-900 text-gray-900 dark:text-white resize-none"
                   />
                 </div>
 
@@ -1040,7 +1061,7 @@ const PublicCandidateForm = () => {
                     onChange={(e) => handleChange('courses', e.target.value)}
                     rows="3"
                     placeholder="Liste seus cursos e certificações..."
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-white resize-none"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange bg-white dark:bg-gray-900 text-gray-900 dark:text-white resize-none"
                   />
                 </div>
 
@@ -1054,7 +1075,7 @@ const PublicCandidateForm = () => {
                     value={formData.certifications}
                     onChange={(e) => handleChange('certifications', e.target.value)}
                     placeholder="Ex: AWS Certified Cloud Practitioner"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                   />
                 </div>
 
@@ -1069,7 +1090,7 @@ const PublicCandidateForm = () => {
                     onChange={(e) => handleChange('interestAreas', e.target.value)}
                     placeholder="Ex: Desenvolvimento Web, Cloud Computing, DevOps (separadas por vírgula)"
                     list="interest-areas-list"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                   />
                   <datalist id="interest-areas-list">
                     {mainInterestAreas.map(area => (
@@ -1108,7 +1129,7 @@ const PublicCandidateForm = () => {
                             handleChange('source', e.target.value);
                           }
                         }}
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                       >
                         <option value="">Selecione...</option>
                         {mainSources.map(source => (
@@ -1125,7 +1146,7 @@ const PublicCandidateForm = () => {
                         value={formData.sourceCustom}
                         onChange={(e) => handleChange('sourceCustom', e.target.value)}
                         placeholder="Especifique onde nos encontrou"
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                       />
                       <button
                         type="button"
@@ -1151,7 +1172,7 @@ const PublicCandidateForm = () => {
                     value={formData.referral}
                     onChange={(e) => handleChange('referral', e.target.value)}
                     placeholder="Nome do colaborador (se aplicável)"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                   />
                 </div>
 
@@ -1165,7 +1186,7 @@ const PublicCandidateForm = () => {
                     value={formData.salaryExpectation}
                     onChange={(e) => handleChange('salaryExpectation', e.target.value)}
                     placeholder="Ex: R$ 8.000,00"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                   />
                 </div>
 
@@ -1177,7 +1198,7 @@ const PublicCandidateForm = () => {
                     name="canRelocate"
                     value={formData.canRelocate}
                     onChange={(e) => handleChange('canRelocate', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                   >
                     <option value="">Selecione...</option>
                     <option value="Sim">Sim</option>
@@ -1196,7 +1217,7 @@ const PublicCandidateForm = () => {
                     onChange={(e) => handleChange('references', e.target.value)}
                     rows="3"
                     placeholder="Nome, cargo, empresa e contato..."
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-white resize-none"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange bg-white dark:bg-gray-900 text-gray-900 dark:text-white resize-none"
                   />
                 </div>
 
@@ -1208,7 +1229,7 @@ const PublicCandidateForm = () => {
                     name="typeOfApp"
                     value={formData.typeOfApp}
                     onChange={(e) => handleChange('typeOfApp', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                   >
                     <option value="">Selecione...</option>
                     <option value="Vaga Específica">Vaga Específica</option>
@@ -1226,7 +1247,7 @@ const PublicCandidateForm = () => {
                     onChange={(e) => handleChange('freeField', e.target.value)}
                     rows="4"
                     placeholder="Conte-nos sobre você, suas paixões, objetivos e o que te motiva..."
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-white resize-none"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-young-orange focus:border-young-orange bg-white dark:bg-gray-900 text-gray-900 dark:text-white resize-none"
                   />
                 </div>
               </div>
@@ -1261,7 +1282,7 @@ const PublicCandidateForm = () => {
               <button
                 type="button"
                 onClick={handleNext}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                className="px-6 py-2 bg-young-orange hover:bg-young-orange-hover text-white rounded-lg font-medium transition-colors flex items-center gap-2"
               >
                 Próximo
                 <ChevronRight size={20} />
@@ -1270,7 +1291,7 @@ const PublicCandidateForm = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-6 py-2 bg-young-orange hover:bg-young-orange-hover text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {isSubmitting ? (
                   <>
@@ -1287,6 +1308,8 @@ const PublicCandidateForm = () => {
             )}
           </div>
         </form>
+
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-8 text-center">© 2025 Young Empreendimentos</p>
       </div>
     </div>
   );
